@@ -1,0 +1,10 @@
+DATA_BLOCK "UTENZA28"
+
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+"Conveyor_SEW_MOVIGEAR"
+
+BEGIN
+
+END_DATA_BLOCK

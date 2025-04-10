@@ -1,0 +1,300 @@
+FUNCTION "CONF_T9" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+BEGIN
+
+   REGION CC11ST017
+
+    REGION Conveyor.Data.CNF
+
+        "UTENZA18".Conveyor.Data.CNF.Pht01En := FALSE;
+        "UTENZA18".Conveyor.Data.CNF.Pht02En := TRUE;
+        "UTENZA18".Conveyor.Data.CNF.SlowdownOnAsrEn := FALSE;
+        "UTENZA18".Conveyor.Data.CNF.LinkedToNext := FALSE;
+        "UTENZA18".Conveyor.Data.CNF.AdjToSpeedNext := FALSE;
+        "UTENZA18".Conveyor.Data.CNF.ExtDeltaEncoderEn := FALSE;
+        "UTENZA18".Conveyor.Data.CNF.HmiControlEn := FALSE;
+        "UTENZA18".Conveyor.Data.CNF.AntiShadowingEn := FALSE;
+        "UTENZA18".Conveyor.Data.CNF.StrictGapEn := FALSE;
+        "UTENZA18".Conveyor.Data.CNF.StopForAdjacentJamEn := FALSE;
+        "UTENZA18".Conveyor.Data.CNF.DbObjectsNumber := 2011;
+        "UTENZA18".Conveyor.Data.CNF.DecisionPointId := 0;
+        "UTENZA18".Conveyor.Data.CNF.UseTrunkNumber := 1;
+        "UTENZA18".Conveyor.Data.CNF.TimeEnergySaving := T#30S;
+        "UTENZA18".Conveyor.Data.CNF.TimeAccelerationHighSpeed := T#0S;
+        "UTENZA18".Conveyor.Data.CNF.Speed1 := 0.8;
+        "UTENZA18".Conveyor.Data.CNF.Speed2 := 0.8;
+        "UTENZA18".Conveyor.Data.CNF.SpeedLow := 0.0;
+        "UTENZA18".Conveyor.Data.CNF.SpeedHigh := 0.0;
+        "UTENZA18".Conveyor.Data.CNF.DriveMaxSpeed := 1.0;
+        "UTENZA18".Conveyor.Data.CNF.Acceleration := 2.5;
+        "UTENZA18".Conveyor.Data.CNF.Length := 7.8;
+        "UTENZA18".Conveyor.Data.CNF.Gap := 0.4;
+        "UTENZA18".Conveyor.Data.CNF.Step := 0.4;
+        "UTENZA18".Conveyor.Data.CNF.TrackingSlotLength := 0.04;
+        "UTENZA18".Conveyor.Data.CNF.StopDistance := 0.6;
+        "UTENZA18".Conveyor.Data.CNF.EndZone := 0.6;
+        "UTENZA18".Conveyor.Data.CNF.ObjectMaxLength := 0.0;
+        "UTENZA18".Conveyor.Data.CNF.JamInterferenceDistance := 0.0;
+    END_REGION
+    
+     REGION Conveyor.Pht01.Data.CNF
+            "UTENZA18".Conveyor.Pht01.Data.CNF.FlickeringMaxFp := 5;
+            "UTENZA18".Conveyor.Pht01.Data.CNF.FlickeringTime := T#500MS;
+            "UTENZA18".Conveyor.Pht01.Data.CNF.PhtRiseFilterThr := 0.04;
+            "UTENZA18".Conveyor.Pht01.Data.CNF.PhtFallFilterThr := 0.04;
+            "UTENZA18".Conveyor.Pht01.Data.CNF.JamLengthThr := 3;
+        END_REGION
+        
+        REGION Conveyor.Pht02.Data.CNF
+            "UTENZA18".Conveyor.Pht02.Data.CNF.FlickeringMaxFp := 5;
+            "UTENZA18".Conveyor.Pht02.Data.CNF.FlickeringTime := T#500MS;
+            "UTENZA18".Conveyor.Pht02.Data.CNF.PhtRiseFilterThr := 0.04;
+            "UTENZA18".Conveyor.Pht02.Data.CNF.PhtFallFilterThr := 0.04;
+            "UTENZA18".Conveyor.Pht02.Data.CNF.JamLengthThr := 3;
+        END_REGION
+        
+        REGION Conveyor.PhtTracking01.Data.CNF
+            "UTENZA18".Conveyor.PhtTracking01.Data.CNF.VidGenerationEn := TRUE;
+            "UTENZA18".Conveyor.PhtTracking01.Data.CNF.ObjLengthUpdateDis := FALSE;
+            "UTENZA18".Conveyor.PhtTracking01.Data.CNF.MachineId := "UpstreamDB-Globale".Global_Data.MachineId;
+            "UTENZA18".Conveyor.PhtTracking01.Data.CNF.DecisionPointId := 0;
+            "UTENZA18".Conveyor.PhtTracking01.Data.CNF.MaxLostPiecesForJam := 3;
+            "UTENZA18".Conveyor.PhtTracking01.Data.CNF.Position := 0.4;
+            "UTENZA18".Conveyor.PhtTracking01.Data.CNF.TrkCtrlTollerance := 0.35;
+            "UTENZA18".Conveyor.PhtTracking01.Data.CNF.ObjLengthTollerance := 0;
+            "UTENZA18".Conveyor.PhtTracking01.Data.CNF.TrackingPointID := dint#50102301;
+        END_REGION
+        
+        REGION Conveyor.PhtTracking02.Data.CNF
+            "UTENZA18".Conveyor.PhtTracking02.Data.CNF.VidGenerationEn := TRUE;
+            "UTENZA18".Conveyor.PhtTracking02.Data.CNF.ObjLengthUpdateDis := FALSE;
+            "UTENZA18".Conveyor.PhtTracking02.Data.CNF.MachineId := "UpstreamDB-Globale".Global_Data.MachineId;
+            "UTENZA18".Conveyor.PhtTracking02.Data.CNF.DecisionPointId := 0;
+            "UTENZA18".Conveyor.PhtTracking02.Data.CNF.MaxLostPiecesForJam := 3;
+            "UTENZA18".Conveyor.PhtTracking02.Data.CNF.Position := 7.05;
+            "UTENZA18".Conveyor.PhtTracking02.Data.CNF.TrkCtrlTollerance := 0.35;
+            "UTENZA18".Conveyor.PhtTracking02.Data.CNF.ObjLengthTollerance := 0;
+            "UTENZA18".Conveyor.PhtTracking02.Data.CNF.TrackingPointID := dint#50102301;
+        END_REGION
+        
+        REGION Encoder.Data.CNF
+            "UTENZA18".Encoder.Data.CNF.K_pulse := 0.0;
+            "UTENZA18".Encoder.Data.CNF.SpeedTollerance := 0.0;
+        END_REGION
+        
+        REGION DriveInterface.Par
+            "UTENZA18".DriveInterface.Par.Direction := FALSE;
+            "UTENZA18".DriveInterface.Par.UseDriveSpeedYs := TRUE;
+            "UTENZA18".DriveInterface.Par.HwAddr := 0;
+            "UTENZA18".DriveInterface.Par.MaxSpeed := 2.0;
+            "UTENZA18".DriveInterface.Par.FeedbackTime := T#500MS;
+        END_REGION
+        
+        REGION PhonicWeel.Data.CNF
+            "UTENZA18".PhonicWeel.Data.CNF.PhonicWheelEn := FALSE;
+            "UTENZA18".PhonicWeel.Data.CNF.FlickeringMaxFp := 0;
+            "UTENZA18".PhonicWeel.Data.CNF.FlickeringTime := T#500MS;
+            "UTENZA18".PhonicWeel.Data.CNF.PhtRiseFilterThr := T#100MS;
+            "UTENZA18".PhonicWeel.Data.CNF.PhtFallFilterThr := T#100MS;
+            "UTENZA18".PhonicWeel.Data.CNF.JamTimeThr := T#1S;
+        END_REGION
+END_REGION
+
+   REGION CC11ST019
+
+    REGION Conveyor.Data.CNF
+
+        "UTENZA19".Conveyor.Data.CNF.Pht01En := FALSE;
+        "UTENZA19".Conveyor.Data.CNF.Pht02En := TRUE;
+        "UTENZA19".Conveyor.Data.CNF.SlowdownOnAsrEn := FALSE;
+        "UTENZA19".Conveyor.Data.CNF.LinkedToNext := FALSE;
+        "UTENZA19".Conveyor.Data.CNF.AdjToSpeedNext := FALSE;
+        "UTENZA19".Conveyor.Data.CNF.ExtDeltaEncoderEn := FALSE;
+        "UTENZA19".Conveyor.Data.CNF.HmiControlEn := FALSE;
+        "UTENZA19".Conveyor.Data.CNF.AntiShadowingEn := FALSE;
+        "UTENZA19".Conveyor.Data.CNF.StrictGapEn := FALSE;
+        "UTENZA19".Conveyor.Data.CNF.StopForAdjacentJamEn := FALSE;
+        "UTENZA19".Conveyor.Data.CNF.DbObjectsNumber := 2011;
+        "UTENZA19".Conveyor.Data.CNF.DecisionPointId := 0;
+        "UTENZA19".Conveyor.Data.CNF.UseTrunkNumber := 2;
+        "UTENZA19".Conveyor.Data.CNF.TimeEnergySaving := T#30S;
+        "UTENZA19".Conveyor.Data.CNF.TimeAccelerationHighSpeed := T#0S;
+        "UTENZA19".Conveyor.Data.CNF.Speed1 := 0.8;
+        "UTENZA19".Conveyor.Data.CNF.Speed2 := 0.8;
+        "UTENZA19".Conveyor.Data.CNF.SpeedLow := 0.0;
+        "UTENZA19".Conveyor.Data.CNF.SpeedHigh := 0.0;
+        "UTENZA19".Conveyor.Data.CNF.DriveMaxSpeed := 1.0;
+        "UTENZA19".Conveyor.Data.CNF.Acceleration := 2.5;
+        "UTENZA19".Conveyor.Data.CNF.Length := 2.7;
+        "UTENZA19".Conveyor.Data.CNF.Gap := 0.4;
+        "UTENZA19".Conveyor.Data.CNF.Step := 0.4;
+        "UTENZA19".Conveyor.Data.CNF.TrackingSlotLength := 0.04;
+        "UTENZA19".Conveyor.Data.CNF.StopDistance := 0.6;
+        "UTENZA19".Conveyor.Data.CNF.EndZone := 0.6;
+        "UTENZA19".Conveyor.Data.CNF.ObjectMaxLength := 0.0;
+        "UTENZA19".Conveyor.Data.CNF.JamInterferenceDistance := 0.0;
+    END_REGION
+    
+     REGION Conveyor.Pht01.Data.CNF
+            "UTENZA19".Conveyor.Pht01.Data.CNF.FlickeringMaxFp := 5;
+            "UTENZA19".Conveyor.Pht01.Data.CNF.FlickeringTime := T#500MS;
+            "UTENZA19".Conveyor.Pht01.Data.CNF.PhtRiseFilterThr := 0.04;
+            "UTENZA19".Conveyor.Pht01.Data.CNF.PhtFallFilterThr := 0.04;
+            "UTENZA19".Conveyor.Pht01.Data.CNF.JamLengthThr := 3;
+        END_REGION
+        
+        REGION Conveyor.Pht02.Data.CNF
+            "UTENZA19".Conveyor.Pht02.Data.CNF.FlickeringMaxFp := 5;
+            "UTENZA19".Conveyor.Pht02.Data.CNF.FlickeringTime := T#500MS;
+            "UTENZA19".Conveyor.Pht02.Data.CNF.PhtRiseFilterThr := 0.04;
+            "UTENZA19".Conveyor.Pht02.Data.CNF.PhtFallFilterThr := 0.04;
+            "UTENZA19".Conveyor.Pht02.Data.CNF.JamLengthThr := 3;
+        END_REGION
+        
+        REGION Conveyor.PhtTracking01.Data.CNF
+            "UTENZA19".Conveyor.PhtTracking01.Data.CNF.VidGenerationEn := TRUE;
+            "UTENZA19".Conveyor.PhtTracking01.Data.CNF.ObjLengthUpdateDis := FALSE;
+            "UTENZA19".Conveyor.PhtTracking01.Data.CNF.MachineId := "UpstreamDB-Globale".Global_Data.MachineId;
+            "UTENZA19".Conveyor.PhtTracking01.Data.CNF.DecisionPointId := 0;
+            "UTENZA19".Conveyor.PhtTracking01.Data.CNF.MaxLostPiecesForJam := 3;
+            "UTENZA19".Conveyor.PhtTracking01.Data.CNF.Position := 0.4;
+            "UTENZA19".Conveyor.PhtTracking01.Data.CNF.TrkCtrlTollerance := 0.35;
+            "UTENZA19".Conveyor.PhtTracking01.Data.CNF.ObjLengthTollerance := 0;
+            "UTENZA19".Conveyor.PhtTracking01.Data.CNF.TrackingPointID := dint#50102301;
+        END_REGION
+        
+        REGION Conveyor.PhtTracking02.Data.CNF
+            "UTENZA19".Conveyor.PhtTracking02.Data.CNF.VidGenerationEn := TRUE;
+            "UTENZA19".Conveyor.PhtTracking02.Data.CNF.ObjLengthUpdateDis := FALSE;
+            "UTENZA19".Conveyor.PhtTracking02.Data.CNF.MachineId := "UpstreamDB-Globale".Global_Data.MachineId;
+            "UTENZA19".Conveyor.PhtTracking02.Data.CNF.DecisionPointId := 0;
+            "UTENZA19".Conveyor.PhtTracking02.Data.CNF.MaxLostPiecesForJam := 3;
+            "UTENZA19".Conveyor.PhtTracking02.Data.CNF.Position := 7.05;
+            "UTENZA19".Conveyor.PhtTracking02.Data.CNF.TrkCtrlTollerance := 0.35;
+            "UTENZA19".Conveyor.PhtTracking02.Data.CNF.ObjLengthTollerance := 0;
+            "UTENZA19".Conveyor.PhtTracking02.Data.CNF.TrackingPointID := dint#50102301;
+        END_REGION
+        
+        REGION Encoder.Data.CNF
+            "UTENZA19".Encoder.Data.CNF.K_pulse := 0.0;
+            "UTENZA19".Encoder.Data.CNF.SpeedTollerance := 0.0;
+        END_REGION
+        
+        REGION DriveInterface.Par
+            "UTENZA19".DriveInterface.Par.Direction := FALSE;
+            "UTENZA19".DriveInterface.Par.UseDriveSpeedYs := TRUE;
+            "UTENZA19".DriveInterface.Par.HwAddr := 0;
+            "UTENZA19".DriveInterface.Par.MaxSpeed := 2.0;
+            "UTENZA19".DriveInterface.Par.FeedbackTime := T#500MS;
+        END_REGION
+        
+        REGION PhonicWeel.Data.CNF
+            "UTENZA19".PhonicWeel.Data.CNF.PhonicWheelEn := FALSE;
+            "UTENZA19".PhonicWeel.Data.CNF.FlickeringMaxFp := 0;
+            "UTENZA19".PhonicWeel.Data.CNF.FlickeringTime := T#500MS;
+            "UTENZA19".PhonicWeel.Data.CNF.PhtRiseFilterThr := T#100MS;
+            "UTENZA19".PhonicWeel.Data.CNF.PhtFallFilterThr := T#100MS;
+            "UTENZA19".PhonicWeel.Data.CNF.JamTimeThr := T#1S;
+        END_REGION
+END_REGION
+
+   REGION CC11ST023
+
+    REGION Conveyor.Data.CNF
+
+        "UTENZA20".Conveyor.Data.CNF.Pht01En := FALSE;
+        "UTENZA20".Conveyor.Data.CNF.Pht02En := TRUE;
+        "UTENZA20".Conveyor.Data.CNF.SlowdownOnAsrEn := FALSE;
+        "UTENZA20".Conveyor.Data.CNF.LinkedToNext := FALSE;
+        "UTENZA20".Conveyor.Data.CNF.AdjToSpeedNext := FALSE;
+        "UTENZA20".Conveyor.Data.CNF.ExtDeltaEncoderEn := FALSE;
+        "UTENZA20".Conveyor.Data.CNF.HmiControlEn := FALSE;
+        "UTENZA20".Conveyor.Data.CNF.AntiShadowingEn := FALSE;
+        "UTENZA20".Conveyor.Data.CNF.StrictGapEn := FALSE;
+        "UTENZA20".Conveyor.Data.CNF.StopForAdjacentJamEn := FALSE;
+        "UTENZA20".Conveyor.Data.CNF.DbObjectsNumber := 2011;
+        "UTENZA20".Conveyor.Data.CNF.DecisionPointId := 0;
+        "UTENZA20".Conveyor.Data.CNF.UseTrunkNumber := 3;
+        "UTENZA20".Conveyor.Data.CNF.TimeEnergySaving := T#30S;
+        "UTENZA20".Conveyor.Data.CNF.TimeAccelerationHighSpeed := T#0S;
+        "UTENZA20".Conveyor.Data.CNF.Speed1 := 0.8;
+        "UTENZA20".Conveyor.Data.CNF.Speed2 := 0.8;
+        "UTENZA20".Conveyor.Data.CNF.SpeedLow := 0.0;
+        "UTENZA20".Conveyor.Data.CNF.SpeedHigh := 0.0;
+        "UTENZA20".Conveyor.Data.CNF.DriveMaxSpeed := 1.0;
+        "UTENZA20".Conveyor.Data.CNF.Acceleration := 2.5;
+        "UTENZA20".Conveyor.Data.CNF.Length := 5.3;
+        "UTENZA20".Conveyor.Data.CNF.Gap := 0.4;
+        "UTENZA20".Conveyor.Data.CNF.Step := 0.4;
+        "UTENZA20".Conveyor.Data.CNF.TrackingSlotLength := 0.04;
+        "UTENZA20".Conveyor.Data.CNF.StopDistance := 0.6;
+        "UTENZA20".Conveyor.Data.CNF.EndZone := 0.6;
+        "UTENZA20".Conveyor.Data.CNF.ObjectMaxLength := 0.0;
+        "UTENZA20".Conveyor.Data.CNF.JamInterferenceDistance := 0.0;
+    END_REGION
+    
+     REGION Conveyor.Pht01.Data.CNF
+            "UTENZA20".Conveyor.Pht01.Data.CNF.FlickeringMaxFp := 5;
+            "UTENZA20".Conveyor.Pht01.Data.CNF.FlickeringTime := T#500MS;
+            "UTENZA20".Conveyor.Pht01.Data.CNF.PhtRiseFilterThr := 0.04;
+            "UTENZA20".Conveyor.Pht01.Data.CNF.PhtFallFilterThr := 0.04;
+            "UTENZA20".Conveyor.Pht01.Data.CNF.JamLengthThr := 3;
+        END_REGION
+        
+        REGION Conveyor.Pht02.Data.CNF
+            "UTENZA20".Conveyor.Pht02.Data.CNF.FlickeringMaxFp := 5;
+            "UTENZA20".Conveyor.Pht02.Data.CNF.FlickeringTime := T#500MS;
+            "UTENZA20".Conveyor.Pht02.Data.CNF.PhtRiseFilterThr := 0.04;
+            "UTENZA20".Conveyor.Pht02.Data.CNF.PhtFallFilterThr := 0.04;
+            "UTENZA20".Conveyor.Pht02.Data.CNF.JamLengthThr := 3;
+        END_REGION
+        
+        REGION Conveyor.PhtTracking01.Data.CNF
+            "UTENZA20".Conveyor.PhtTracking01.Data.CNF.VidGenerationEn := TRUE;
+            "UTENZA20".Conveyor.PhtTracking01.Data.CNF.ObjLengthUpdateDis := FALSE;
+            "UTENZA20".Conveyor.PhtTracking01.Data.CNF.MachineId := "UpstreamDB-Globale".Global_Data.MachineId;
+            "UTENZA20".Conveyor.PhtTracking01.Data.CNF.DecisionPointId := 0;
+            "UTENZA20".Conveyor.PhtTracking01.Data.CNF.MaxLostPiecesForJam := 3;
+            "UTENZA20".Conveyor.PhtTracking01.Data.CNF.Position := 0.4;
+            "UTENZA20".Conveyor.PhtTracking01.Data.CNF.TrkCtrlTollerance := 0.35;
+            "UTENZA20".Conveyor.PhtTracking01.Data.CNF.ObjLengthTollerance := 0;
+            "UTENZA20".Conveyor.PhtTracking01.Data.CNF.TrackingPointID := dint#50102301;
+        END_REGION
+        
+        REGION Conveyor.PhtTracking02.Data.CNF
+            "UTENZA20".Conveyor.PhtTracking02.Data.CNF.VidGenerationEn := TRUE;
+            "UTENZA20".Conveyor.PhtTracking02.Data.CNF.ObjLengthUpdateDis := FALSE;
+            "UTENZA20".Conveyor.PhtTracking02.Data.CNF.MachineId := "UpstreamDB-Globale".Global_Data.MachineId;
+            "UTENZA20".Conveyor.PhtTracking02.Data.CNF.DecisionPointId := 0;
+            "UTENZA20".Conveyor.PhtTracking02.Data.CNF.MaxLostPiecesForJam := 3;
+            "UTENZA20".Conveyor.PhtTracking02.Data.CNF.Position := 7.05;
+            "UTENZA20".Conveyor.PhtTracking02.Data.CNF.TrkCtrlTollerance := 0.35;
+            "UTENZA20".Conveyor.PhtTracking02.Data.CNF.ObjLengthTollerance := 0;
+            "UTENZA20".Conveyor.PhtTracking02.Data.CNF.TrackingPointID := dint#50102301;
+        END_REGION
+        
+        REGION Encoder.Data.CNF
+            "UTENZA20".Encoder.Data.CNF.K_pulse := 0.0;
+            "UTENZA20".Encoder.Data.CNF.SpeedTollerance := 0.0;
+        END_REGION
+        
+        REGION DriveInterface.Par
+            "UTENZA20".DriveInterface.Par.Direction := FALSE;
+            "UTENZA20".DriveInterface.Par.UseDriveSpeedYs := TRUE;
+            "UTENZA20".DriveInterface.Par.HwAddr := 0;
+            "UTENZA20".DriveInterface.Par.MaxSpeed := 2.0;
+            "UTENZA20".DriveInterface.Par.FeedbackTime := T#500MS;
+        END_REGION
+        
+        REGION PhonicWeel.Data.CNF
+            "UTENZA20".PhonicWeel.Data.CNF.PhonicWheelEn := FALSE;
+            "UTENZA20".PhonicWeel.Data.CNF.FlickeringMaxFp := 0;
+            "UTENZA20".PhonicWeel.Data.CNF.FlickeringTime := T#500MS;
+            "UTENZA20".PhonicWeel.Data.CNF.PhtRiseFilterThr := T#100MS;
+            "UTENZA20".PhonicWeel.Data.CNF.PhtFallFilterThr := T#100MS;
+            "UTENZA20".PhonicWeel.Data.CNF.JamTimeThr := T#1S;
+        END_REGION
+END_REGION
+
+END_FUNCTION
