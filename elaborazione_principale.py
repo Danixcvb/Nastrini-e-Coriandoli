@@ -19,7 +19,9 @@ from creazione_file import (
     create_data_block_file,
     create_datalogic_file,
     create_linea_files,
-    create_main_file
+    create_main_file,
+    create_conft_t_file,
+    create_utenza_file
 )
 import random
 import math
@@ -443,6 +445,8 @@ END_REGION
         
         # --- SOSTITUITO BLOCCO MAINx con Logica di Contesto ---
         main_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'MAIN')
+        conf_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'CONF')
+        utenze_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'UTENZE')
         
         # Ottieni la sequenza ordinata dei numeri di tronco che hanno dati MAIN validi
         ordered_trunk_nums = sorted(main_data_by_trunk.keys())
@@ -473,6 +477,10 @@ END_REGION
                     last_valid_prev_item_data=last_valid_prev_item_data,
                     first_valid_next_item_data=first_valid_next_item_data
                 )
+                
+                # Aggiunte: creazione file CONFT_T e UTENZE
+                create_conft_t_file(trunk_num, items_ordered, conf_output_folder)
+                create_utenza_file(trunk_num, items_ordered, utenze_output_folder)
         # --- FINE SOSTITUZIONE ---
 
         # Aggiorna lo stato

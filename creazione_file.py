@@ -4,7 +4,7 @@ Gestisce la generazione dei file .txt e .scl per le configurazioni dei nastri tr
 """
 
 import os
-from funzioni_elaborazione import count_ca_occurrences
+from funzioni_elaborazione import count_ca_occurrences, get_last_three_digits
 
 def create_txt_files(df, selected_cab_plc, order):
     """
@@ -377,6 +377,86 @@ def create_main_file(trunk_number,
 
     # Crea il file
     output_path = os.path.join(output_folder, f"MAIN{safe_trunk_number}.scl") # Usa numero tronco sicuro
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    
+    with open(output_path, 'w') as f:
+        f.write("\n".join(content))
+
+def create_conft_t_file(trunk_number, items, output_folder):
+    """
+    Crea il file CONFT_T per un tronco specifico.
+    
+    Args:
+        trunk_number (int): Numero del tronco
+        items (list): Lista di elementi nel tronco
+        output_folder (str): Cartella di output
+    """
+    # Codice per la creazione dei file CONFT_T
+    pass
+
+def create_utenza_file(trunk_number, items, output_folder):
+    """
+    Crea il file UTENZA per un tronco specifico.
+    
+    Args:
+        trunk_number (int): Numero del tronco
+        items (list): Lista di elementi nel tronco
+        output_folder (str): Cartella di output
+    """
+    # Crea l'intestazione del file
+    content = [
+        f"""FUNCTION "UTENZE{trunk_number}" : Void
+{{ S7_Optimized_Access := 'TRUE' }}
+VERSION : 0.1
+BEGIN
+"""
+    ]
+    
+    # Elabora gli elementi nel tronco
+    for item in items:
+        # Estrai i dati necessari
+        item_id_custom = item.get('ITEM_ID_CUSTOM', '')
+        component_type = "Carousel" if count_ca_occurrences(item_id_custom) == 2 else "Conveyor"
+        utenza_number = item.get('GlobalUtenzaNumber')
+        
+        # Determina il nome dell'utenza
+        if "ST" in item_id_custom.upper() and utenza_number is not None:
+            try:
+                utenza_name = f"UTENZA{int(utenza_number)}"
+            except (ValueError, TypeError):
+                print(f"Errore: Impossibile convertire GlobalUtenzaNumber '{utenza_number}' in intero per {item_id_custom}.")
+                utenza_name = item_id_custom
+        else:
+            utenza_name = item_id_custom
+        
+        # Aggiungi la configurazione dell'utenza
+        content.append(f"    REGION {item_id_custom}")
+        content.append(f'        "{utenza_name}".{component_type}.Data.UTZ.TrunkNumber := {trunk_number};')
+        content.append(f'        "{utenza_name}".{component_type}.Data.UTZ.AlgorithmType := 0;')
+        content.append(f'        "{utenza_name}".{component_type}.Data.UTZ.EnableSipario := FALSE;')
+        content.append(f'        "{utenza_name}".{component_type}.Data.UTZ.EnableSetting := TRUE;')
+        content.append(f'        "{utenza_name}".{component_type}.Data.UTZ.EnableFirmware := TRUE;')
+        content.append(f'        "{utenza_name}".{component_type}.Data.UTZ.EnableMessage := TRUE;')
+        content.append(f'        "{utenza_name}".{component_type}.Data.UTZ.EnableWarning := TRUE;')
+        content.append(f'        "{utenza_name}".{component_type}.Data.UTZ.EnableMaintenance := TRUE;')
+        content.append(f'        "{utenza_name}".{component_type}.Data.UTZ.EnableEnergySaving := TRUE;')
+        content.append(f'        "{utenza_name}".{component_type}.Data.UTZ.EnableSpeedControl := TRUE;')
+        content.append(f'        "{utenza_name}".{component_type}.Data.UTZ.EnableAccelerationControl := TRUE;')
+        content.append(f'        "{utenza_name}".{component_type}.Data.UTZ.EnableDecelerationControl := TRUE;')
+        content.append(f'        "{utenza_name}".{component_type}.Data.UTZ.EnablePositionControl := TRUE;')
+        content.append(f'        "{utenza_name}".{component_type}.Data.UTZ.EnableTracking := TRUE;')
+        content.append(f'        "{utenza_name}".{component_type}.Data.UTZ.EnableGapControl := TRUE;')
+        content.append(f'        "{utenza_name}".{component_type}.Data.UTZ.EnableJamControl := TRUE;')
+        content.append(f'        "{utenza_name}".{component_type}.Data.UTZ.EnableAntiShadowing := TRUE;')
+        content.append(f'        "{utenza_name}".{component_type}.Data.UTZ.EnableStrictGap := TRUE;')
+        content.append(f'        "{utenza_name}".{component_type}.Data.UTZ.EnableStopForAdjacentJam := TRUE;')
+        content.append('')
+    
+    # Aggiungi la chiusura del file
+    content.append('END_FUNCTION')
+    
+    # Crea il file
+    output_path = os.path.join(output_folder, f"UTENZE{trunk_number}.scl")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
     with open(output_path, 'w') as f:
