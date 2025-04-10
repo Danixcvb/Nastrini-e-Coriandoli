@@ -247,8 +247,8 @@ def create_main_file(trunk_number,
             content.append("")
             content.append(f'    "{current_name}"(')
             
-            # ID: precedente + 1 o fallback
-            carousel_id = prev_number + 1 if prev_number is not None else (current_number if current_number is not None else 1)
+            # ID: usa sempre current_number per i CAROUSEL, che è il numero progressivo del carousel
+            carousel_id = current_number if current_number is not None else i + 1
             content.append(f'               ID := {carousel_id},')
             content.append('               DINO := 0,')
             

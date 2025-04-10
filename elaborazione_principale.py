@@ -218,11 +218,12 @@ BEGIN
                     if count_ca_occurrences(comment_name) == 2 and carousel_number is not None:
                         # Assicurati che carousel_number sia un intero prima di usarlo nella f-string
                         try:
+                            # Usa il numero di carousel direttamente, senza altre manipolazioni
                             item_id_custom_new = f"CAROUSEL{int(carousel_number)}"
                         except (ValueError, TypeError):
                             # Gestisci il caso in cui carousel_number non sia convertibile in int
                             print(f"Attenzione: Impossibile convertire GlobalCarouselNumber '{carousel_number}' in intero per ITEM_ID_CUSTOM '{item_id_custom}'. Uso l'ID originale.")
-                            item_id_custom_new = item_id_custom 
+                            item_id_custom_new = item_id_custom
                     elif "ST" in item_id_custom.upper() and utenza_number is not None:
                          # Assicurati che utenza_number sia un intero prima di usarlo nella f-string
                         try:
