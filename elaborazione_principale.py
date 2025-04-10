@@ -21,7 +21,8 @@ from creazione_file import (
     create_linea_files,
     create_main_file,
     create_conft_t_file,
-    create_utenza_file
+    create_utenza_file,
+    create_trunk_file
 )
 import random
 import math
@@ -448,6 +449,7 @@ END_REGION
         main_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'MAIN')
         conf_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'CONF')
         utenze_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'UTENZE')
+        db_trunk_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'DB_TRUNK')
         
         # Ottieni la sequenza ordinata dei numeri di tronco che hanno dati MAIN validi
         ordered_trunk_nums = sorted(main_data_by_trunk.keys())
@@ -482,6 +484,9 @@ END_REGION
                 # Aggiunte: creazione file CONFT_T e UTENZE
                 create_conft_t_file(trunk_num, items_ordered, conf_output_folder)
                 create_utenza_file(trunk_num, items_ordered, utenze_output_folder)
+                
+                # Creazione file TRUNK nella cartella DB_TRUNK
+                create_trunk_file(trunk_num, db_trunk_output_folder)
         # --- FINE SOSTITUZIONE ---
 
         # Aggiorna lo stato

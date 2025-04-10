@@ -460,4 +460,43 @@ BEGIN
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
     with open(output_path, 'w') as f:
-        f.write("\n".join(content)) 
+        f.write("\n".join(content))
+
+def create_trunk_file(trunk_number, output_folder):
+    """
+    Crea un file DATA_BLOCK per un tronco specifico.
+    
+    Args:
+        trunk_number (int): Numero del tronco
+        output_folder (str): Cartella di destinazione
+    """
+    # Assicurati che trunk_number sia intero
+    try:
+        safe_trunk_number = int(trunk_number)
+    except (ValueError, TypeError):
+        print(f"Attenzione create_trunk_file: trunk_number '{trunk_number}' non è un intero valido. Uso 0.")
+        safe_trunk_number = 0
+        
+    # Contenuto del file TRUNK
+    trunk_content = f"""DATA_BLOCK "TRUNK{safe_trunk_number}"
+{{ S7_Optimized_Access := 'TRUE' }}
+AUTHOR : RP
+VERSION : 0.4
+NON_RETAIN
+"TRUNK-PCT"
+
+BEGIN
+
+END_DATA_BLOCK
+"""
+    
+    # Nome del file e percorso
+    trunk_filename = f"TRUNK{safe_trunk_number}.scl"
+    
+    # Crea la directory se non esiste
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    
+    # Scrivi il file
+    with open(os.path.join(output_folder, trunk_filename), 'w') as trunk_file:
+        trunk_file.write(trunk_content) 
