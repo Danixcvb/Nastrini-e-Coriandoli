@@ -499,10 +499,13 @@ END_REGION
         log_enable_path = os.path.join('Configurazioni', selected_cab_plc, 'LOG_ENABLE[FC10].txt')
         os.makedirs(os.path.dirname(log_enable_path), exist_ok=True)
         
-        # Estrai i nomi effettivi delle utenze e caroselli
+        # Estrai i nomi effettivi delle utenze e caroselli dal DataFrame
+        # Le utenze sono identificate dalla presenza di "ST" nel nome
+        # I caroselli sono identificati dalla presenza di due occorrenze di "CA" nel nome
         utenze = df[df['ITEM_ID_CUSTOM'].str.contains('ST', case=False, na=False)]['ITEM_ID_CUSTOM'].unique()
         caroselli = df[df['ITEM_ID_CUSTOM'].str.upper().str.count('CA') == 2]['ITEM_ID_CUSTOM'].unique()
         
+        # Debug prints per verificare i dati estratti
         print(f"Utenze trovate: {utenze}")
         print(f"Caroselli trovati: {caroselli}")
         print(f"Ordine selezionato: {order}")
@@ -511,10 +514,11 @@ END_REGION
         ordered_utenze = []
         ordered_caroselli = []
         
-        # Estrai i prefissi dall'ordine selezionato
+        # Estrai i prefissi dall'ordine selezionato (es. "1. CP11" -> "CP11")
         prefixes = [item.split('. ')[1] for item in order]
         
         # Ordina le utenze e i caroselli in base ai prefissi
+        # Questo garantisce che le utenze e i caroselli siano ordinati secondo l'ordine scelto dall'utente
         for prefix in prefixes:
             # Filtra le utenze che iniziano con questo prefisso
             prefix_utenze = [u for u in utenze if u.startswith(prefix)]
@@ -524,15 +528,18 @@ END_REGION
             prefix_caroselli = [c for c in caroselli if c.startswith(prefix)]
             ordered_caroselli.extend(sorted(prefix_caroselli))
         
+        # Debug prints per verificare l'ordinamento
         print(f"Utenze ordinate: {ordered_utenze}")
         print(f"Caroselli ordinati: {ordered_caroselli}")
         
         with open(log_enable_path, 'w') as f:
+            # Sezione per l'abilitazione del debug
             f.write("REGION Enabling debug\n")
             f.write("    IF #EnableDebug THEN\n")
             f.write("        // va inserito il phtTracking in base alla fotocellula attivata nella CONF\n")
             
             # Scrivi le configurazioni per tutte le utenze nell'ordine scelto
+            # Mantieni lo stesso numero per utenze con lo stesso prefisso
             current_prefix = None
             for i, utenza in enumerate(ordered_utenze, 1):
                 prefix = utenza[:4]  # Prendi i primi 4 caratteri come prefisso
@@ -544,11 +551,13 @@ END_REGION
             
             f.write("\n")  # Aggiungi una riga vuota tra utenze e caroselli
             
+            # Scrivi le configurazioni per i caroselli
             for i, carosello in enumerate(ordered_caroselli, 1):
                 f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking02.Debug.DebugEn := TRUE;    //D.D.\n')
             
             f.write("    ELSE\n")
             
+            # Ripeti lo stesso processo per la parte ELSE
             current_prefix = None
             for i, utenza in enumerate(ordered_utenze, 1):
                 prefix = utenza[:4]
@@ -565,10 +574,11 @@ END_REGION
             f.write("    END_IF;\n")
             f.write("END_REGION\n\n")
             
+            # Sezione per l'abilitazione del log
             f.write("REGION Enabling log\n")
             f.write("    IF #EnableLog THEN\n")
             
-            # Raggruppa le utenze per numero
+            # Raggruppa le utenze per numero per mantenere lo stesso numero per utenze con lo stesso prefisso
             utenze_by_number = {}
             for i, utenza in enumerate(ordered_utenze, 1):
                 number = i
@@ -577,6 +587,7 @@ END_REGION
                 utenze_by_number[number].append(utenza)
             
             # Scrivi le configurazioni raggruppate per numero
+            # Questo garantisce che utenze con lo stesso prefisso abbiano lo stesso numero
             for number, utenze in sorted(utenze_by_number.items()):
                 for utenza in utenze:
                     f.write(f'        "UTENZA{number}".Conveyor.PhtTracking02.Data.CNF.HsitoryEventEn := TRUE;\n')
@@ -590,14 +601,13 @@ END_REGION
             
             f.write("    ELSE\n")
             
-            # Raggruppa le utenze per numero (per la parte ELSE)
+            # Ripeti lo stesso processo per la parte ELSE
             for number, utenze in sorted(utenze_by_number.items()):
                 for utenza in utenze:
                     f.write(f'        "UTENZA{number}".Conveyor.PhtTracking02.Data.CNF.HsitoryEventEn := FALSE;\n')
                     f.write(f'        "UTENZA{number}".Conveyor.PhtTracking02.Data.CNF.LogEventEn := FALSE;\n')
                 f.write("\n")  # Aggiungi una riga vuota dopo ogni gruppo
             
-            # Scrivi le configurazioni per i caroselli (per la parte ELSE)
             for i, carosello in enumerate(ordered_caroselli, 1):
                 f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking02.Data.CNF.HsitoryEventEn := FALSE;\n')
                 f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking02.Data.CNF.LogEventEn := FALSE;\n')

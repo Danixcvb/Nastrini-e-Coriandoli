@@ -223,6 +223,7 @@ def create_main_file(trunk_number,
         item_id_original = item.get('ITEM_ID_CUSTOM', f'MISSING_ID_{i+1}') 
         component_type = "Carousel" if count_ca_occurrences(item_id_original) == 2 else "Conveyor"
         
+        # Gestione del riferimento all'item precedente
         prev_item_data_to_use = None
         if i == 0: 
              prev_item_data_to_use = last_valid_prev_item_data 
@@ -232,6 +233,7 @@ def create_main_file(trunk_number,
         prev_component_type = "Carousel" if prev_item_data_to_use and count_ca_occurrences(prev_item_data_to_use.get('ITEM_ID_CUSTOM','')) == 2 else "Conveyor"
         prev_name_ref = f'"{prev_name_formatted}".{prev_component_type}.Data.OUT' if prev_item_data_to_use else "NULL"
 
+        # Gestione del riferimento all'item successivo
         next_item_data_to_use = None
         if i == len(valid_items) - 1: 
             next_item_data_to_use = first_valid_next_item_data 
