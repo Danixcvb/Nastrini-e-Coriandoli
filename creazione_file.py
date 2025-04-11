@@ -142,7 +142,11 @@ def _get_item_details(item_data, index_fallback):
     formatted_name = item_id # Default a ID originale
     number_int = None
 
-    if "ST" in item_id.upper():
+    if "FD" in item_id.upper() or "FIRESHUTTER" in item_id.upper():
+        # Per FIRESHUTTER, usa l'ID originale come nome formattato
+        formatted_name = item_id
+        number_int = index_fallback
+    elif "ST" in item_id.upper():
         raw_num = item_data.get('GlobalUtenzaNumber')
         if raw_num is not None:
             try:
@@ -156,7 +160,6 @@ def _get_item_details(item_data, index_fallback):
             # Fallback se GlobalUtenzaNumber non trovato
             number_int = index_fallback 
             formatted_name = f"UTENZA{number_int}"
-
     elif count_ca_occurrences(item_id) == 2:
         raw_num = item_data.get('GlobalCarouselNumber')
         if raw_num is not None:
@@ -168,13 +171,18 @@ def _get_item_details(item_data, index_fallback):
                 formatted_name = f"CAROUSEL_ERR_{index_fallback}"
                 number_int = None
         else:
-            # Fallback se GlobalCarouselNumber non trovato
             number_int = index_fallback
             formatted_name = f"CAROUSEL{number_int}"
-            
-    # Se non ST né CAx2, formatted_name rimane item_id e number_int rimane None
 
     return formatted_name, number_int
+
+def _is_valid_component_for_chain(item_data):
+    """Helper function to determine if a component should be included in the chain (PREV/NEXT references)."""
+    if not item_data:
+        return False
+        
+    item_id = item_data.get('ITEM_ID_CUSTOM', '')
+    return ("ST" in item_id.upper() or count_ca_occurrences(item_id) == 2)
 
 def create_main_file(trunk_number, 
                      valid_items, 
@@ -221,14 +229,29 @@ def create_main_file(trunk_number,
         # --- Ottieni dettagli per item corrente, precedente e successivo EFFETTIVI ---
         current_name, current_number = _get_item_details(item, i + 1) 
         item_id_original = item.get('ITEM_ID_CUSTOM', f'MISSING_ID_{i+1}') 
-        component_type = "Carousel" if count_ca_occurrences(item_id_original) == 2 else "Conveyor"
+        
+        # Determina il tipo di componente
+        item_id_upper = item_id_original.upper()
+        if "FD" in item_id_upper or "FIRESHUTTER" in item_id_upper:
+            component_type = "Fireshutter"
+        elif count_ca_occurrences(item_id_original) == 2:
+            component_type = "Carousel"
+        else:
+            component_type = "Conveyor"
         
         # Gestione del riferimento all'item precedente
         prev_item_data_to_use = None
         if i == 0: 
-             prev_item_data_to_use = last_valid_prev_item_data 
+            # Cerca l'ultimo componente valido nel tronco precedente
+            if last_valid_prev_item_data and _is_valid_component_for_chain(last_valid_prev_item_data):
+                prev_item_data_to_use = last_valid_prev_item_data
         elif i > 0: 
-             prev_item_data_to_use = valid_items[i-1] 
+            # Cerca l'ultimo componente valido nel tronco corrente
+            for j in range(i-1, -1, -1):
+                if _is_valid_component_for_chain(valid_items[j]):
+                    prev_item_data_to_use = valid_items[j]
+                    break
+                    
         prev_name_formatted, prev_number = _get_item_details(prev_item_data_to_use, i) 
         prev_component_type = "Carousel" if prev_item_data_to_use and count_ca_occurrences(prev_item_data_to_use.get('ITEM_ID_CUSTOM','')) == 2 else "Conveyor"
         prev_name_ref = f'"{prev_name_formatted}".{prev_component_type}.Data.OUT' if prev_item_data_to_use else "NULL"
@@ -236,12 +259,20 @@ def create_main_file(trunk_number,
         # Gestione del riferimento all'item successivo
         next_item_data_to_use = None
         if i == len(valid_items) - 1: 
-            next_item_data_to_use = first_valid_next_item_data 
-        elif i < len(valid_items) - 1: 
-            next_item_data_to_use = valid_items[i+1] 
-        next_name_formatted, next_number = _get_item_details(next_item_data_to_use, i + 2) 
+            # Cerca il primo componente valido nel tronco successivo
+            if first_valid_next_item_data and _is_valid_component_for_chain(first_valid_next_item_data):
+                next_item_data_to_use = first_valid_next_item_data
+        elif i < len(valid_items) - 1:
+            # Cerca il prossimo componente valido nel tronco corrente
+            for j in range(i+1, len(valid_items)):
+                if _is_valid_component_for_chain(valid_items[j]):
+                    next_item_data_to_use = valid_items[j]
+                    break
+                    
+        next_name_formatted, next_number = _get_item_details(next_item_data_to_use, i+2)
         next_component_type = "Carousel" if next_item_data_to_use and count_ca_occurrences(next_item_data_to_use.get('ITEM_ID_CUSTOM','')) == 2 else "Conveyor"
-        
+        next_name_ref = f'"{next_name_formatted}".{next_component_type}.Data.OUT' if next_item_data_to_use else "NULL"
+
         # --- Gestione Differenziata Chiamata --- 
         if component_type == "Carousel":
             # --- Generazione Chiamata CAROUSEL ---
@@ -277,7 +308,7 @@ def create_main_file(trunk_number,
             panytocnv_num_to_use = current_number if current_number is not None else 0
             content.append(f'               PANYTOCNV_SA := "SV_DB_CAROUSEL_SA".CAROUSEL_{panytocnv_num_to_use},') # Usa CAROUSEL_SA
             content.append(f'               PANYTOCNV_CMD := "SV_DB_CAROUSEL_CMD".CAROUSEL_{panytocnv_num_to_use},') # Usa CAROUSEL_CMD
-    
+
             content.append('               DB_OBJ := "DBsObject".DbObj[1],')
             content.append('               "Ist-VidGenerator" := "Ist_Sub-VidGenerator",')
             content.append('               EncoderInterface := #TempEncoderNotUsed,')
@@ -297,6 +328,28 @@ def create_main_file(trunk_number,
             content.append("")
             # --- Fine Chiamata CAROUSEL ---
         
+        elif component_type == "Fireshutter":
+            # --- Generazione Chiamata FIRESHUTTER ---
+            content.append(f"REGION  Call FIRESHUTTER ({item_id_original})")
+            content.append("")
+            
+            # ID: usa sempre current_number per i FIRESHUTTER
+            fireshutter_id = current_number if current_number is not None else i + 1
+            content.append(f'    "{item_id_original}"(')
+            
+            # Aggiungi i parametri specifici per FIRESHUTTER
+            content.append(f'                   ElectricalFault:= "-340K6-16- 230VAC POWER SUPPLY CIRCUIT BREAKER - STATUS - FIRE SHUTTER ++{item_id_original}",')
+            content.append('                   OpenPosition:=false,')
+            content.append('                   SensitiveEdge:=false,')
+            content.append('                   FireAlarm:= "-340K8-14- FIRE ALARM",')
+            content.append(f'                   InterfaceTrunkuse:= "TRUNK{safe_trunk_number}".ComTrunkUse,')
+            content.append(f'                   SV_FIRESHUTTER_CMD := "SV_DB_FIRESHUTTER_CMD".FIRESHUTTER_{fireshutter_id},')
+            content.append(f'                   SV_FIRESHUTTER_SA := "SV_DB_FIRESHUTTER_SA".FIRESHUTTER_{fireshutter_id});')
+            content.append("")
+            content.append("END_REGION")
+            content.append("")
+            # --- Fine Chiamata FIRESHUTTER ---
+            
         else: # component_type == "Conveyor"
             # --- Generazione Chiamata CONVEYOR/UTENZA (standard) ---
             content.append(f"REGION Call CONVEYOR_SEW_MOVIGEAR ({item_id_original})")
@@ -324,8 +377,8 @@ def create_main_file(trunk_number,
             content.append('               Constants := "DB_Constants".Constants,')
             content.append(f'               InterfaceTrunkUse := "TRUNK{safe_trunk_number}".ComTrunkUse,') 
             
-            panytocnv_num_to_use = current_number if current_number is not None else 0 
-            content.append(f'               PANYTOCNV_SA := "SV_DB_CONVEYOR_SA".CONVEYOR_{panytocnv_num_to_use},') # CONVEYOR_SA
+            panytocnv_num_to_use = current_number if current_number is not None else 0
+            content.append(f'               PANYTOCNV_SA := "SV_DB_CONVEYOR_SA".CONVEYOR_{panytocnv_num_to_use},')
             content.append(f'               PANYTOCNV_CMD := "SV_DB_CONVEYOR_CMD".CONVEYOR_{panytocnv_num_to_use},') # CONVEYOR_CMD
 
             content.append('               DB_OBJ := "DBsObject".DbObj[1],')
@@ -349,9 +402,9 @@ def create_main_file(trunk_number,
         # Se il prossimo elemento EFFETTIVO è un carousel, aggiungi la sua configurazione SIDE_INPUT
         if next_item_data_to_use and count_ca_occurrences(next_item_data_to_use.get('ITEM_ID_CUSTOM','')) == 2:
              side_input_carousel_num = next_number if next_number is not None else 0 
-             content.append(f"REGION Call SIDE INPUT for CAROUSEL{side_input_carousel_num} ({item_id_original})")
+             next_carousel_id = next_item_data_to_use.get('ITEM_ID_CUSTOM', '')
+             content.append(f"REGION Call SIDE INPUT for CAROUSEL{side_input_carousel_num} ({next_carousel_id})")
              content.append("    // il side input si inserisce prima di un carosello , nel tronco precedente al carosello")
-             content.append("")
              
              # PREV per SIDE_INPUT è l'output dell'elemento CORRENTE (blocco appena generato)
              current_output_ref = f'"{current_name}".{component_type}.Data.OUT'

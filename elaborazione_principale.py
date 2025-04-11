@@ -58,7 +58,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             messagebox.showerror("Errore", f"Il file {excel_file_path} non esiste.")
             status_var.set("Errore: file non trovato")
             return False
-        
+            
         # Verifica se l'ordine è stato selezionato
         if not order:
             messagebox.showerror("Errore", "Nessun ordine selezionato. Seleziona l'ordine di generazione prima di procedere.")
@@ -77,8 +77,8 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             status_var.set("Errore: colonne mancanti")
             return False
         
-        # Filtra le righe escludendo ITEM_ID_CUSTOM contenenti "OG", "SD", "FD", "RS", "CX", "CN", "CH", "XR", "SO", "LC", "IN"
-        df = df[~df['ITEM_ID_CUSTOM'].str.contains('OG|SD|FD|RS|CX|CN|CH|XR|SO|LC|IN', case=False, na=False)]
+        # Filtra le righe escludendo ITEM_ID_CUSTOM contenenti "OG", "SD", "RS", "CX", "CN", "CH", "XR", "SO", "LC", "IN"
+        df = df[~df['ITEM_ID_CUSTOM'].str.contains('OG|SD|RS|CX|CN|CH|XR|SO|LC|IN', case=False, na=False)]
 
         # Valori predefiniti per celle vuote
         default_speed_transport = 1.5
@@ -177,7 +177,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         # Dizionario per memorizzare le configurazioni per numero di tronco
         configurations_by_trunk = {}
         # Dizionario per memorizzare i dati per i file MAIN
-        main_data_by_trunk = {}
+        main_data_by_trunk = {} 
         
         # Itera attraverso ogni prefisso nell'ordine selezionato
         for prefix in ordered_prefixes:
@@ -185,7 +185,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             trunk_groups = prefix_data.groupby('ITEM_TRUNK')
             
             for trunk_name, trunk_group in trunk_groups:
-                configurations_by_trunk[global_trunk_counter] = []
+                configurations_by_trunk[global_trunk_counter] = [] 
                 # Aggiunge l'intestazione della funzione
                 header = f"""FUNCTION "CONF_T{global_trunk_counter}" : Void
 {{ S7_Optimized_Access := 'TRUE' }}
@@ -216,8 +216,8 @@ BEGIN
                         item_l = row['ITEM_L']
                         
                         # Ottieni i numeri globali (potrebbero sovrascrivere None se presenti)
-                        utenza_number = row.get('GlobalUtenzaNumber')
-                        carousel_number = row.get('GlobalCarouselNumber')
+                        utenza_number = row.get('GlobalUtenzaNumber') 
+                        carousel_number = row.get('GlobalCarouselNumber') 
                         
                         # Assicura che NaN diventi None
                         if pd.isna(utenza_number):
@@ -290,7 +290,6 @@ BEGIN
             
             
         END_REGION
-    END_REGION
 
 """
                         try:
@@ -409,7 +408,7 @@ END_REGION
                         
                         # Incrementa il numero progressivo all'interno del gruppo
                         progressive_number += 1
-                        
+                            
                     except Exception as e:
                         print(f"Errore durante l'elaborazione dell'item {item_id_custom}: {e}")
                         continue
@@ -420,18 +419,19 @@ END_REGION
                 # Filtra e Memorizza dati per MAIN
                 condition_st = trunk_group['ITEM_ID_CUSTOM'].str.contains('ST', case=False, na=False)
                 condition_ca2 = trunk_group['ITEM_ID_CUSTOM'].apply(lambda x: count_ca_occurrences(str(x)) == 2)
+                condition_fd = trunk_group['ITEM_ID_CUSTOM'].str.contains('FD', case=False, na=False)
                 
-                valid_items_for_main = trunk_group[condition_st | condition_ca2]
+                valid_items_for_main = trunk_group[condition_st | condition_ca2 | condition_fd]
 
                 if not valid_items_for_main.empty:
-                    items_ordered_dict = valid_items_for_main.sort_values(by='LastThreeDigits').to_dict('records')
+                    items_ordered_dict = valid_items_for_main.sort_values(by='LastThreeDigits').to_dict('records') 
                     main_data_by_trunk[global_trunk_counter] = items_ordered_dict
 
                 # Incrementa il contatore globale
                 global_trunk_counter += 1
         
         # Salva le configurazioni CONF_T in file separati per tronco
-        files_created = []
+        files_created = [] 
         for trunk in sorted(configurations_by_trunk.keys(), key=int):
             output_filename = f'CONF_T{trunk}.scl'
             output_path = os.path.join('Configurazioni', selected_cab_plc, 'CONF', output_filename)
@@ -479,8 +479,8 @@ END_REGION
             if items_ordered:
                 try:
                     create_main_file(
-                        trunk_num,
-                        items_ordered,
+                        trunk_num, 
+                        items_ordered, 
                         main_output_folder,
                         last_valid_prev_item_data=last_valid_prev_item_data,
                         first_valid_next_item_data=first_valid_next_item_data
