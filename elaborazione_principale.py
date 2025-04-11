@@ -522,8 +522,8 @@ END_REGION
         # Mostra il messaggio di completamento
         show_completion_message(root, selected_cab_plc)
         
-        # Crea il file LOG_ENABLE[FC10].txt
-        log_enable_path = os.path.join('Configurazioni', selected_cab_plc, 'LOG_ENABLE[FC10].txt')
+        # Crea il file LOG_ENABLE[FC10].scl
+        log_enable_path = os.path.join('Configurazioni', selected_cab_plc, 'LOG_ENABLE[FC10].scl')
         os.makedirs(os.path.dirname(log_enable_path), exist_ok=True)
         
         # Estrai i nomi effettivi delle utenze e caroselli dal DataFrame
