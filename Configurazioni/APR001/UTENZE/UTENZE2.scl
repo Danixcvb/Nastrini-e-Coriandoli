@@ -1,0 +1,48 @@
+FUNCTION "UTENZE2" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+BEGIN
+
+    REGION AC21ST001
+        "UTENZA1".Conveyor.Data.UTZ.TrunkNumber := 2;
+        "UTENZA1".Conveyor.Data.UTZ.AlgorithmType := 0;
+        "UTENZA1".Conveyor.Data.UTZ.EnableSipario := FALSE;
+        "UTENZA1".Conveyor.Data.UTZ.EnableSetting := TRUE;
+        "UTENZA1".Conveyor.Data.UTZ.EnableFirmware := TRUE;
+        "UTENZA1".Conveyor.Data.UTZ.EnableMessage := TRUE;
+        "UTENZA1".Conveyor.Data.UTZ.EnableWarning := TRUE;
+        "UTENZA1".Conveyor.Data.UTZ.EnableMaintenance := TRUE;
+        "UTENZA1".Conveyor.Data.UTZ.EnableEnergySaving := TRUE;
+        "UTENZA1".Conveyor.Data.UTZ.EnableSpeedControl := TRUE;
+        "UTENZA1".Conveyor.Data.UTZ.EnableAccelerationControl := TRUE;
+        "UTENZA1".Conveyor.Data.UTZ.EnableDecelerationControl := TRUE;
+        "UTENZA1".Conveyor.Data.UTZ.EnablePositionControl := TRUE;
+        "UTENZA1".Conveyor.Data.UTZ.EnableTracking := TRUE;
+        "UTENZA1".Conveyor.Data.UTZ.EnableGapControl := TRUE;
+        "UTENZA1".Conveyor.Data.UTZ.EnableJamControl := TRUE;
+        "UTENZA1".Conveyor.Data.UTZ.EnableAntiShadowing := TRUE;
+        "UTENZA1".Conveyor.Data.UTZ.EnableStrictGap := TRUE;
+        "UTENZA1".Conveyor.Data.UTZ.EnableStopForAdjacentJam := TRUE;
+
+    REGION AC21ST003
+        "UTENZA2".Conveyor.Data.UTZ.TrunkNumber := 2;
+        "UTENZA2".Conveyor.Data.UTZ.AlgorithmType := 0;
+        "UTENZA2".Conveyor.Data.UTZ.EnableSipario := FALSE;
+        "UTENZA2".Conveyor.Data.UTZ.EnableSetting := TRUE;
+        "UTENZA2".Conveyor.Data.UTZ.EnableFirmware := TRUE;
+        "UTENZA2".Conveyor.Data.UTZ.EnableMessage := TRUE;
+        "UTENZA2".Conveyor.Data.UTZ.EnableWarning := TRUE;
+        "UTENZA2".Conveyor.Data.UTZ.EnableMaintenance := TRUE;
+        "UTENZA2".Conveyor.Data.UTZ.EnableEnergySaving := TRUE;
+        "UTENZA2".Conveyor.Data.UTZ.EnableSpeedControl := TRUE;
+        "UTENZA2".Conveyor.Data.UTZ.EnableAccelerationControl := TRUE;
+        "UTENZA2".Conveyor.Data.UTZ.EnableDecelerationControl := TRUE;
+        "UTENZA2".Conveyor.Data.UTZ.EnablePositionControl := TRUE;
+        "UTENZA2".Conveyor.Data.UTZ.EnableTracking := TRUE;
+        "UTENZA2".Conveyor.Data.UTZ.EnableGapControl := TRUE;
+        "UTENZA2".Conveyor.Data.UTZ.EnableJamControl := TRUE;
+        "UTENZA2".Conveyor.Data.UTZ.EnableAntiShadowing := TRUE;
+        "UTENZA2".Conveyor.Data.UTZ.EnableStrictGap := TRUE;
+        "UTENZA2".Conveyor.Data.UTZ.EnableStopForAdjacentJam := TRUE;
+
+END_FUNCTION

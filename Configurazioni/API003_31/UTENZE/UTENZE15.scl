@@ -1,0 +1,27 @@
+FUNCTION "UTENZE15" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+BEGIN
+
+    REGION CA21CA023
+        "CA21CA023".Carousel.Data.UTZ.TrunkNumber := 15;
+        "CA21CA023".Carousel.Data.UTZ.AlgorithmType := 0;
+        "CA21CA023".Carousel.Data.UTZ.EnableSipario := FALSE;
+        "CA21CA023".Carousel.Data.UTZ.EnableSetting := TRUE;
+        "CA21CA023".Carousel.Data.UTZ.EnableFirmware := TRUE;
+        "CA21CA023".Carousel.Data.UTZ.EnableMessage := TRUE;
+        "CA21CA023".Carousel.Data.UTZ.EnableWarning := TRUE;
+        "CA21CA023".Carousel.Data.UTZ.EnableMaintenance := TRUE;
+        "CA21CA023".Carousel.Data.UTZ.EnableEnergySaving := TRUE;
+        "CA21CA023".Carousel.Data.UTZ.EnableSpeedControl := TRUE;
+        "CA21CA023".Carousel.Data.UTZ.EnableAccelerationControl := TRUE;
+        "CA21CA023".Carousel.Data.UTZ.EnableDecelerationControl := TRUE;
+        "CA21CA023".Carousel.Data.UTZ.EnablePositionControl := TRUE;
+        "CA21CA023".Carousel.Data.UTZ.EnableTracking := TRUE;
+        "CA21CA023".Carousel.Data.UTZ.EnableGapControl := TRUE;
+        "CA21CA023".Carousel.Data.UTZ.EnableJamControl := TRUE;
+        "CA21CA023".Carousel.Data.UTZ.EnableAntiShadowing := TRUE;
+        "CA21CA023".Carousel.Data.UTZ.EnableStrictGap := TRUE;
+        "CA21CA023".Carousel.Data.UTZ.EnableStopForAdjacentJam := TRUE;
+
+END_FUNCTION

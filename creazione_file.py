@@ -223,6 +223,7 @@ def create_main_file(trunk_number,
         item_id_original = item.get('ITEM_ID_CUSTOM', f'MISSING_ID_{i+1}') 
         component_type = "Carousel" if count_ca_occurrences(item_id_original) == 2 else "Conveyor"
         
+        # Gestione del riferimento all'item precedente
         prev_item_data_to_use = None
         if i == 0: 
              prev_item_data_to_use = last_valid_prev_item_data 
@@ -232,6 +233,7 @@ def create_main_file(trunk_number,
         prev_component_type = "Carousel" if prev_item_data_to_use and count_ca_occurrences(prev_item_data_to_use.get('ITEM_ID_CUSTOM','')) == 2 else "Conveyor"
         prev_name_ref = f'"{prev_name_formatted}".{prev_component_type}.Data.OUT' if prev_item_data_to_use else "NULL"
 
+        # Gestione del riferimento all'item successivo
         next_item_data_to_use = None
         if i == len(valid_items) - 1: 
             next_item_data_to_use = first_valid_next_item_data 
@@ -500,3 +502,179 @@ END_DATA_BLOCK
     # Scrivi il file
     with open(os.path.join(output_folder, trunk_filename), 'w') as trunk_file:
         trunk_file.write(trunk_content) 
+
+def create_main_structure_file(output_folder, num_lines, selected_cab_plc, trunks_per_line, ordered_prefixes):
+    """
+    Crea il file di struttura principale con le regioni dei trunk line dinamiche.
+    Il numero di regioni corrisponde al numero di LINEAx files creati.
+    I MAIN sono raggruppati per prefisso della linea (es. CP11).
+    
+    Args:
+        output_folder (str): Cartella di output
+        num_lines (int): Numero di linee da generare
+        selected_cab_plc (str): CAB_PLC selezionato
+        trunks_per_line (list): Lista con il numero di tronchi per ogni linea
+        ordered_prefixes (list): Lista ordinata dei prefissi delle linee (es. ['CP11', 'CP12', ...])
+    """
+    print(f"Creazione file MAIN [OB1].scl con {num_lines} linee per CAB_PLC {selected_cab_plc}...")
+    print(f"Tronchi per linea: {trunks_per_line}")
+    print(f"Prefissi ordinati: {ordered_prefixes}")
+    
+    # Calcola i range di numeri MAIN per ogni linea
+    main_ranges = []
+    current_main = 1
+    for num_trunks in trunks_per_line:
+        main_ranges.append((current_main, current_main + num_trunks - 1))
+        current_main += num_trunks
+    
+    print(f"Range MAIN per linea: {main_ranges}")
+    
+    content = [
+        '#ReturnValue := RD_SYS_T(#OBDateTime);',
+        '',
+        'REGION Time management',
+        '    "TimeMng_DB"(OBDateTime := #OBDateTime,',
+        '                 StartCycle := TRUE,',
+        '                 EndCycle := FALSE,',
+        '                 Clk100ms_En := TRUE,',
+        '                 Clk200ms_En := TRUE,',
+        '                 Clk500ms_En := TRUE,',
+        '                 Clk1sec_En := TRUE,',
+        '                 Clk1min_En := TRUE,',
+        '                 LampeggioLento_En := TRUE,',
+        '                 LampeggioVeloce_En := TRUE,',
+        '                 Sirena_En := FALSE,',
+        '                 DB_Globale := "UpstreamDB-Globale".Global_Data);',
+        'END_REGION',
+        '',
+        'REGION Library constants',
+        '    "CONST"("DB_Constants".Constants);',
+        'END_REGION',
+        '',
+        'REGION Configuration',
+        '    "CONF"();',
+        'END_REGION',
+        '',
+        'REGION Input signals update',
+        '    "DIG_IN"();',
+        'END_REGION',
+        '',
+        'REGION Eth-Communications',
+        '    "Ist-Logger"(mSecWeek := "UpstreamDB-Globale".Global_Data.TimeData.mSecWeek,',
+        '                    CycleTime := "UpstreamDB-Globale".Global_Data.TimeData.CycleTime,',
+        '                    StartUpPlcFlag := "UpstreamDB-Globale".Global_Data.StartUpPlcFlag,',
+        '                    "Ist-LogBuffer" := "Ist-LogBuffer");',
+        '',
+        '   "Ist-GtwManageSocket"(StartUpPlcFlag := "UpstreamDB-Globale".Global_Data.StartUpPlcFlag,',
+        '                         GtwConfiguration := "DB-GtwConfiguration".GtwConfiguration,',
+        '                         TimeData := "UpstreamDB-Globale".Global_Data.TimeData,',
+        '                         SyncroData := "UpstreamDB-Globale".Global_Data.SyncroData,',
+        '                         HmiGatewayRd := "DB-HmiGatewayRd",',
+        '                         HmiGatewayWr := "DB-HmiGatewayWr",',
+        '                         "Ist-ChmMsgBuffer" := "Ist-GtwChmMsgBuffer",',
+        '                         "Ist-ChrMsgBuffer" := "Ist-GtwChrMsgBuffer",',
+        '                         "Ist-ChmMsgBufferRetry" := "Ist-GtwChmMsgBufferRetry",',
+        '                         "Ist-ChrMsgBufferRetry" := "Ist-GtwChrMsgBufferRetry",',
+        '                         "Ist-GtwCreateAckMsg" := "Ist-GtwCreateAckMsg",',
+        '                         IstDBGtwConfiguration := "DB-GtwConfiguration");',
+        'END_REGION',
+        '',
+        'REGION Line and pushbuttons panel management',
+        '    "GEN_LINE"();',
+        '    "PULS_LINE"();',
+        'END_REGION',
+        '',
+        'REGION Panels management',
+        '    "PANEL1"(PANYTO_SA := "SV_DB_PANEL_SA".MCP1,',
+        '             PANYTO_CMD := "SV_DB_PANEL_CMD".MCP1);  // Panel MCP1  ()',
+        'END_REGION',
+        '',
+        'REGION Profibus/Profinet nodes faults managment',
+        '    // Abilitazione area di diagnostica per supervisione',
+        '    "SV_DB_PROFINET_SA".PROFINET1_ON := TRUE;',
+        '    "SV_DB_PROFINET_SA".PROFIBUS1_ON := FALSE;',
+        '    "SV_DB_PROFINET_SA".PROFIBUS2_ON := FALSE;',
+        '',
+        '    "NET_ALM1"(LADDR := 257,',
+        '               ERROR => "SV_DB_PROFINET_SA".FAULT_PROFINET1,',
+        '               FAULT => "SV_DB_PROFINET_SA".ST_AVR1PN);',
+        '    "NET_ALM2"();',
+        '    "NET_ALM3"();',
+        'END_REGION',
+        ''
+    ]
+
+    # Aggiungi le regioni dei trunk line in modo dinamico
+    for line_num in range(1, num_lines + 1):
+        prefix = ordered_prefixes[line_num - 1]
+        content.append(f'REGION Trunk Line {line_num} ({prefix})')
+        content.append('')
+        
+        # Ottieni il range di numeri MAIN per questa linea
+        start_main, end_main = main_ranges[line_num - 1]
+        for main_num in range(start_main, end_main + 1):
+            content.append(f'    "MAIN{main_num}"();')
+        
+        content.append('')
+        content.append('END_REGION')
+        content.append('')
+
+    # Aggiungi il resto della struttura
+    content.extend([
+        'REGION Output signals update',
+        '    "DIG_OUT"();',
+        'END_REGION',
+        '',
+        'REGION SCADA',
+        '    //   "MAIN_SCADA_ATR"();',
+        '    //   "MAIN_SCADA_CAROUSEL"();',
+        '    //   "MAIN_SCADA_CONVEYOR"();',
+        '    //   "MAIN_SCADA_DIAG"();',
+        '    //   "MAIN_SCADA_LINE"();',
+        '    //   "MAIN_SCADA_PCT"();',
+        '    //   "MAIN_SCADA_SINGLE_DIVERTER"();',
+        '    //   "MAIN_SCADA_TRUNK"();',
+        'END_REGION',
+        '',
+        'REGION Time management',
+        '    "TimeMng_DB"(OBDateTime := #OBDateTime,',
+        '                 StartCycle := FALSE,',
+        '                 EndCycle := TRUE,',
+        '                 Clk100ms_En := TRUE,',
+        '                 Clk200ms_En := TRUE,',
+        '                 Clk500ms_En := TRUE,',
+        '                 Clk1sec_En := TRUE,',
+        '                 Clk1min_En := TRUE,',
+        '                 LampeggioLento_En := TRUE,',
+        '                 LampeggioVeloce_En := TRUE,',
+        '                 Sirena_En := TRUE,',
+        '                 DB_Globale := "UpstreamDB-Globale".Global_Data);',
+        'END_REGION',
+        '',
+        'REGION PN COMMUNICATION',
+        '    "PN_PN_EXCHANGE"();',
+        'END_REGION',
+        '',
+        'REGION Version',
+        '    "V_Major" := "PlcSwVersion".MAJOR;',
+        '    "V_Minor" := "PlcSwVersion".MINOR;',
+        '    "V_Patch" := "PlcSwVersion".PATCH;',
+        'END_REGION'
+    ])
+
+    # Crea il percorso completo includendo il CAB_PLC
+    output_path = os.path.join('Configurazioni', selected_cab_plc, 'MAIN [OB1].scl')
+    print(f"Percorso file: {os.path.abspath(output_path)}")
+    
+    # Crea la cartella se non esiste
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    print(f"Cartella creata/verificata: {os.path.exists(os.path.dirname(output_path))}")
+    
+    try:
+        with open(output_path, 'w') as f:
+            f.write('\n'.join(content))
+        print(f"File MAIN [OB1].scl creato con successo in: {os.path.abspath(output_path)}")
+    except Exception as e:
+        print(f"Errore durante la creazione del file: {e}")
+        
+    print("File MAIN [OB1].scl creato con successo!") 

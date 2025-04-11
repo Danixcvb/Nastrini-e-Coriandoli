@@ -1,0 +1,12 @@
+DATA_BLOCK "DATALOGIC_AC11SC015"
+
+{ S7_Optimized_Access := 'TRUE' }
+AUTHOR : Dani
+FAMILY : ATR
+VERSION : 0.2
+NON_RETAIN
+"Sub-Datalogic"
+
+BEGIN
+
+END_DATA_BLOCK

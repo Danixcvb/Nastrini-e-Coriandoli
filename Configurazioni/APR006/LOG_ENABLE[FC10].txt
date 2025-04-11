@@ -1,0 +1,14 @@
+REGION Enabling debug
+    IF #EnableDebug THEN
+        // va inserito il phtTracking in base alla fotocellula attivata nella CONF
+
+    ELSE
+
+    END_IF;
+END_REGION
+
+REGION Enabling log
+    IF #EnableLog THEN
+    ELSE
+    END_IF;
+END_REGION

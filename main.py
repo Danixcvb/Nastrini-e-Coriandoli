@@ -5,7 +5,6 @@ Script principale per l'avvio dell'applicazione di configurazione nastri traspor
 import os
 import sys
 from interfaccia_grafica import create_gui
-
 def main():
     """
     Funzione principale che avvia l'applicazione.
