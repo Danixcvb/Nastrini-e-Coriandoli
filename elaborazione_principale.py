@@ -38,24 +38,33 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         root: Finestra principale
         order (list): Ordine selezionato per la generazione dei file
         excel_file_path (str): Percorso del file Excel da elaborare
+        
+    Returns:
+        bool: True se l'elaborazione è completata con successo, False altrimenti
     """
-    # Import show_completion_message here to avoid circular import
-    from interfaccia_grafica import show_completion_message
-    
-    status_var.set("Elaborazione in corso...")
-    
-    # Verifica se il file Excel è stato selezionato
-    if not excel_file_path:
-        messagebox.showerror("Errore", "Nessun file Excel selezionato. Seleziona un file Excel prima di procedere.")
-        status_var.set("Errore: nessun file selezionato")
-        return
-    
-    if not os.path.exists(excel_file_path):
-        messagebox.showerror("Errore", f"Il file {excel_file_path} non esiste.")
-        status_var.set("Errore: file non trovato")
-        return
-    
     try:
+        # Import show_completion_message here to avoid circular import
+        from interfaccia_grafica import show_completion_message
+        
+        status_var.set("Elaborazione in corso...")
+        
+        # Verifica se il file Excel è stato selezionato
+        if not excel_file_path:
+            messagebox.showerror("Errore", "Nessun file Excel selezionato. Seleziona un file Excel prima di procedere.")
+            status_var.set("Errore: nessun file selezionato")
+            return False
+        
+        if not os.path.exists(excel_file_path):
+            messagebox.showerror("Errore", f"Il file {excel_file_path} non esiste.")
+            status_var.set("Errore: file non trovato")
+            return False
+        
+        # Verifica se l'ordine è stato selezionato
+        if not order:
+            messagebox.showerror("Errore", "Nessun ordine selezionato. Seleziona l'ordine di generazione prima di procedere.")
+            status_var.set("Errore: nessun ordine selezionato")
+            return False
+        
         # Carica il file Excel
         df = pd.read_excel(excel_file_path)
         print(f"DataFrame caricato con {len(df)} righe")
@@ -66,7 +75,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         if not all(col in df.columns for col in required_columns):
             messagebox.showerror("Errore", "Alcune colonne richieste sono mancanti nel file Excel.")
             status_var.set("Errore: colonne mancanti")
-            return
+            return False
         
         # Filtra le righe escludendo ITEM_ID_CUSTOM contenenti "OG", "SD", "FD", "RS", "CX", "CN", "CH", "XR", "SO", "LC", "IN"
         df = df[~df['ITEM_ID_CUSTOM'].str.contains('OG|SD|FD|RS|CX|CN|CH|XR|SO|LC|IN', case=False, na=False)]
@@ -85,7 +94,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         if cab_plc_data.empty:
             messagebox.showerror("Errore", f"Nessun dato trovato per il CAB_PLC {selected_cab_plc} nel file Excel.")
             status_var.set(f"Errore: nessun dato per {selected_cab_plc}")
-            return
+            return False
         
         # Crea i file .txt basati sui prefissi ITEM_ID_CUSTOM
         create_txt_files(cab_plc_data, selected_cab_plc, order)
@@ -167,9 +176,8 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         
         # Dizionario per memorizzare le configurazioni per numero di tronco
         configurations_by_trunk = {}
-        # --- NUOVO: Dizionario per memorizzare i dati per i file MAIN ---
-        main_data_by_trunk = {} 
-        # --- FINE NUOVO ---
+        # Dizionario per memorizzare i dati per i file MAIN
+        main_data_by_trunk = {}
         
         # Itera attraverso ogni prefisso nell'ordine selezionato
         for prefix in ordered_prefixes:
@@ -177,7 +185,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             trunk_groups = prefix_data.groupby('ITEM_TRUNK')
             
             for trunk_name, trunk_group in trunk_groups:
-                configurations_by_trunk[global_trunk_counter] = [] 
+                configurations_by_trunk[global_trunk_counter] = []
                 # Aggiunge l'intestazione della funzione
                 header = f"""FUNCTION "CONF_T{global_trunk_counter}" : Void
 {{ S7_Optimized_Access := 'TRUE' }}
@@ -194,69 +202,62 @@ BEGIN
                 
                 # Itera attraverso ogni riga del gruppo
                 for index, row in trunk_group.iterrows():
-                    print(f"DEBUG: Inizio iterazione {index}") # DEBUG PRINT 1
-                    # Inizializza le variabili all'inizio di ogni iterazione
-                    carousel_number = None
-                    utenza_number = None
-                    
-                    item_id_custom = row['ITEM_ID_CUSTOM']
-                    cab_plc = row['CAB_PLC']
-                    item_speed_transport = row['ITEM_SPEED_TRANSPORT']
-                    item_speed_launch = row['ITEM_SPEED_LAUNCH']
-                    item_speed_max = row['ITEM_SPEED_MAX']
-                    item_acceleration = row['ITEM_ACCELERATION']
-                    item_l = row['ITEM_L']
-                    
-                    # Ottieni i numeri globali (potrebbero sovrascrivere None se presenti)
-                    utenza_number = row.get('GlobalUtenzaNumber') 
-                    carousel_number = row.get('GlobalCarouselNumber') 
-                    
-                    # --- NUOVA MODIFICA: Assicura che NaN diventi None ---
-                    if pd.isna(utenza_number):
-                        utenza_number = None
-                    if pd.isna(carousel_number):
+                    try:
+                        # Inizializza le variabili all'inizio di ogni iterazione
                         carousel_number = None
-                    # --- FINE NUOVA MODIFICA ---
-                    
-                    comment_name = item_id_custom
-                    
-                    # Determina il nuovo ID custom basato sul tipo e numero
-                    if count_ca_occurrences(comment_name) == 2 and carousel_number is not None:
-                        # Assicurati che carousel_number sia un intero prima di usarlo nella f-string
-                        try:
-                            # Usa il numero di carousel direttamente, senza altre manipolazioni
-                            item_id_custom_new = f"CAROUSEL{int(carousel_number)}"
-                        except (ValueError, TypeError):
-                            # Gestisci il caso in cui carousel_number non sia convertibile in int
-                            print(f"Attenzione: Impossibile convertire GlobalCarouselNumber '{carousel_number}' in intero per ITEM_ID_CUSTOM '{item_id_custom}'. Uso l'ID originale.")
+                        utenza_number = None
+                        
+                        item_id_custom = row['ITEM_ID_CUSTOM']
+                        cab_plc = row['CAB_PLC']
+                        item_speed_transport = row['ITEM_SPEED_TRANSPORT']
+                        item_speed_launch = row['ITEM_SPEED_LAUNCH']
+                        item_speed_max = row['ITEM_SPEED_MAX']
+                        item_acceleration = row['ITEM_ACCELERATION']
+                        item_l = row['ITEM_L']
+                        
+                        # Ottieni i numeri globali (potrebbero sovrascrivere None se presenti)
+                        utenza_number = row.get('GlobalUtenzaNumber')
+                        carousel_number = row.get('GlobalCarouselNumber')
+                        
+                        # Assicura che NaN diventi None
+                        if pd.isna(utenza_number):
+                            utenza_number = None
+                        if pd.isna(carousel_number):
+                            carousel_number = None
+                        
+                        comment_name = item_id_custom
+                        
+                        # Determina il nuovo ID custom basato sul tipo e numero
+                        if count_ca_occurrences(comment_name) == 2 and carousel_number is not None:
+                            try:
+                                item_id_custom_new = f"CAROUSEL{int(carousel_number)}"
+                            except (ValueError, TypeError):
+                                print(f"Attenzione: Impossibile convertire GlobalCarouselNumber '{carousel_number}' in intero per ITEM_ID_CUSTOM '{item_id_custom}'. Uso l'ID originale.")
+                                item_id_custom_new = item_id_custom
+                        elif "ST" in item_id_custom.upper() and utenza_number is not None:
+                            try:
+                                item_id_custom_new = f"UTENZA{int(utenza_number)}"
+                            except (ValueError, TypeError):
+                                print(f"Attenzione: Impossibile convertire GlobalUtenzaNumber '{utenza_number}' in intero per ITEM_ID_CUSTOM '{item_id_custom}'. Uso l'ID originale.")
+                                item_id_custom_new = item_id_custom
+                        else:
                             item_id_custom_new = item_id_custom
-                    elif "ST" in item_id_custom.upper() and utenza_number is not None:
-                         # Assicurati che utenza_number sia un intero prima di usarlo nella f-string
-                        try:
-                            item_id_custom_new = f"UTENZA{int(utenza_number)}"
-                        except (ValueError, TypeError):
-                             # Gestisci il caso in cui utenza_number non sia convertibile in int
-                            print(f"Attenzione: Impossibile convertire GlobalUtenzaNumber '{utenza_number}' in intero per ITEM_ID_CUSTOM '{item_id_custom}'. Uso l'ID originale.")
-                            item_id_custom_new = item_id_custom
-                    else:
-                        item_id_custom_new = item_id_custom
-                    
-                    # Ottieni valori di default se necessario
-                    item_speed_transport = get_value_or_default(item_speed_transport, default_speed_transport)
-                    item_speed_launch = get_value_or_default(item_speed_launch, default_speed_launch)
-                    item_speed_max = get_value_or_default(item_speed_max, default_speed_max)
-                    item_acceleration = get_value_or_default(item_acceleration, default_acceleration)
-                    item_l = get_value_or_default(item_l, default_item_l)
-                    
-                    component_type = "Carousel" if count_ca_occurrences(comment_name) == 2 else "Conveyor"
-                    
-                    # Costruisci la stringa di configurazione - Parte 1 (regione comune)
-                    configuration = f"""   REGION {comment_name}
+                        
+                        # Ottieni valori di default se necessario
+                        item_speed_transport = get_value_or_default(item_speed_transport, default_speed_transport)
+                        item_speed_launch = get_value_or_default(item_speed_launch, default_speed_launch)
+                        item_speed_max = get_value_or_default(item_speed_max, default_speed_max)
+                        item_acceleration = get_value_or_default(item_acceleration, default_acceleration)
+                        item_l = get_value_or_default(item_l, default_item_l)
+                        
+                        component_type = "Carousel" if count_ca_occurrences(comment_name) == 2 else "Conveyor"
+                        
+                        # Costruisci la stringa di configurazione
+                        configuration = f"""   REGION {comment_name}
 
 """
-                    # Costruisci la stringa di configurazione - Parte 2 (specifica per "SC")
-                    if "SC" in item_id_custom:
-                        configuration += f"""    REGION Config ATR CAMERA 360 ({item_id_custom})
+                        if "SC" in item_id_custom:
+                            configuration += f"""    REGION Config ATR CAMERA 360 ({item_id_custom})
         REGION General data configuration
             "Datalogic_{item_id_custom}".Data.CNF.Position := 0.5;
             "Datalogic_{item_id_custom}".Data.CNF.MachineId := 21;
@@ -292,16 +293,14 @@ BEGIN
     END_REGION
 
 """
-                    # Costruisci la stringa di configurazione - Parte 3 (specifica per "ST" o "CA")
-                    # Nota: Ho aggiunto un controllo try-except per la conversione a float di item_l
-                    try:
-                        item_l_float = float(item_l) / 1000.0
-                    except (ValueError, TypeError):
-                        print(f"Attenzione: Impossibile convertire ITEM_L '{item_l}' in float per ITEM_ID_CUSTOM '{item_id_custom}'. Uso il valore di default {default_item_l/1000.0}.")
-                        item_l_float = default_item_l / 1000.0
-                        
-                    if "ST" in item_id_custom.upper() or count_ca_occurrences(comment_name) == 2:
-                        configuration += f"""    REGION {component_type}.Data.CNF
+                        try:
+                            item_l_float = float(item_l) / 1000.0
+                        except (ValueError, TypeError):
+                            print(f"Attenzione: Impossibile convertire ITEM_L '{item_l}' in float per ITEM_ID_CUSTOM '{item_id_custom}'. Uso il valore di default {default_item_l/1000.0}.")
+                            item_l_float = default_item_l / 1000.0
+                            
+                        if "ST" in item_id_custom.upper() or count_ca_occurrences(comment_name) == 2:
+                            configuration += f"""    REGION {component_type}.Data.CNF
 
         "{item_id_custom_new}".{component_type}.Data.CNF.Pht01En := FALSE;
         "{item_id_custom_new}".{component_type}.Data.CNF.Pht02En := TRUE;
@@ -324,7 +323,7 @@ BEGIN
         "{item_id_custom_new}".{component_type}.Data.CNF.SpeedHigh := 0.0;
         "{item_id_custom_new}".{component_type}.Data.CNF.DriveMaxSpeed := {item_speed_max};
         "{item_id_custom_new}".{component_type}.Data.CNF.Acceleration := {item_acceleration};
-        "{item_id_custom_new}".{component_type}.Data.CNF.Length := {item_l_float}; 
+        "{item_id_custom_new}".{component_type}.Data.CNF.Length := {item_l_float};
         "{item_id_custom_new}".{component_type}.Data.CNF.Gap := 0.4;
         "{item_id_custom_new}".{component_type}.Data.CNF.Step := 0.4;
         "{item_id_custom_new}".{component_type}.Data.CNF.TrackingSlotLength := 0.04;
@@ -397,44 +396,43 @@ BEGIN
         END_REGION
 END_REGION
 """
-                    # Aggiungi la configurazione e crea i file necessari
-                    if "SC" in item_id_custom:
-                        output_folder = f'Configurazioni/{selected_cab_plc}/UTENZE'
-                        print(f"DEBUG: Creazione file datalogic per {item_id_custom} in {output_folder}") # DEBUG PRINT 2
-                        create_datalogic_file(item_id_custom, output_folder)
-                        configurations_by_trunk[global_trunk_counter].append(configuration)
-                    else:
-                        output_folder = f'Configurazioni/{selected_cab_plc}/UTENZE'
-                        create_data_block_file(item_id_custom_new, component_type, output_folder)
-                        configurations_by_trunk[global_trunk_counter].append(configuration)
-                    
-                    # Incrementa il numero progressivo all'interno del gruppo
-                    progressive_number += 1
+                        # Aggiungi la configurazione e crea i file necessari
+                        if "SC" in item_id_custom:
+                            output_folder = f'Configurazioni/{selected_cab_plc}/UTENZE'
+                            print(f"DEBUG: Creazione file datalogic per {item_id_custom} in {output_folder}")
+                            create_datalogic_file(item_id_custom, output_folder)
+                            configurations_by_trunk[global_trunk_counter].append(configuration)
+                        else:
+                            output_folder = f'Configurazioni/{selected_cab_plc}/UTENZE'
+                            create_data_block_file(item_id_custom_new, component_type, output_folder)
+                            configurations_by_trunk[global_trunk_counter].append(configuration)
+                        
+                        # Incrementa il numero progressivo all'interno del gruppo
+                        progressive_number += 1
+                        
+                    except Exception as e:
+                        print(f"Errore durante l'elaborazione dell'item {item_id_custom}: {e}")
+                        continue
                 
                 # Aggiunge END_FUNCTION alla fine delle configurazioni del tronco
                 configurations_by_trunk[global_trunk_counter].append("END_FUNCTION")
                 
-                # --- MODIFICA: Filtra e Memorizza dati per MAIN --- 
-                # Filtra per includere SOLO 'ST' o 'CAx2', come in CONF_T
+                # Filtra e Memorizza dati per MAIN
                 condition_st = trunk_group['ITEM_ID_CUSTOM'].str.contains('ST', case=False, na=False)
-                # Applica la funzione count_ca_occurrences a ogni riga
                 condition_ca2 = trunk_group['ITEM_ID_CUSTOM'].apply(lambda x: count_ca_occurrences(str(x)) == 2)
                 
-                valid_items_for_main = trunk_group[condition_st | condition_ca2] # Includi se ST OR CAx2
+                valid_items_for_main = trunk_group[condition_st | condition_ca2]
 
-                if not valid_items_for_main.empty: # Solo se ci sono item validi nel tronco
-                    items_ordered_dict = valid_items_for_main.sort_values(by='LastThreeDigits').to_dict('records') 
+                if not valid_items_for_main.empty:
+                    items_ordered_dict = valid_items_for_main.sort_values(by='LastThreeDigits').to_dict('records')
                     main_data_by_trunk[global_trunk_counter] = items_ordered_dict
-                # else: # Opzionale: se vuoi che un tronco esista in main_data anche se vuoto dopo il filtro
-                #     main_data_by_trunk[global_trunk_counter] = []
-                # --- FINE MODIFICA ---
 
                 # Incrementa il contatore globale
                 global_trunk_counter += 1
         
         # Salva le configurazioni CONF_T in file separati per tronco
-        files_created = [] 
-        for trunk in sorted(configurations_by_trunk.keys(), key=int): # Ri-aggiunto loop salvataggio CONF_T
+        files_created = []
+        for trunk in sorted(configurations_by_trunk.keys(), key=int):
             output_filename = f'CONF_T{trunk}.scl'
             output_path = os.path.join('Configurazioni', selected_cab_plc, 'CONF', output_filename)
             
@@ -446,12 +444,13 @@ END_REGION
                 files_created.append(output_filename)
             except Exception as e:
                 messagebox.showerror("Errore", f"Errore nel salvataggio del file {output_filename}: {e}")
+                continue
 
         # Crea i file LINEA
         create_linea_files(df, selected_cab_plc)
         
-        # --- SOSTITUITO BLOCCO MAINx con Logica di Contesto ---
-        main_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'MAIN')  # Ripristinato: aggiunto 'MAIN'
+        # Gestione dei file MAIN
+        main_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'MAIN')
         conf_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'CONF')
         utenze_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'UTENZE')
         db_trunk_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'DB_TRUNK')
@@ -460,45 +459,44 @@ END_REGION
         ordered_trunk_nums = sorted(main_data_by_trunk.keys())
         
         for idx, trunk_num in enumerate(ordered_trunk_nums):
-            items_ordered = main_data_by_trunk[trunk_num] # Lista già filtrata e ordinata
+            items_ordered = main_data_by_trunk[trunk_num]
             
             # Trova ultimo elemento valido del tronco precedente
             last_valid_prev_item_data = None
             if idx > 0:
                 prev_trunk_num = ordered_trunk_nums[idx - 1]
-                if main_data_by_trunk[prev_trunk_num]: # Assicurati che il tronco precedente non sia vuoto
+                if main_data_by_trunk[prev_trunk_num]:
                     last_valid_prev_item_data = main_data_by_trunk[prev_trunk_num][-1]
 
             # Trova primo elemento valido del tronco successivo
             first_valid_next_item_data = None
             if idx < len(ordered_trunk_nums) - 1:
                 next_trunk_num = ordered_trunk_nums[idx + 1]
-                if main_data_by_trunk[next_trunk_num]: # Assicurati che il tronco successivo non sia vuoto
+                if main_data_by_trunk[next_trunk_num]:
                     first_valid_next_item_data = main_data_by_trunk[next_trunk_num][0]
 
             # Chiama create_main_file con contesto
-            if items_ordered: # Solo se ci sono elementi validi in questo tronco
-                create_main_file(
-                    trunk_num, 
-                    items_ordered, 
-                    main_output_folder,  # Ripristinato: punta alla cartella MAIN
-                    last_valid_prev_item_data=last_valid_prev_item_data,
-                    first_valid_next_item_data=first_valid_next_item_data
-                )
-                
-                # Aggiunte: creazione file CONFT_T e UTENZE
-                create_conft_t_file(trunk_num, items_ordered, conf_output_folder)
-                create_utenza_file(trunk_num, items_ordered, utenze_output_folder)
-                
-                # Creazione file TRUNK nella cartella DB_TRUNK
-                create_trunk_file(trunk_num, db_trunk_output_folder)
-        # --- FINE SOSTITUZIONE ---
+            if items_ordered:
+                try:
+                    create_main_file(
+                        trunk_num,
+                        items_ordered,
+                        main_output_folder,
+                        last_valid_prev_item_data=last_valid_prev_item_data,
+                        first_valid_next_item_data=first_valid_next_item_data
+                    )
+                    
+                    # Crea i file correlati
+                    create_conft_t_file(trunk_num, items_ordered, conf_output_folder)
+                    create_utenza_file(trunk_num, items_ordered, utenze_output_folder)
+                    create_trunk_file(trunk_num, db_trunk_output_folder)
+                except Exception as e:
+                    print(f"Errore durante la creazione dei file per il tronco {trunk_num}: {e}")
+                    continue
 
         # Calcola il numero di linee basato sui prefissi unici
-        # Usa l'ordine selezionato dall'utente invece di sorted
         ordered_prefixes = []
         for item in order:
-            # Estrai il prefisso dall'ordine (es. "1. CP11" -> "cp11")
             prefix = item.split('. ')[1].lower() if '. ' in item else item.lower()
             ordered_prefixes.append(prefix)
 
@@ -507,9 +505,7 @@ END_REGION
         # Calcola il numero di tronchi per ogni linea
         trunks_per_line = []
         for prefix in ordered_prefixes:
-            # Filtra i dati per il prefisso corrente
             prefix_data = cab_plc_data[cab_plc_data['ITEM_ID_CUSTOM'].str.lower().str.startswith(prefix)]
-            # Conta i tronchi unici per questo prefisso
             unique_trunks = prefix_data['ITEM_TRUNK'].nunique()
             trunks_per_line.append(unique_trunks)
 
@@ -531,8 +527,6 @@ END_REGION
         os.makedirs(os.path.dirname(log_enable_path), exist_ok=True)
         
         # Estrai i nomi effettivi delle utenze e caroselli dal DataFrame
-        # Le utenze sono identificate dalla presenza di "ST" nel nome
-        # I caroselli sono identificati dalla presenza di due occorrenze di "CA" nel nome
         utenze = df[df['ITEM_ID_CUSTOM'].str.contains('ST', case=False, na=False)]['ITEM_ID_CUSTOM'].unique()
         caroselli = df[df['ITEM_ID_CUSTOM'].str.upper().str.count('CA') == 2]['ITEM_ID_CUSTOM'].unique()
         
@@ -545,17 +539,14 @@ END_REGION
         ordered_utenze = []
         ordered_caroselli = []
         
-        # Estrai i prefissi dall'ordine selezionato (es. "1. CP11" -> "CP11")
+        # Estrai i prefissi dall'ordine selezionato
         prefixes = [item.split('. ')[1] for item in order]
         
         # Ordina le utenze e i caroselli in base ai prefissi
-        # Questo garantisce che le utenze e i caroselli siano ordinati secondo l'ordine scelto dall'utente
         for prefix in prefixes:
-            # Filtra le utenze che iniziano con questo prefisso
             prefix_utenze = [u for u in utenze if u.startswith(prefix)]
             ordered_utenze.extend(sorted(prefix_utenze))
             
-            # Filtra i caroselli che iniziano con questo prefisso
             prefix_caroselli = [c for c in caroselli if c.startswith(prefix)]
             ordered_caroselli.extend(sorted(prefix_caroselli))
         
@@ -570,17 +561,16 @@ END_REGION
             f.write("        // va inserito il phtTracking in base alla fotocellula attivata nella CONF\n")
             
             # Scrivi le configurazioni per tutte le utenze nell'ordine scelto
-            # Mantieni lo stesso numero per utenze con lo stesso prefisso
             current_prefix = None
             for i, utenza in enumerate(ordered_utenze, 1):
-                prefix = utenza[:4]  # Prendi i primi 4 caratteri come prefisso
+                prefix = utenza[:4]
                 if prefix != current_prefix:
                     if current_prefix is not None:
-                        f.write("\n")  # Aggiungi una riga vuota tra gruppi diversi
+                        f.write("\n")
                     current_prefix = prefix
                 f.write(f'        "UTENZA{i}".Conveyor.PhtTracking02.Debug.DebugEn := TRUE;\n')
             
-            f.write("\n")  # Aggiungi una riga vuota tra utenze e caroselli
+            f.write("\n")
             
             # Scrivi le configurazioni per i caroselli
             for i, carosello in enumerate(ordered_caroselli, 1):
@@ -609,7 +599,7 @@ END_REGION
             f.write("REGION Enabling log\n")
             f.write("    IF #EnableLog THEN\n")
             
-            # Raggruppa le utenze per numero per mantenere lo stesso numero per utenze con lo stesso prefisso
+            # Raggruppa le utenze per numero
             utenze_by_number = {}
             for i, utenza in enumerate(ordered_utenze, 1):
                 number = i
@@ -618,12 +608,11 @@ END_REGION
                 utenze_by_number[number].append(utenza)
             
             # Scrivi le configurazioni raggruppate per numero
-            # Questo garantisce che utenze con lo stesso prefisso abbiano lo stesso numero
             for number, utenze in sorted(utenze_by_number.items()):
                 for utenza in utenze:
                     f.write(f'        "UTENZA{number}".Conveyor.PhtTracking02.Data.CNF.HsitoryEventEn := TRUE;\n')
                     f.write(f'        "UTENZA{number}".Conveyor.PhtTracking02.Data.CNF.LogEventEn := TRUE;\n')
-                f.write("\n")  # Aggiungi una riga vuota dopo ogni gruppo
+                f.write("\n")
             
             # Scrivi le configurazioni per i caroselli
             for i, carosello in enumerate(ordered_caroselli, 1):
@@ -637,7 +626,7 @@ END_REGION
                 for utenza in utenze:
                     f.write(f'        "UTENZA{number}".Conveyor.PhtTracking02.Data.CNF.HsitoryEventEn := FALSE;\n')
                     f.write(f'        "UTENZA{number}".Conveyor.PhtTracking02.Data.CNF.LogEventEn := FALSE;\n')
-                f.write("\n")  # Aggiungi una riga vuota dopo ogni gruppo
+                f.write("\n")
             
             for i, carosello in enumerate(ordered_caroselli, 1):
                 f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking02.Data.CNF.HsitoryEventEn := FALSE;\n')
@@ -646,9 +635,12 @@ END_REGION
             f.write("    END_IF;\n")
             f.write("END_REGION")
         
+        return True
+        
     except Exception as e:
         messagebox.showerror("Errore", f"Errore nell'elaborazione del file Excel: {e}")
         status_var.set("Errore nell'elaborazione")
+        return False
 
 if __name__ == "__main__":
     try:
