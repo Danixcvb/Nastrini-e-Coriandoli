@@ -349,7 +349,7 @@ def create_main_file(trunk_number,
         # Se il prossimo elemento EFFETTIVO è un carousel, aggiungi la sua configurazione SIDE_INPUT
         if next_item_data_to_use and count_ca_occurrences(next_item_data_to_use.get('ITEM_ID_CUSTOM','')) == 2:
              side_input_carousel_num = next_number if next_number is not None else 0 
-             content.append("REGION CONFIGURAZIONE SIDE INPUT")
+             content.append(f"REGION Call SIDE INPUT for CAROUSEL{side_input_carousel_num} ({item_id_original})")
              content.append("    // il side input si inserisce prima di un carosello , nel tronco precedente al carosello")
              content.append("")
              
