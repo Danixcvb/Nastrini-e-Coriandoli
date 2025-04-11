@@ -1,10 +1,13 @@
 """
 Script principale per l'avvio dell'applicazione di configurazione nastri trasportatori.
+Questo file viene utilizzato per avviare l'applicazione in modalità debug.
 """
 
 import os
 import sys
+import tkinter as tk
 from interfaccia_grafica import create_gui
+
 def main():
     """
     Funzione principale che avvia l'applicazione.
@@ -28,4 +31,6 @@ def main():
         input("Premi INVIO per chiudere...")  # Mantiene la finestra aperta in caso di errore
 
 if __name__ == "__main__":
-    main() 
+    # Questo blocco viene eseguito solo se il file viene eseguito direttamente
+    # (non importato come modulo)
+    main()
