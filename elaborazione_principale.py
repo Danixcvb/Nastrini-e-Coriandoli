@@ -324,7 +324,7 @@ BEGIN
         "{item_id_custom_new}".{component_type}.Data.CNF.SpeedHigh := 0.0;
         "{item_id_custom_new}".{component_type}.Data.CNF.DriveMaxSpeed := {item_speed_max};
         "{item_id_custom_new}".{component_type}.Data.CNF.Acceleration := {item_acceleration};
-        "{item_id_custom_new}".{component_type}.Data.CNF.Length := {item_l_float}; # Usato valore convertito e controllato
+        "{item_id_custom_new}".{component_type}.Data.CNF.Length := {item_l_float}; 
         "{item_id_custom_new}".{component_type}.Data.CNF.Gap := 0.4;
         "{item_id_custom_new}".{component_type}.Data.CNF.Step := 0.4;
         "{item_id_custom_new}".{component_type}.Data.CNF.TrackingSlotLength := 0.04;
