@@ -532,7 +532,7 @@ def show_completion_message(root, selected_cab_plc):
         completion_window.configure(bg="#2C3E50")
         completion_window.transient(root)
         completion_window.grab_set()
-        
+        test
         # Crea un canvas per i coriandoli che copre l'intera finestra
         confetti_canvas = tk.Canvas(completion_window, width=800, height=600, 
                                   bg='#2C3E50', highlightthickness=0)
