@@ -1,0 +1,85 @@
+REGION Initializing Temp Section
+    #TempEncoderNotUsed.Count := 16#0;
+END_REGION
+
+REGION Gestione Richiesta Start Tronco
+    IF "UpstreamDB-Globale".Global_Data.Start_All OR "UpstreamDB-Globale".Global_Data.StartTronco24 OR "TRUNK24".StartReqAutoFp
+    THEN
+        #StartTronco := TRUE;
+    END_IF;
+END_REGION
+
+REGION Call CONVEYOR_SEW_MOVIGEAR (AC31ST001)
+
+    "UTENZA52"(
+               ID := 52,
+               PREV := "UTENZA51".Conveyor.Data.OUT,
+               NEXT := "UTENZA53".Conveyor.Data.OUT,
+               START := #StartTronco,
+               TimeData := "UpstreamDB-Globale".Global_Data.TimeData,
+               Constants := "DB_Constants".Constants,
+               InterfaceTrunkUse := "TRUNK24".ComTrunkUse,
+               PANYTOCNV_SA := "SV_DB_CONVEYOR_SA".CONVEYOR_52,
+               PANYTOCNV_CMD := "SV_DB_CONVEYOR_CMD".CONVEYOR_52,
+               DB_OBJ := "DBsObject".DbObj[1],
+               "Ist-VidGenerator" := "Ist_Sub-VidGenerator",
+               EncoderInterface := #TempEncoderNotUsed,
+               DriveInterface_IN := "AC31ST001_IN",
+               DriveInterface_OUT := "AC31ST001_OUT",
+               "Ist-McpCreateChrMsg" := "Ist-McpCreateChrMsg",
+               "Ist-PcSocket" := "Ist-GtwManageSocket",
+               "Ist-McpChrMsgBuffer" := "Ist-GtwChrMsgBuffer",
+               "Ist-LogBuffer" := "Ist-LogBuffer",
+               "Ist-Logger" := "Ist-Logger");
+
+END_REGION
+
+REGION Call CONVEYOR_SEW_MOVIGEAR (AC31ST003)
+
+    "UTENZA53"(
+               ID := 53,
+               PREV := "UTENZA52".Conveyor.Data.OUT,
+               NEXT := "UTENZA54".Conveyor.Data.OUT,
+               START := #StartTronco,
+               TimeData := "UpstreamDB-Globale".Global_Data.TimeData,
+               Constants := "DB_Constants".Constants,
+               InterfaceTrunkUse := "TRUNK24".ComTrunkUse,
+               PANYTOCNV_SA := "SV_DB_CONVEYOR_SA".CONVEYOR_53,
+               PANYTOCNV_CMD := "SV_DB_CONVEYOR_CMD".CONVEYOR_53,
+               DB_OBJ := "DBsObject".DbObj[1],
+               "Ist-VidGenerator" := "Ist_Sub-VidGenerator",
+               EncoderInterface := #TempEncoderNotUsed,
+               DriveInterface_IN := "AC31ST003_IN",
+               DriveInterface_OUT := "AC31ST003_OUT",
+               "Ist-McpCreateChrMsg" := "Ist-McpCreateChrMsg",
+               "Ist-PcSocket" := "Ist-GtwManageSocket",
+               "Ist-McpChrMsgBuffer" := "Ist-GtwChrMsgBuffer",
+               "Ist-LogBuffer" := "Ist-LogBuffer",
+               "Ist-Logger" := "Ist-Logger");
+
+END_REGION
+
+REGION Call CONVEYOR_SEW_MOVIGEAR (AC31ST005)
+
+    "UTENZA54"(
+               ID := 54,
+               PREV := "UTENZA53".Conveyor.Data.OUT,
+               NEXT := "UTENZA55".Conveyor.Data.OUT,
+               START := #StartTronco,
+               TimeData := "UpstreamDB-Globale".Global_Data.TimeData,
+               Constants := "DB_Constants".Constants,
+               InterfaceTrunkUse := "TRUNK24".ComTrunkUse,
+               PANYTOCNV_SA := "SV_DB_CONVEYOR_SA".CONVEYOR_54,
+               PANYTOCNV_CMD := "SV_DB_CONVEYOR_CMD".CONVEYOR_54,
+               DB_OBJ := "DBsObject".DbObj[1],
+               "Ist-VidGenerator" := "Ist_Sub-VidGenerator",
+               EncoderInterface := #TempEncoderNotUsed,
+               DriveInterface_IN := "AC31ST005_IN",
+               DriveInterface_OUT := "AC31ST005_OUT",
+               "Ist-McpCreateChrMsg" := "Ist-McpCreateChrMsg",
+               "Ist-PcSocket" := "Ist-GtwManageSocket",
+               "Ist-McpChrMsgBuffer" := "Ist-GtwChrMsgBuffer",
+               "Ist-LogBuffer" := "Ist-LogBuffer",
+               "Ist-Logger" := "Ist-Logger");
+
+END_REGION

@@ -22,7 +22,8 @@ from creazione_file import (
     create_main_file,
     create_conft_t_file,
     create_utenza_file,
-    create_trunk_file
+    create_trunk_file,
+    create_main_structure_file
 )
 import random
 import math
@@ -38,6 +39,9 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         order (list): Ordine selezionato per la generazione dei file
         excel_file_path (str): Percorso del file Excel da elaborare
     """
+    # Import show_completion_message here to avoid circular import
+    from interfaccia_grafica import show_completion_message
+    
     status_var.set("Elaborazione in corso...")
     
     # Verifica se il file Excel è stato selezionato
@@ -54,6 +58,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
     try:
         # Carica il file Excel
         df = pd.read_excel(excel_file_path)
+        print(f"DataFrame caricato con {len(df)} righe")
         
         # Verifica le colonne richieste
         required_columns = ['ITEM_ID_CUSTOM', 'CAB_PLC', 'ITEM_TRUNK', 'ITEM_SPEED_TRANSPORT', 
@@ -446,7 +451,7 @@ END_REGION
         create_linea_files(df, selected_cab_plc)
         
         # --- SOSTITUITO BLOCCO MAINx con Logica di Contesto ---
-        main_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'MAIN')
+        main_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'MAIN')  # Ripristinato: aggiunto 'MAIN'
         conf_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'CONF')
         utenze_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'UTENZE')
         db_trunk_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'DB_TRUNK')
@@ -476,7 +481,7 @@ END_REGION
                 create_main_file(
                     trunk_num, 
                     items_ordered, 
-                    main_output_folder,
+                    main_output_folder,  # Ripristinato: punta alla cartella MAIN
                     last_valid_prev_item_data=last_valid_prev_item_data,
                     first_valid_next_item_data=first_valid_next_item_data
                 )
@@ -488,6 +493,32 @@ END_REGION
                 # Creazione file TRUNK nella cartella DB_TRUNK
                 create_trunk_file(trunk_num, db_trunk_output_folder)
         # --- FINE SOSTITUZIONE ---
+
+        # Calcola il numero di linee basato sui prefissi unici
+        # Usa l'ordine selezionato dall'utente invece di sorted
+        ordered_prefixes = []
+        for item in order:
+            # Estrai il prefisso dall'ordine (es. "1. CP11" -> "cp11")
+            prefix = item.split('. ')[1].lower() if '. ' in item else item.lower()
+            ordered_prefixes.append(prefix)
+
+        num_lines = len(ordered_prefixes)
+
+        # Calcola il numero di tronchi per ogni linea
+        trunks_per_line = []
+        for prefix in ordered_prefixes:
+            # Filtra i dati per il prefisso corrente
+            prefix_data = cab_plc_data[cab_plc_data['ITEM_ID_CUSTOM'].str.lower().str.startswith(prefix)]
+            # Conta i tronchi unici per questo prefisso
+            unique_trunks = prefix_data['ITEM_TRUNK'].nunique()
+            trunks_per_line.append(unique_trunks)
+
+        print(f"DEBUG - Numero di linee: {num_lines}")
+        print(f"DEBUG - Tronchi per linea: {trunks_per_line}")
+        print(f"DEBUG - Totale MAIN da generare: {sum(trunks_per_line)}")
+        print(f"DEBUG - Prefissi ordinati: {ordered_prefixes}")
+
+        create_main_structure_file(main_output_folder, num_lines, selected_cab_plc, trunks_per_line, ordered_prefixes)
 
         # Aggiorna lo stato
         status_var.set(f"Completato! {len(files_created)} file CONF_T e {len(main_data_by_trunk)} file MAIN salvati.")
@@ -553,7 +584,7 @@ END_REGION
             
             # Scrivi le configurazioni per i caroselli
             for i, carosello in enumerate(ordered_caroselli, 1):
-                f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking02.Debug.DebugEn := TRUE;    //D.D.\n')
+                f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking02.Debug.DebugEn := TRUE;\n')
             
             f.write("    ELSE\n")
             
@@ -570,7 +601,7 @@ END_REGION
             f.write("\n")
             
             for i, carosello in enumerate(ordered_caroselli, 1):
-                f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking02.Debug.DebugEn := FALSE;    //D.D.\n')
+                f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking02.Debug.DebugEn := FALSE;\n')
             f.write("    END_IF;\n")
             f.write("END_REGION\n\n")
             
@@ -618,209 +649,6 @@ END_REGION
     except Exception as e:
         messagebox.showerror("Errore", f"Errore nell'elaborazione del file Excel: {e}")
         status_var.set("Errore nell'elaborazione")
-
-def show_completion_message(root, selected_cab_plc):
-    """
-    Mostra una finestra con il messaggio di completamento e i dettagli dei file creati.
-    
-    Args:
-        root: Finestra principale
-        selected_cab_plc (str): CAB_PLC selezionato
-    """
-    # Ottieni la lista delle sottocartelle e dei loro file
-    all_subfolders = os.listdir(os.path.join('Configurazioni', selected_cab_plc))
-    subfolder_files = {
-        subfolder: os.listdir(os.path.join('Configurazioni', selected_cab_plc, subfolder))
-        for subfolder in all_subfolders
-        if os.path.isdir(os.path.join('Configurazioni', selected_cab_plc, subfolder))
-    }
-    
-    completion_window = tk.Toplevel(root)
-    completion_window.title("Operazione Completata")
-    completion_window.geometry("800x600")
-    completion_window.configure(bg="#2C3E50")
-    completion_window.transient(root)
-    completion_window.grab_set()
-    # Crea un canvas per l'animazione dei coriandoli come ultimo widget
-    confetti_canvas = tk.Canvas(completion_window, width=800, height=600, 
-                              bg="#2C3E50", highlightthickness=0)
-
-
-    
-    # Applica lo stile moderno
-    style = ttk.Style()
-    style.configure("Completion.TFrame", background="#2C3E50")
-    style.configure("Completion.TLabel", background="#2C3E50", foreground="#ECF0F1", 
-                   font=("Segoe UI", 12))
-    style.configure("CompletionTitle.TLabel", background="#2C3E50", foreground="#ECF0F1", 
-                   font=("Segoe UI", 16, "bold"))
-    style.configure("CompletionSubtitle.TLabel", background="#2C3E50", foreground="#ECF0F1", 
-                   font=("Segoe UI", 14))
-    
-    # Frame principale
-    main_frame = ttk.Frame(completion_window, style="Completion.TFrame")
-    main_frame.place(x=20, y=20, width=760, height=560)
-    
-    # Titolo
-    completion_label = ttk.Label(main_frame, 
-                               text="Elaborazione completata con successo!", 
-                               style="CompletionTitle.TLabel")
-    completion_label.pack(pady=(0, 20))
-    
-    # Sottotitolo
-    subtitle_label = ttk.Label(main_frame, 
-                             text=f"File generati per {selected_cab_plc}:", 
-                             style="CompletionSubtitle.TLabel")
-    subtitle_label.pack(anchor="w", pady=(0, 10))
-    
-    # Frame per le colonne
-    columns_frame = ttk.Frame(main_frame, style="Completion.TFrame")
-    columns_frame.pack(fill=tk.BOTH, expand=True)
-    
-    # Calcola il numero di sottocartelle per colonna
-    total_subfolders = len(subfolder_files)
-    subfolders_per_column = (total_subfolders + 2) // 3  # Arrotonda per eccesso
-    
-    # Crea tre colonne
-    for col in range(3):
-        column_frame = ttk.Frame(columns_frame, style="Completion.TFrame")
-        column_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
-        
-        # Calcola gli indici di inizio e fine per questa colonna
-        start_idx = col * subfolders_per_column
-        end_idx = min((col + 1) * subfolders_per_column, total_subfolders)
-        
-        # Ottieni le sottocartelle per questa colonna
-        subfolders_list = list(subfolder_files.keys())[start_idx:end_idx]
-        
-        # Aggiungi le sottocartelle e i file alla colonna
-        for subfolder in subfolders_list:
-            subfolder_label = ttk.Label(column_frame, 
-                                      text=subfolder, 
-                                      style="Completion.TLabel",
-                                      font=("Segoe UI", 12, "bold"))
-            subfolder_label.pack(anchor="w", pady=(5, 0))
-            
-            files_list = "\n".join(f"• {file}" for file in subfolder_files[subfolder])
-            files_label = ttk.Label(column_frame, 
-                                  text=files_list, 
-                                  style="Completion.TLabel",
-                                  justify=tk.LEFT)
-            files_label.pack(anchor="w", pady=(0, 10))
-    
-    # Pulsante di chiusura
-    close_button = ttk.Button(main_frame, text="Chiudi", 
-                             command=completion_window.destroy)
-    close_button.pack(pady=20)
-    
-    # Imposta il focus sulla finestra
-    completion_window.focus_set()
-    
-    # Centra la finestra rispetto alla finestra principale
-    completion_window.update_idletasks()
-    width = completion_window.winfo_width()
-    height = completion_window.winfo_height()
-    x = (completion_window.winfo_screenwidth() // 2) - (width // 2)
-    y = (completion_window.winfo_screenheight() // 2) - (height // 2)
-    completion_window.geometry(f'{width}x{height}+{x}+{y}')
-    
-    # Posiziona il canvas dei coriandoli sopra tutto
-    confetti_canvas.place(x=0, y=0, relwidth=1, relheight=1)
-    
-    # Lista per memorizzare i coriandoli
-    confetti_pieces = []
-    
-    # Colori dei coriandoli
-    colors = ["#E74C3C", "#3498DB", "#2ECC71", "#F1C40F", "#9B59B6", "#1ABC9C"]
-    
-    # Crea i coriandoli
-    for _ in range(100):
-        x = random.randint(0, 800)
-        y = random.randint(-600, 0)
-        color = random.choice(colors)
-        size = random.randint(5, 15)
-        shape = random.choice(["circle", "rectangle", "triangle"])
-        
-        if shape == "circle":
-            piece = confetti_canvas.create_oval(x, y, x+size, y+size, fill=color, outline="")
-        elif shape == "rectangle":
-            piece = confetti_canvas.create_rectangle(x, y, x+size, y+size, fill=color, outline="")
-        else:  # triangle
-            points = [x, y+size, x+size, y, x+size, y+size]
-            piece = confetti_canvas.create_polygon(points, fill=color, outline="")
-        
-        # Aggiungi velocità casuale
-        dx = random.uniform(-2, 2)
-        dy = random.uniform(1, 3)
-        rotation = random.uniform(-5, 5)
-        
-        confetti_pieces.append({
-            "id": piece,
-            "dx": dx,
-            "dy": dy,
-            "rotation": rotation,
-            "shape": shape,
-            "size": size
-        })
-    
-    # Funzione per animare i coriandoli
-    def animate_confetti():
-        for piece in confetti_pieces[:]:
-            try:
-                # Ottieni le coordinate attuali
-                coords = confetti_canvas.coords(piece["id"])
-                if not coords:  # Se l'oggetto non esiste più
-                    confetti_pieces.remove(piece)
-                    continue
-                
-                # Aggiorna le coordinate
-                new_coords = []
-                for i in range(0, len(coords), 2):
-                    new_coords.append(coords[i] + piece["dx"])
-                    new_coords.append(coords[i+1] + piece["dy"])
-                
-                # Applica la rotazione se è un triangolo
-                if piece["shape"] == "triangle":
-                    # Calcola il centro
-                    center_x = sum(new_coords[::2]) / 3
-                    center_y = sum(new_coords[1::2]) / 3
-                    
-                    # Ruota i punti
-                    rotated_coords = []
-                    for i in range(0, len(new_coords), 2):
-                        x = new_coords[i] - center_x
-                        y = new_coords[i+1] - center_y
-                        
-                        # Applica la rotazione
-                        angle = math.radians(piece["rotation"])
-                        rotated_x = x * math.cos(angle) - y * math.sin(angle)
-                        rotated_y = x * math.sin(angle) + y * math.cos(angle)
-                        
-                        rotated_coords.append(rotated_x + center_x)
-                        rotated_coords.append(rotated_y + center_y)
-                    
-                    confetti_canvas.coords(piece["id"], *rotated_coords)
-                else:
-                    confetti_canvas.coords(piece["id"], *new_coords)
-                
-                # Aggiungi gravità
-                piece["dy"] += 0.1
-                
-                # Rimuovi i coriandoli che escono dallo schermo
-                if coords[1] > 600:
-                    confetti_canvas.delete(piece["id"])
-                    confetti_pieces.remove(piece)
-            except tk.TclError:
-                # Se c'è un errore con il canvas (es. finestra chiusa), rimuovi il pezzo
-                if piece in confetti_pieces:
-                    confetti_pieces.remove(piece)
-        
-        # Continua l'animazione se ci sono ancora coriandoli e la finestra esiste
-        if confetti_pieces and completion_window.winfo_exists():
-            completion_window.after(20, animate_confetti)
-    
-    # Avvia l'animazione
-    completion_window.after(100, animate_confetti)
 
 if __name__ == "__main__":
     try:
