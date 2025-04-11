@@ -152,9 +152,19 @@ def ask_order_of_generation(root, items, selected_cab_plc, status_var, excel_fil
     
     # Configura il binding per la rotella del mouse
     def _on_mousewheel(event):
-        canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        try:
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        except tk.TclError:
+            pass  # Ignora l'errore se il canvas non esiste più
     
-    canvas.bind_all("<MouseWheel>", _on_mousewheel)
+    def _bind_mousewheel(event):
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+    
+    def _unbind_mousewheel(event):
+        canvas.unbind_all("<MouseWheel>")
+    
+    canvas.bind("<Enter>", _bind_mousewheel)
+    canvas.bind("<Leave>", _unbind_mousewheel)
     
     # Imposta il focus sulla finestra
     order_window.focus_set()

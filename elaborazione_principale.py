@@ -490,10 +490,120 @@ END_REGION
         # --- FINE SOSTITUZIONE ---
 
         # Aggiorna lo stato
-        status_var.set(f"Completato! {len(files_created)} file CONF_T e {len(main_data_by_trunk)} file MAIN salvati.") # Aggiornato messaggio stato
+        status_var.set(f"Completato! {len(files_created)} file CONF_T e {len(main_data_by_trunk)} file MAIN salvati.")
 
         # Mostra il messaggio di completamento
         show_completion_message(root, selected_cab_plc)
+        
+        # Crea il file LOG_ENABLE[FC10].txt
+        log_enable_path = os.path.join('Configurazioni', selected_cab_plc, 'LOG_ENABLE[FC10].txt')
+        os.makedirs(os.path.dirname(log_enable_path), exist_ok=True)
+        
+        # Estrai i nomi effettivi delle utenze e caroselli
+        utenze = df[df['ITEM_ID_CUSTOM'].str.contains('ST', case=False, na=False)]['ITEM_ID_CUSTOM'].unique()
+        caroselli = df[df['ITEM_ID_CUSTOM'].str.upper().str.count('CA') == 2]['ITEM_ID_CUSTOM'].unique()
+        
+        print(f"Utenze trovate: {utenze}")
+        print(f"Caroselli trovati: {caroselli}")
+        print(f"Ordine selezionato: {order}")
+        
+        # Ordina le utenze e i caroselli secondo l'ordine scelto dall'utente
+        ordered_utenze = []
+        ordered_caroselli = []
+        
+        # Estrai i prefissi dall'ordine selezionato
+        prefixes = [item.split('. ')[1] for item in order]
+        
+        # Ordina le utenze e i caroselli in base ai prefissi
+        for prefix in prefixes:
+            # Filtra le utenze che iniziano con questo prefisso
+            prefix_utenze = [u for u in utenze if u.startswith(prefix)]
+            ordered_utenze.extend(sorted(prefix_utenze))
+            
+            # Filtra i caroselli che iniziano con questo prefisso
+            prefix_caroselli = [c for c in caroselli if c.startswith(prefix)]
+            ordered_caroselli.extend(sorted(prefix_caroselli))
+        
+        print(f"Utenze ordinate: {ordered_utenze}")
+        print(f"Caroselli ordinati: {ordered_caroselli}")
+        
+        with open(log_enable_path, 'w') as f:
+            f.write("REGION Enabling debug\n")
+            f.write("    IF #EnableDebug THEN\n")
+            f.write("        // va inserito il phtTracking in base alla fotocellula attivata nella CONF\n")
+            
+            # Scrivi le configurazioni per tutte le utenze nell'ordine scelto
+            current_prefix = None
+            for i, utenza in enumerate(ordered_utenze, 1):
+                prefix = utenza[:4]  # Prendi i primi 4 caratteri come prefisso
+                if prefix != current_prefix:
+                    if current_prefix is not None:
+                        f.write("\n")  # Aggiungi una riga vuota tra gruppi diversi
+                    current_prefix = prefix
+                f.write(f'        "UTENZA{i}".Conveyor.PhtTracking02.Debug.DebugEn := TRUE;\n')
+            
+            f.write("\n")  # Aggiungi una riga vuota tra utenze e caroselli
+            
+            for i, carosello in enumerate(ordered_caroselli, 1):
+                f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking02.Debug.DebugEn := TRUE;    //D.D.\n')
+            
+            f.write("    ELSE\n")
+            
+            current_prefix = None
+            for i, utenza in enumerate(ordered_utenze, 1):
+                prefix = utenza[:4]
+                if prefix != current_prefix:
+                    if current_prefix is not None:
+                        f.write("\n")
+                    current_prefix = prefix
+                f.write(f'        "UTENZA{i}".Conveyor.PhtTracking02.Debug.DebugEn := FALSE;\n')
+            
+            f.write("\n")
+            
+            for i, carosello in enumerate(ordered_caroselli, 1):
+                f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking02.Debug.DebugEn := FALSE;    //D.D.\n')
+            f.write("    END_IF;\n")
+            f.write("END_REGION\n\n")
+            
+            f.write("REGION Enabling log\n")
+            f.write("    IF #EnableLog THEN\n")
+            
+            # Raggruppa le utenze per numero
+            utenze_by_number = {}
+            for i, utenza in enumerate(ordered_utenze, 1):
+                number = i
+                if number not in utenze_by_number:
+                    utenze_by_number[number] = []
+                utenze_by_number[number].append(utenza)
+            
+            # Scrivi le configurazioni raggruppate per numero
+            for number, utenze in sorted(utenze_by_number.items()):
+                for utenza in utenze:
+                    f.write(f'        "UTENZA{number}".Conveyor.PhtTracking02.Data.CNF.HsitoryEventEn := TRUE;\n')
+                    f.write(f'        "UTENZA{number}".Conveyor.PhtTracking02.Data.CNF.LogEventEn := TRUE;\n')
+                f.write("\n")  # Aggiungi una riga vuota dopo ogni gruppo
+            
+            # Scrivi le configurazioni per i caroselli
+            for i, carosello in enumerate(ordered_caroselli, 1):
+                f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking02.Data.CNF.HsitoryEventEn := TRUE;\n')
+                f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking02.Data.CNF.LogEventEn := TRUE;\n')
+            
+            f.write("    ELSE\n")
+            
+            # Raggruppa le utenze per numero (per la parte ELSE)
+            for number, utenze in sorted(utenze_by_number.items()):
+                for utenza in utenze:
+                    f.write(f'        "UTENZA{number}".Conveyor.PhtTracking02.Data.CNF.HsitoryEventEn := FALSE;\n')
+                    f.write(f'        "UTENZA{number}".Conveyor.PhtTracking02.Data.CNF.LogEventEn := FALSE;\n')
+                f.write("\n")  # Aggiungi una riga vuota dopo ogni gruppo
+            
+            # Scrivi le configurazioni per i caroselli (per la parte ELSE)
+            for i, carosello in enumerate(ordered_caroselli, 1):
+                f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking02.Data.CNF.HsitoryEventEn := FALSE;\n')
+                f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking02.Data.CNF.LogEventEn := FALSE;\n')
+            
+            f.write("    END_IF;\n")
+            f.write("END_REGION")
         
     except Exception as e:
         messagebox.showerror("Errore", f"Errore nell'elaborazione del file Excel: {e}")
