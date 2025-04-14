@@ -9,6 +9,7 @@ import os
 import pandas as pd
 import random
 import math
+import config  # Importa il modulo di configurazione
 
 def ask_order_of_generation(root, items, selected_cab_plc, status_var, excel_file_path):
     """
@@ -253,25 +254,6 @@ def create_gui():
     excel_label.pack(side=tk.LEFT, padx=(0, 10))
     
     excel_path_var = tk.StringVar()
-    excel_path_var.set("Nessun file selezionato")  # Messaggio iniziale
-    
-    excel_path_label = ttk.Label(excel_frame, textvariable=excel_path_var,
-                                font=("Segoe UI", 10), background="#2C3E50", foreground="#ECF0F1",
-                                width=30, anchor="w")
-    excel_path_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
-    
-    def select_excel_file():
-        file_path = filedialog.askopenfilename(
-            title="Seleziona il file Excel",
-            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
-        )
-        if file_path:
-            excel_path_var.set(file_path)
-            # Ricarica le opzioni CAB_PLC
-            load_cab_plc_options(file_path)
-    
-    excel_button = ttk.Button(excel_frame, text="Sfoglia...", command=select_excel_file, style="TButton")
-    excel_button.pack(side=tk.RIGHT, padx=(10, 0))
     
     # Carica le opzioni CAB_PLC
     cab_plc_options = ["Seleziona un file Excel..."]
@@ -311,6 +293,33 @@ def create_gui():
         # Aggiorna il dropdown
         cab_plc_dropdown['values'] = cab_plc_options
     
+    # Carica l'ultimo percorso del file Excel se disponibile
+    last_excel_path = config.get_last_excel_path()
+    if last_excel_path:
+        excel_path_var.set(last_excel_path)
+    else:
+        excel_path_var.set("Nessun file selezionato")  # Messaggio iniziale
+    
+    excel_path_label = ttk.Label(excel_frame, textvariable=excel_path_var,
+                                font=("Segoe UI", 10), background="#2C3E50", foreground="#ECF0F1",
+                                width=30, anchor="w")
+    excel_path_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    
+    def select_excel_file():
+        file_path = filedialog.askopenfilename(
+            title="Seleziona il file Excel",
+            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
+        )
+        if file_path:
+            excel_path_var.set(file_path)
+            # Salva il percorso del file Excel
+            config.save_last_excel_path(file_path)
+            # Ricarica le opzioni CAB_PLC
+            load_cab_plc_options(file_path)
+    
+    excel_button = ttk.Button(excel_frame, text="Sfoglia...", command=select_excel_file, style="TButton")
+    excel_button.pack(side=tk.RIGHT, padx=(10, 0))
+    
     # Frame di selezione CAB_PLC
     selection_frame = tk.Frame(main_frame, bg="#3498DB")
     selection_frame.pack(fill=tk.X, pady=20, padx=20)
@@ -340,6 +349,10 @@ def create_gui():
     
     cab_plc_dropdown.option_add('*TCombobox*Listbox.font', ('Segoe UI', 12))
     cab_plc_dropdown.option_add('*TCombobox*Listbox.justify', 'center')
+    
+    # Ricarica le opzioni CAB_PLC con il percorso salvato se disponibile
+    if last_excel_path:
+        load_cab_plc_options(last_excel_path)
     
     def on_enter(e):
         selection_frame.config(bg="#2980B9")
@@ -393,9 +406,21 @@ def create_gui():
             # Estrai i prefissi unici da ITEM_ID_CUSTOM
             unique_items = sorted(set(item[:4].lower() for item in cab_plc_data['ITEM_ID_CUSTOM']))
             
-            # Mostra la finestra per selezionare l'ordine di generazione
-            ask_order_of_generation(root, cab_plc_data['ITEM_ID_CUSTOM'].tolist(), 
-                                  selected_cab_plc, status_var, excel_file_path)
+            # Se c'è solo una linea, salta la selezione dell'ordine e procedi direttamente
+            if len(unique_items) == 1:
+                # Import process_excel here to avoid circular import
+                from elaborazione_principale import process_excel
+                
+                # Crea un ordine con l'unica linea disponibile
+                single_order = [f"1. {unique_items[0]}"]
+                
+                # Procedi direttamente con l'elaborazione
+                status_var.set("Elaborazione in corso...")
+                process_excel(selected_cab_plc, status_var, root, single_order, excel_file_path)
+            else:
+                # Mostra la finestra per selezionare l'ordine di generazione
+                ask_order_of_generation(root, cab_plc_data['ITEM_ID_CUSTOM'].tolist(), 
+                                      selected_cab_plc, status_var, excel_file_path)
             
         except Exception as e:
             messagebox.showerror("Errore", f"Errore nell'elaborazione del file Excel: {e}")
@@ -496,7 +521,7 @@ def show_feedback_window(root, selected_cab_plc, selected_order, excel_file_path
     # Pulsante di chiusura
     close_button = ttk.Button(main_frame, text="Chiudi", 
                              command=feedback_window.destroy)
-    close_button.pack(pady=20)
+    close_button.pack(padx=20, pady=20)
     
     # Imposta il focus sulla finestra
     feedback_window.focus_set()
@@ -515,7 +540,7 @@ def show_completion_message(root, selected_cab_plc):
     
     Args:
         root: Finestra principale
-        selected_cab_plc (str): CAB_PLC selezionato
+        selected_cab_plc: CAB_PLC selezionato
     """
     try:
         # Ottieni la lista delle sottocartelle e dei loro file
@@ -526,20 +551,25 @@ def show_completion_message(root, selected_cab_plc):
             if os.path.isdir(os.path.join('Configurazioni', selected_cab_plc, subfolder))
         }
         
+        # Calcola la dimensione della finestra in base al contenuto
+        max_files = max(len(files) for files in subfolder_files.values())
+        window_height = 200 + max_files * 20
+        window_width = 600  # Adjusted for four columns
+        
         completion_window = tk.Toplevel(root)
         completion_window.title("Operazione Completata")
-        completion_window.geometry("800x600")
+        completion_window.geometry(f"{window_width}x{window_height}")
         completion_window.configure(bg="#2C3E50")
         completion_window.transient(root)
         completion_window.grab_set()
-                # Crea un canvas per i coriandoli che copre l'intera finestra
-        confetti_canvas = tk.Canvas(completion_window, width=800, height=600, 
-                                  bg='#2C3E50', highlightthickness=0)
-        confetti_canvas.place(x=0, y=0, relwidth=1, relheight=1)
+        
+        # Crea un unico canvas che copre l'intera finestra
+        canvas = tk.Canvas(completion_window, width=window_width, height=window_height, 
+                          bg='#2C3E50', highlightthickness=0)
+        canvas.place(x=0, y=0, relwidth=1, relheight=1)
         
         # Applica lo stile moderno
         style = ttk.Style()
-        style.configure("Completion.TFrame", background="#2C3E50")
         style.configure("Completion.TLabel", background="#2C3E50", foreground="#ECF0F1", 
                        font=("Segoe UI", 12))
         style.configure("CompletionTitle.TLabel", background="#2C3E50", foreground="#ECF0F1", 
@@ -547,61 +577,54 @@ def show_completion_message(root, selected_cab_plc):
         style.configure("CompletionSubtitle.TLabel", background="#2C3E50", foreground="#ECF0F1", 
                        font=("Segoe UI", 14))
         
-        # Frame principale con sfondo trasparente
-        main_frame = ttk.Frame(completion_window, style="Completion.TFrame")
-        main_frame.place(x=20, y=20, width=760, height=560)
-        
         # Titolo
-        completion_label = ttk.Label(main_frame, 
-                                   text="Elaborazione completata con successo!", 
-                                   style="CompletionTitle.TLabel")
-        completion_label.pack(pady=(0, 20))
+        canvas.create_text(window_width / 2, 40, text="Elaborazione completata con successo!", 
+                           fill="#ECF0F1", font=("Segoe UI", 16, "bold"))
         
         # Sottotitolo
-        subtitle_label = ttk.Label(main_frame, 
-                                 text=f"File generati per {selected_cab_plc}:", 
-                                 style="CompletionSubtitle.TLabel")
-        subtitle_label.pack(anchor="w", pady=(0, 10))
-        
-        # Frame per le colonne
-        columns_frame = ttk.Frame(main_frame, style="Completion.TFrame")
-        columns_frame.pack(fill=tk.BOTH, expand=True)
+        canvas.create_text(window_width / 2, 80, text=f"File generati per {selected_cab_plc}:", 
+                           fill="#ECF0F1", font=("Segoe UI", 14))
         
         # Calcola il numero di sottocartelle per colonna
         total_subfolders = len(subfolder_files)
-        subfolders_per_column = (total_subfolders + 2) // 3  # Arrotonda per eccesso
+        subfolders_per_column = (total_subfolders + 3) // 4  # Adjusted for four columns
         
-        # Crea tre colonne
-        for col in range(3):
-            column_frame = ttk.Frame(columns_frame, style="Completion.TFrame")
-            column_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
-            
-            # Calcola gli indici di inizio e fine per questa colonna
+        # Crea quattro colonne centrate
+        column_positions = [window_width / 7, 2 * window_width / 5, 3 * window_width / 5, 4 * window_width / 5]
+        
+        # Tieni traccia dell'altezza massima raggiunta per posizionare il pulsante di chiusura
+        max_y_position = 120
+        
+        for col in range(4):
             start_idx = col * subfolders_per_column
             end_idx = min((col + 1) * subfolders_per_column, total_subfolders)
-            
-            # Ottieni le sottocartelle per questa colonna
             subfolders_list = list(subfolder_files.keys())[start_idx:end_idx]
+            y_position = 120
             
-            # Aggiungi le sottocartelle e i file alla colonna
             for subfolder in subfolders_list:
-                subfolder_label = ttk.Label(column_frame, 
-                                          text=subfolder, 
-                                          style="Completion.TLabel",
-                                          font=("Segoe UI", 12, "bold"))
-                subfolder_label.pack(anchor="w", pady=(5, 0))
+                canvas.create_text(column_positions[col], y_position, text=subfolder, 
+                                   fill="#ECF0F1", font=("Segoe UI", 12, "bold"), anchor="w")
+                y_position += 20  # Adjusted spacing
                 
-                files_list = "\n".join(f"• {file}" for file in sorted(subfolder_files[subfolder]))
-                files_label = ttk.Label(column_frame, 
-                                      text=files_list, 
-                                      style="Completion.TLabel",
-                                      justify=tk.LEFT)
-                files_label.pack(anchor="w", pady=(0, 10))
+                # Aggiungi i file della sottocartella
+                for file in sorted(subfolder_files[subfolder]):
+                    canvas.create_text(column_positions[col], y_position, text=f"• {file}", 
+                                       fill="#ECF0F1", font=("Segoe UI", 12), anchor="w")
+                    y_position += 20  # Adjusted spacing
+                
+                # Aggiorna l'altezza massima
+                max_y_position = max(max_y_position, y_position)
+            
+            # Aggiungi spazio extra tra le colonne
+            max_y_position = max(max_y_position, y_position + 20)
+        
+        # Aggiungi spazio extra per il pulsante di chiusura
+        max_y_position += 40
         
         # Pulsante di chiusura
-        close_button = ttk.Button(main_frame, text="Chiudi", 
+        close_button = ttk.Button(completion_window, text="Chiudi", 
                                  command=completion_window.destroy)
-        close_button.pack(pady=20)
+        close_button.place(x=window_width / 2 - 50, y=max_y_position)
         
         # Lista per memorizzare i coriandoli
         confetti_pieces = []
@@ -611,7 +634,7 @@ def show_completion_message(root, selected_cab_plc):
         
         # Crea i coriandoli
         for _ in range(100):
-            x = random.randint(0, 800)
+            x = random.randint(0, window_width)
             y = random.randint(-600, 0)
             color = random.choice(colors)
             size = random.randint(5, 15)
@@ -619,12 +642,12 @@ def show_completion_message(root, selected_cab_plc):
             
             try:
                 if shape == "circle":
-                    piece = confetti_canvas.create_oval(x, y, x+size, y+size, fill=color, outline="")
+                    piece = canvas.create_oval(x, y, x+size, y+size, fill=color, outline="")
                 elif shape == "rectangle":
-                    piece = confetti_canvas.create_rectangle(x, y, x+size, y+size, fill=color, outline="")
+                    piece = canvas.create_rectangle(x, y, x+size, y+size, fill=color, outline="")
                 else:  # triangle
                     points = [x, y+size, x+size, y, x+size, y+size]
-                    piece = confetti_canvas.create_polygon(points, fill=color, outline="")
+                    piece = canvas.create_polygon(points, fill=color, outline="")
                 
                 # Aggiungi velocità casuale
                 dx = random.uniform(-2, 2)
@@ -650,7 +673,7 @@ def show_completion_message(root, selected_cab_plc):
             for piece in confetti_pieces[:]:
                 try:
                     # Ottieni le coordinate attuali
-                    coords = confetti_canvas.coords(piece["id"])
+                    coords = canvas.coords(piece["id"])
                     if not coords:  # Se l'oggetto non esiste più
                         confetti_pieces.remove(piece)
                         continue
@@ -681,16 +704,16 @@ def show_completion_message(root, selected_cab_plc):
                             rotated_coords.append(rotated_x + center_x)
                             rotated_coords.append(rotated_y + center_y)
                         
-                        confetti_canvas.coords(piece["id"], *rotated_coords)
+                        canvas.coords(piece["id"], *rotated_coords)
                     else:
-                        confetti_canvas.coords(piece["id"], *new_coords)
+                        canvas.coords(piece["id"], *new_coords)
                     
                     # Aggiungi gravità
                     piece["dy"] += 0.1
                     
                     # Rimuovi i coriandoli che escono dallo schermo
-                    if coords[1] > 600:
-                        confetti_canvas.delete(piece["id"])
+                    if coords[1] > window_height:
+                        canvas.delete(piece["id"])
                         confetti_pieces.remove(piece)
                 except tk.TclError:
                     # Se c'è un errore con il canvas (es. finestra chiusa), rimuovi il pezzo
