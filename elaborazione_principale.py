@@ -527,32 +527,62 @@ END_REGION
         os.makedirs(os.path.dirname(log_enable_path), exist_ok=True)
         
         # Estrai i nomi effettivi delle utenze e caroselli dal DataFrame
-        utenze = df[df['ITEM_ID_CUSTOM'].str.contains('ST', case=False, na=False)]['ITEM_ID_CUSTOM'].unique()
-        caroselli = df[df['ITEM_ID_CUSTOM'].str.upper().str.count('CA') == 2]['ITEM_ID_CUSTOM'].unique()
+        print(f"\nDEBUG - Analisi per CAB_PLC {selected_cab_plc}:")
+        print(f"DEBUG - Numero totale di righe nel DataFrame: {len(df)}")
+        
+        # Debug per UTENZE
+        utenze_mask = df['ITEM_ID_CUSTOM'].str.contains('ST', case=False, na=False)
+        print(f"DEBUG - Righe con 'ST': {utenze_mask.sum()}")
+        print(f"DEBUG - Esempi di ITEM_ID_CUSTOM con 'ST':")
+        print(df[utenze_mask]['ITEM_ID_CUSTOM'].head())
+        
+        # Debug per CAROSELLI
+        caroselli_mask = df['ITEM_ID_CUSTOM'].str.upper().str.count('CA') == 2
+        print(f"DEBUG - Righe con doppio 'CA': {caroselli_mask.sum()}")
+        print(f"DEBUG - Esempi di ITEM_ID_CUSTOM con doppio 'CA':")
+        print(df[caroselli_mask]['ITEM_ID_CUSTOM'].head())
+        
+        utenze = df[utenze_mask]['ITEM_ID_CUSTOM'].unique()
+        caroselli = df[caroselli_mask]['ITEM_ID_CUSTOM'].unique()
         
         # Debug prints per verificare i dati estratti
-        print(f"Utenze trovate: {utenze}")
-        print(f"Caroselli trovati: {caroselli}")
-        print(f"Ordine selezionato: {order}")
+        print(f"DEBUG - Utenze trovate: {utenze}")
+        print(f"DEBUG - Caroselli trovati: {caroselli}")
+        print(f"DEBUG - Ordine selezionato: {order}")
+        
+        # Verifica se ci sono utenze o caroselli da processare
+        if len(utenze) == 0 and len(caroselli) == 0:
+            print(f"Attenzione: Nessuna utenza o carosello trovato per CAB_PLC {selected_cab_plc}. Il file LOG_ENABLE sarà vuoto.")
+            # Crea il file vuoto con un commento esplicativo
+            with open(log_enable_path, 'w') as f:
+                f.write("// Nessuna utenza o carosello trovato per questo CAB_PLC\n")
+                f.write("// Il file è stato generato vuoto perché non ci sono componenti da configurare\n")
+            return True
         
         # Ordina le utenze e i caroselli secondo l'ordine scelto dall'utente
         ordered_utenze = []
         ordered_caroselli = []
         
         # Estrai i prefissi dall'ordine selezionato
-        prefixes = [item.split('. ')[1] for item in order]
+        prefixes = [item.split('. ')[1].lower() for item in order]
         
         # Ordina le utenze e i caroselli in base ai prefissi
         for prefix in prefixes:
-            prefix_utenze = [u for u in utenze if u.startswith(prefix)]
-            ordered_utenze.extend(sorted(prefix_utenze))
+            # Filtra e ordina le utenze per questo prefisso
+            prefix_utenze = [u for u in utenze if u.lower().startswith(prefix)]
+            # Estrai il numero dalla fine dell'ID e ordina
+            prefix_utenze.sort(key=lambda x: int(x[-3:]) if x[-3:].isdigit() else 0)
+            ordered_utenze.extend(prefix_utenze)
             
-            prefix_caroselli = [c for c in caroselli if c.startswith(prefix)]
-            ordered_caroselli.extend(sorted(prefix_caroselli))
+            # Filtra e ordina i caroselli per questo prefisso
+            prefix_caroselli = [c for c in caroselli if c.lower().startswith(prefix)]
+            # Estrai il numero dalla fine dell'ID e ordina
+            prefix_caroselli.sort(key=lambda x: int(x[-3:]) if x[-3:].isdigit() else 0)
+            ordered_caroselli.extend(prefix_caroselli)
         
         # Debug prints per verificare l'ordinamento
-        print(f"Utenze ordinate: {ordered_utenze}")
-        print(f"Caroselli ordinati: {ordered_caroselli}")
+        print(f"DEBUG - Utenze ordinate: {ordered_utenze}")
+        print(f"DEBUG - Caroselli ordinati: {ordered_caroselli}")
         
         with open(log_enable_path, 'w') as f:
             # Sezione per l'abilitazione del debug
