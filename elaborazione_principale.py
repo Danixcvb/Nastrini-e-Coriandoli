@@ -21,7 +21,6 @@ from creazione_file import (
     create_linea_files,
     create_main_file,
     create_conft_t_file,
-    create_utenza_file,
     create_trunk_file,
     create_main_structure_file
 )
@@ -488,7 +487,6 @@ END_REGION
                     
                     # Crea i file correlati
                     create_conft_t_file(trunk_num, items_ordered, conf_output_folder)
-                    create_utenza_file(trunk_num, items_ordered, utenze_output_folder)
                     create_trunk_file(trunk_num, db_trunk_output_folder)
                 except Exception as e:
                     print(f"Errore durante la creazione dei file per il tronco {trunk_num}: {e}")
