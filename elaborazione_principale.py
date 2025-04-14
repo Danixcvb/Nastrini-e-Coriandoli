@@ -357,7 +357,7 @@ BEGIN
             "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.Position := 0.4;
             "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.TrkCtrlTollerance := 0.35;
             "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.ObjLengthTollerance := 0;
-            "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.TrackingPointID := dint#50102301;
+            "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.TrackingPointID := dint#99999; //To be defined
         END_REGION
         
         REGION {component_type}.PhtTracking02.Data.CNF
@@ -369,7 +369,7 @@ BEGIN
             "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.Position := 7.05;
             "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.TrkCtrlTollerance := 0.35;
             "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.ObjLengthTollerance := 0;
-            "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.TrackingPointID := dint#50102301;
+            "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.TrackingPointID := dint#99999; //To be defined
         END_REGION
         
         REGION Encoder.Data.CNF
