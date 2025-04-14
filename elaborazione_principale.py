@@ -20,7 +20,6 @@ from creazione_file import (
     create_datalogic_file,
     create_linea_files,
     create_main_file,
-    create_conft_t_file,
     create_trunk_file,
     create_main_structure_file
 )
@@ -77,7 +76,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             return False
         
         # Filtra le righe escludendo ITEM_ID_CUSTOM contenenti "OG", "SD", "RS", "CX", "CN", "CH", "XR", "SO", "LC", "IN"
-        df = df[~df['ITEM_ID_CUSTOM'].str.contains('OG|SD|RS|CX|CN|CH|XR|SO|LC|IN', case=False, na=False)]
+        df = df[~df['ITEM_ID_CUSTOM'].str.contains('OG|SD|RS|CX|CN|CH|XR|SO|LC|IN|FD', case=False, na=False)]
 
         # Valori predefiniti per celle vuote
         default_speed_transport = 1.5
@@ -94,6 +93,74 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             messagebox.showerror("Errore", f"Nessun dato trovato per il CAB_PLC {selected_cab_plc} nel file Excel.")
             status_var.set(f"Errore: nessun dato per {selected_cab_plc}")
             return False
+        
+        # Controlla e pulisci la cartella del CAB_PLC se esiste
+        output_folder = os.path.join('Configurazioni', selected_cab_plc)
+        if os.path.exists(output_folder):
+            # Crea una finestra di dialogo per la conferma
+            confirm_window = tk.Toplevel()
+            confirm_window.title("Conferma Eliminazione")
+            confirm_window.geometry("400x200")
+            confirm_window.configure(bg="#2C3E50")
+            
+            # Centra la finestra
+            confirm_window.update_idletasks()
+            width = confirm_window.winfo_width()
+            height = confirm_window.winfo_height()
+            x = (confirm_window.winfo_screenwidth() // 2) - (width // 2)
+            y = (confirm_window.winfo_screenheight() // 2) - (height // 2)
+            confirm_window.geometry(f'{width}x{height}+{x}+{y}')
+            
+            # Stile
+            style = ttk.Style()
+            style.configure("Confirm.TLabel", background="#2C3E50", foreground="#ECF0F1", 
+                          font=("Segoe UI", 12))
+            style.configure("Confirm.TButton", font=("Segoe UI", 10))
+            
+            # Messaggio
+            message = f"Trovata cartella preesistente per {selected_cab_plc}.\nVuoi procedere con l'eliminazione?"
+            label = ttk.Label(confirm_window, text=message, style="Confirm.TLabel")
+            label.pack(pady=20)
+            
+            # Variabile per il risultato
+            confirmed = False
+            
+            def on_confirm():
+                nonlocal confirmed
+                confirmed = True
+                confirm_window.destroy()
+            
+            def on_cancel():
+                confirm_window.destroy()
+            
+            # Pulsanti
+            button_frame = ttk.Frame(confirm_window)
+            button_frame.pack(pady=20)
+            
+            confirm_button = ttk.Button(button_frame, text="Conferma", command=on_confirm, 
+                                      style="Confirm.TButton")
+            confirm_button.pack(side=tk.LEFT, padx=10)
+            
+            cancel_button = ttk.Button(button_frame, text="Annulla", command=on_cancel, 
+                                     style="Confirm.TButton")
+            cancel_button.pack(side=tk.LEFT, padx=10)
+            
+            # Aspetta la chiusura della finestra
+            confirm_window.transient()
+            confirm_window.grab_set()
+            confirm_window.wait_window()
+            
+            if not confirmed:
+                return False, "Operazione annullata dall'utente"
+            
+            # Procedi con l'eliminazione
+            try:
+                import shutil
+                shutil.rmtree(output_folder)
+                print(f"Cartella {selected_cab_plc} eliminata con successo.")
+            except Exception as e:
+                print(f"Errore durante la pulizia della cartella: {e}")
+                return False, f"Errore durante la pulizia della cartella: {str(e)}"
         
         # Crea i file .txt basati sui prefissi ITEM_ID_CUSTOM
         create_txt_files(cab_plc_data, selected_cab_plc, order)
@@ -207,6 +274,11 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                         utenza_number = None
                         
                         item_id_custom = row['ITEM_ID_CUSTOM']
+                        
+                        # Salta gli elementi che contengono "FD" nel loro ID
+                        if "FD" in item_id_custom:
+                            continue
+                            
                         cab_plc = row['CAB_PLC']
                         item_speed_transport = row['ITEM_SPEED_TRANSPORT']
                         item_speed_launch = row['ITEM_SPEED_LAUNCH']
@@ -252,13 +324,9 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                         component_type = "Carousel" if count_ca_occurrences(comment_name) == 2 else "Conveyor"
                         
                         # Costruisci la stringa di configurazione
-                        if "FD" in item_id_custom.upper() or "FIRESHUTTER" in item_id_custom.upper():
-                            # Salta la creazione della regione principale per FIRESHUTTER
-                            continue
-                        else:
-                            configuration = f"""   REGION {comment_name}
+                        configuration = f"""   REGION {comment_name}
 
- """
+"""
                         if "SC" in item_id_custom:
                             configuration += f"""    REGION Config ATR CAMERA 360 ({item_id_custom})
         REGION General data configuration
@@ -294,7 +362,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             
         END_REGION
 
- """
+"""
                         try:
                             item_l_float = float(item_l) / 1000.0
                         except (ValueError, TypeError):
@@ -405,10 +473,8 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                             create_datalogic_file(item_id_custom, output_folder)
                             configurations_by_trunk[global_trunk_counter].append(configuration)
                         else:
-                            # Escludi gli elementi che contengono "FD" dalla creazione dei file nella cartella UTENZE
-                            if "FD" not in item_id_custom.upper():
-                                output_folder = f'Configurazioni/{selected_cab_plc}/UTENZE'
-                                create_data_block_file(item_id_custom_new, component_type, output_folder)
+                            output_folder = f'Configurazioni/{selected_cab_plc}/UTENZE'
+                            create_data_block_file(item_id_custom_new, component_type, output_folder)
                             configurations_by_trunk[global_trunk_counter].append(configuration)
                         
                         # Incrementa il numero progressivo all'interno del gruppo
@@ -418,46 +484,18 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                         print(f"Errore durante l'elaborazione dell'item {item_id_custom}: {e}")
                         continue
                 
-                # Aggiunge END_FUNCTION alla fine delle configurazioni del tronco
-                configurations_by_trunk[global_trunk_counter].append("END_FUNCTION")
-                
                 # Filtra e Memorizza dati per MAIN
                 condition_st = trunk_group['ITEM_ID_CUSTOM'].str.contains('ST', case=False, na=False)
                 condition_ca2 = trunk_group['ITEM_ID_CUSTOM'].apply(lambda x: count_ca_occurrences(str(x)) == 2)
-                condition_fd = trunk_group['ITEM_ID_CUSTOM'].str.contains('FD', case=False, na=False)
-                
-                valid_items_for_main = trunk_group[condition_st | condition_ca2 | condition_fd]
+
+                valid_items_for_main = trunk_group[condition_st | condition_ca2]
 
                 if not valid_items_for_main.empty:
                     items_ordered_dict = valid_items_for_main.sort_values(by='LastThreeDigits').to_dict('records') 
                     main_data_by_trunk[global_trunk_counter] = items_ordered_dict
                 
-                # Crea la regione FIRESHUTTER se necessario
-                fireshutter_items = [item for item in items_ordered_dict if "FD" in item.get('ITEM_ID_CUSTOM', '').upper() or "FIRESHUTTER" in item.get('ITEM_ID_CUSTOM', '').upper()]
-                if fireshutter_items:
-                    fireshutter_content = []
-                    
-                    for item in fireshutter_items:
-                        item_id = item.get('ITEM_ID_CUSTOM', '')
-                        # Non aggiungiamo la regione principale per FIRESHUTTER
-                        fireshutter_content.append(f"REGION Call FIRESHUTTER ({item_id})")
-                        fireshutter_content.append("")
-                        fireshutter_content.append(f'    "{item_id}"(')
-                        fireshutter_content.append(f'        ID := {get_last_three_digits(item_id)},')
-                        fireshutter_content.append(f'        ElectricalFault := "-340K6-16- 230VAC POWER SUPPLY CIRCUIT BREAKER - STATUS - FIRE SHUTTER ++{item_id}",')
-                        fireshutter_content.append('        OpenPosition := false,')
-                        fireshutter_content.append('        SensitiveEdge := false,')
-                        fireshutter_content.append('        FireAlarm := "-340K8-14- FIRE ALARM",')
-                        fireshutter_content.append(f'        InterfaceTrunkuse := "TRUNK{trunk_name}".ComTrunkUse,')
-                        fireshutter_content.append(f'        SV_FIRESHUTTER_CMD := "SV_DB_FIRESHUTTER_CMD".FIRESHUTTER_{get_last_three_digits(item_id)},')
-                        fireshutter_content.append(f'        SV_FIRESHUTTER_SA := "SV_DB_FIRESHUTTER_SA".FIRESHUTTER_{get_last_three_digits(item_id)}')
-                        fireshutter_content.append('    );')
-                        fireshutter_content.append("")
-                        fireshutter_content.append("END_REGION")
-                        fireshutter_content.append("")
-                    
-                    # Inserisci il contenuto FIRESHUTTER prima di END_FUNCTION
-                    configurations_by_trunk[global_trunk_counter].insert(-1, "\n".join(fireshutter_content))
+                # Aggiunge END_FUNCTION alla fine delle configurazioni del tronco
+                configurations_by_trunk[global_trunk_counter].append("END_FUNCTION")
                 
                 # Incrementa il contatore globale
                 global_trunk_counter += 1
@@ -519,7 +557,6 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                     )
                     
                     # Crea i file correlati
-                    create_conft_t_file(trunk_num, items_ordered, conf_output_folder)
                     create_trunk_file(trunk_num, db_trunk_output_folder)
                 except Exception as e:
                     print(f"Errore durante la creazione dei file per il tronco {trunk_num}: {e}")

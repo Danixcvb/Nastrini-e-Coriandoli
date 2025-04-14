@@ -142,11 +142,7 @@ def _get_item_details(item_data, index_fallback):
     formatted_name = item_id # Default a ID originale
     number_int = None
 
-    if "FD" in item_id.upper() or "FIRESHUTTER" in item_id.upper():
-        # Per FIRESHUTTER, usa l'ID originale come nome formattato
-        formatted_name = item_id
-        number_int = index_fallback
-    elif "ST" in item_id.upper():
+    if "ST" in item_id.upper():
         raw_num = item_data.get('GlobalUtenzaNumber')
         if raw_num is not None:
             try:
@@ -265,7 +261,32 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
                     
         next_name_formatted, next_number = _get_item_details(next_item_data_to_use, i+2)
         next_component_type = "Carousel" if next_item_data_to_use and count_ca_occurrences(next_item_data_to_use.get('ITEM_ID_CUSTOM','')) == 2 else "Conveyor"
-        next_name_ref = f'"{next_name_formatted}".{next_component_type}.Data.OUT' if next_item_data_to_use else "NULL"
+
+        # Gestione specifica per UTENZE
+        if "ST" in item_id_original.upper():
+            # Cerca la prossima UTENZA o CAROUSEL
+            for j in range(i+1, len(valid_items)):
+                item_id = valid_items[j].get('ITEM_ID_CUSTOM', '')
+                if "ST" in item_id.upper():
+                    next_utenza = valid_items[j]
+                    next_name_formatted, next_number = _get_item_details(next_utenza, i+2)
+                    next_name_ref = f'"{next_name_formatted}".Conveyor.Data.OUT'
+                    break
+                elif count_ca_occurrences(item_id) == 2:
+                    carousel_num = get_last_three_digits(item_id)
+                    next_name_ref = f'"SIDE_INPUT_CAROUSEL{carousel_num}".DATA.OUT'
+                    break
+            else:
+                next_name_ref = "NULL"
+        else:
+            # Mantieni la logica esistente per SIDE_INPUT e CAROUSEL
+            if next_item_data_to_use and count_ca_occurrences(next_item_data_to_use.get('ITEM_ID_CUSTOM','')) == 2:
+                # Se il successivo è Carousel, punta al suo SIDE_INPUT
+                next_carousel_num_for_side = next_number if next_number is not None else 0
+                next_name_ref = f'"SIDE_INPUT_CAROUSEL{next_carousel_num_for_side}".DATA.OUT'
+            else:
+                # Altrimenti usa il nome formattato e tipo del successivo
+                next_name_ref = f'"{next_name_formatted}".{next_component_type}.Data.OUT' if next_item_data_to_use else "NULL"
 
         # --- Gestione Differenziata Chiamata --- 
         if component_type == "Carousel":
@@ -408,19 +429,6 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
     
     with open(output_path, 'w') as f:
         f.write("\n".join(content))
-
-def create_conft_t_file(trunk_number, items, output_folder):
-    """
-    Crea il file CONFT_T per un tronco specifico.
-    
-    Args:
-        trunk_number (int): Numero del tronco
-        items (list): Lista di elementi nel tronco
-        output_folder (str): Cartella di output
-    """
-    # Codice per la creazione dei file CONFT_T
-    pass
-
 
 def create_trunk_file(trunk_number, output_folder):
     """
