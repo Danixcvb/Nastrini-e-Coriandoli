@@ -184,11 +184,7 @@ def _is_valid_component_for_chain(item_data):
     item_id = item_data.get('ITEM_ID_CUSTOM', '')
     return ("ST" in item_id.upper() or count_ca_occurrences(item_id) == 2)
 
-def create_main_file(trunk_number, 
-                     valid_items, 
-                     output_folder, 
-                     last_valid_prev_item_data=None, 
-                     first_valid_next_item_data=None):
+def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_item_data=None, first_valid_next_item_data=None):
     """
     Crea il file MAINx per un tronco specifico.
     
@@ -232,9 +228,7 @@ def create_main_file(trunk_number,
         
         # Determina il tipo di componente
         item_id_upper = item_id_original.upper()
-        if "FD" in item_id_upper or "FIRESHUTTER" in item_id_upper:
-            component_type = "Fireshutter"
-        elif count_ca_occurrences(item_id_original) == 2:
+        if count_ca_occurrences(item_id_original) == 2:
             component_type = "Carousel"
         else:
             component_type = "Conveyor"
@@ -327,28 +321,6 @@ def create_main_file(trunk_number,
             content.append("END_REGION")
             content.append("")
             # --- Fine Chiamata CAROUSEL ---
-        
-        elif component_type == "Fireshutter":
-            # --- Generazione Chiamata FIRESHUTTER ---
-            content.append(f"REGION  Call FIRESHUTTER ({item_id_original})")
-            content.append("")
-            
-            # ID: usa sempre current_number per i FIRESHUTTER
-            fireshutter_id = current_number if current_number is not None else i + 1
-            content.append(f'    "{item_id_original}"(')
-            
-            # Aggiungi i parametri specifici per FIRESHUTTER
-            content.append(f'                   ElectricalFault:= "-340K6-16- 230VAC POWER SUPPLY CIRCUIT BREAKER - STATUS - FIRE SHUTTER ++{item_id_original}",')
-            content.append('                   OpenPosition:=false,')
-            content.append('                   SensitiveEdge:=false,')
-            content.append('                   FireAlarm:= "-340K8-14- FIRE ALARM",')
-            content.append(f'                   InterfaceTrunkuse:= "TRUNK{safe_trunk_number}".ComTrunkUse,')
-            content.append(f'                   SV_FIRESHUTTER_CMD := "SV_DB_FIRESHUTTER_CMD".FIRESHUTTER_{fireshutter_id},')
-            content.append(f'                   SV_FIRESHUTTER_SA := "SV_DB_FIRESHUTTER_SA".FIRESHUTTER_{fireshutter_id});')
-            content.append("")
-            content.append("END_REGION")
-            content.append("")
-            # --- Fine Chiamata FIRESHUTTER ---
             
         else: # component_type == "Conveyor"
             # --- Generazione Chiamata CONVEYOR/UTENZA (standard) ---
@@ -429,7 +401,7 @@ def create_main_file(trunk_number,
              content.append("END_REGION")
              content.append("")
         # --- Fine Logica SIDE_INPUT ---
-
+    
     # Crea il file
     output_path = os.path.join(output_folder, f"MAIN{safe_trunk_number}.scl") # Usa numero tronco sicuro
     os.makedirs(os.path.dirname(output_path), exist_ok=True)

@@ -187,10 +187,10 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                 configurations_by_trunk[global_trunk_counter] = [] 
                 # Aggiunge l'intestazione della funzione
                 header = f"""FUNCTION "CONF_T{global_trunk_counter}" : Void
-{{ S7_Optimized_Access := 'TRUE' }}
-VERSION : 0.1
-BEGIN
-"""
+ {{ S7_Optimized_Access := 'TRUE' }}
+ VERSION : 0.1
+ BEGIN
+ """
                 configurations_by_trunk[global_trunk_counter].append(header)
                 
                 # Calcola il numero progressivo all'interno del gruppo
@@ -252,9 +252,13 @@ BEGIN
                         component_type = "Carousel" if count_ca_occurrences(comment_name) == 2 else "Conveyor"
                         
                         # Costruisci la stringa di configurazione
-                        configuration = f"""   REGION {comment_name}
+                        if "FD" in item_id_custom.upper() or "FIRESHUTTER" in item_id_custom.upper():
+                            # Salta la creazione della regione principale per FIRESHUTTER
+                            continue
+                        else:
+                            configuration = f"""   REGION {comment_name}
 
-"""
+ """
                         if "SC" in item_id_custom:
                             configuration += f"""    REGION Config ATR CAMERA 360 ({item_id_custom})
         REGION General data configuration
@@ -290,7 +294,7 @@ BEGIN
             
         END_REGION
 
-"""
+ """
                         try:
                             item_l_float = float(item_l) / 1000.0
                         except (ValueError, TypeError):
@@ -392,8 +396,8 @@ BEGIN
             "{item_id_custom_new}".PhonicWeel.Data.CNF.PhtFallFilterThr := T#100MS;
             "{item_id_custom_new}".PhonicWeel.Data.CNF.JamTimeThr := T#1S;
         END_REGION
-END_REGION
-"""
+ END_REGION
+ """
                         # Aggiungi la configurazione e crea i file necessari
                         if "SC" in item_id_custom:
                             output_folder = f'Configurazioni/{selected_cab_plc}/UTENZE'
@@ -401,8 +405,10 @@ END_REGION
                             create_datalogic_file(item_id_custom, output_folder)
                             configurations_by_trunk[global_trunk_counter].append(configuration)
                         else:
-                            output_folder = f'Configurazioni/{selected_cab_plc}/UTENZE'
-                            create_data_block_file(item_id_custom_new, component_type, output_folder)
+                            # Escludi gli elementi che contengono "FD" dalla creazione dei file nella cartella UTENZE
+                            if "FD" not in item_id_custom.upper():
+                                output_folder = f'Configurazioni/{selected_cab_plc}/UTENZE'
+                                create_data_block_file(item_id_custom_new, component_type, output_folder)
                             configurations_by_trunk[global_trunk_counter].append(configuration)
                         
                         # Incrementa il numero progressivo all'interno del gruppo
@@ -425,7 +431,34 @@ END_REGION
                 if not valid_items_for_main.empty:
                     items_ordered_dict = valid_items_for_main.sort_values(by='LastThreeDigits').to_dict('records') 
                     main_data_by_trunk[global_trunk_counter] = items_ordered_dict
-
+                
+                # Crea la regione FIRESHUTTER se necessario
+                fireshutter_items = [item for item in items_ordered_dict if "FD" in item.get('ITEM_ID_CUSTOM', '').upper() or "FIRESHUTTER" in item.get('ITEM_ID_CUSTOM', '').upper()]
+                if fireshutter_items:
+                    fireshutter_content = []
+                    
+                    for item in fireshutter_items:
+                        item_id = item.get('ITEM_ID_CUSTOM', '')
+                        # Non aggiungiamo la regione principale per FIRESHUTTER
+                        fireshutter_content.append(f"REGION Call FIRESHUTTER ({item_id})")
+                        fireshutter_content.append("")
+                        fireshutter_content.append(f'    "{item_id}"(')
+                        fireshutter_content.append(f'        ID := {get_last_three_digits(item_id)},')
+                        fireshutter_content.append(f'        ElectricalFault := "-340K6-16- 230VAC POWER SUPPLY CIRCUIT BREAKER - STATUS - FIRE SHUTTER ++{item_id}",')
+                        fireshutter_content.append('        OpenPosition := false,')
+                        fireshutter_content.append('        SensitiveEdge := false,')
+                        fireshutter_content.append('        FireAlarm := "-340K8-14- FIRE ALARM",')
+                        fireshutter_content.append(f'        InterfaceTrunkuse := "TRUNK{trunk_name}".ComTrunkUse,')
+                        fireshutter_content.append(f'        SV_FIRESHUTTER_CMD := "SV_DB_FIRESHUTTER_CMD".FIRESHUTTER_{get_last_three_digits(item_id)},')
+                        fireshutter_content.append(f'        SV_FIRESHUTTER_SA := "SV_DB_FIRESHUTTER_SA".FIRESHUTTER_{get_last_three_digits(item_id)}')
+                        fireshutter_content.append('    );')
+                        fireshutter_content.append("")
+                        fireshutter_content.append("END_REGION")
+                        fireshutter_content.append("")
+                    
+                    # Inserisci il contenuto FIRESHUTTER prima di END_FUNCTION
+                    configurations_by_trunk[global_trunk_counter].insert(-1, "\n".join(fireshutter_content))
+                
                 # Incrementa il contatore globale
                 global_trunk_counter += 1
         
@@ -444,7 +477,7 @@ END_REGION
             except Exception as e:
                 messagebox.showerror("Errore", f"Errore nel salvataggio del file {output_filename}: {e}")
                 continue
-
+        
         # Crea i file LINEA
         create_linea_files(df, selected_cab_plc)
         
