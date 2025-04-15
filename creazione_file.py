@@ -142,7 +142,7 @@ def _get_item_details(item_data, index_fallback):
     formatted_name = item_id # Default a ID originale
     number_int = None
 
-    if "ST" in item_id.upper():
+    if "ST" in item_id.upper() or "CN" in item_id.upper():
         raw_num = item_data.get('GlobalUtenzaNumber')
         if raw_num is not None:
             try:
@@ -173,12 +173,11 @@ def _get_item_details(item_data, index_fallback):
     return formatted_name, number_int
 
 def _is_valid_component_for_chain(item_data):
-    """Helper function to determine if a component should be included in the chain (PREV/NEXT references)."""
-    if not item_data:
-        return False
-        
+    """
+    Verifica se un componente è valido per la catena (ST, CN o doppio CA)
+    """
     item_id = item_data.get('ITEM_ID_CUSTOM', '')
-    return ("ST" in item_id.upper() or count_ca_occurrences(item_id) == 2)
+    return ("ST" in item_id.upper() or "CN" in item_id.upper() or count_ca_occurrences(item_id) == 2)
 
 def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_item_data=None, first_valid_next_item_data=None):
     """
@@ -262,12 +261,12 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
         next_name_formatted, next_number = _get_item_details(next_item_data_to_use, i+2)
         next_component_type = "Carousel" if next_item_data_to_use and count_ca_occurrences(next_item_data_to_use.get('ITEM_ID_CUSTOM','')) == 2 else "Conveyor"
 
-        # Gestione specifica per UTENZE
-        if "ST" in item_id_original.upper():
+        # Gestione specifica per UTENZE (ST o CN)
+        if "ST" in item_id_original.upper() or "CN" in item_id_original.upper():
             # Cerca la prossima UTENZA o CAROUSEL
             for j in range(i+1, len(valid_items)):
                 item_id = valid_items[j].get('ITEM_ID_CUSTOM', '')
-                if "ST" in item_id.upper():
+                if "ST" in item_id.upper() or "CN" in item_id.upper():
                     next_utenza = valid_items[j]
                     next_name_formatted, next_number = _get_item_details(next_utenza, i+2)
                     next_name_ref = f'"{next_name_formatted}".Conveyor.Data.OUT'

@@ -75,8 +75,8 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             status_var.set("Errore: colonne mancanti")
             return False
         
-        # Filtra le righe escludendo ITEM_ID_CUSTOM contenenti "OG", "SD", "RS", "CX", "CN", "CH", "XR", "SO", "LC", "IN"
-        df = df[~df['ITEM_ID_CUSTOM'].str.contains('OG|SD|RS|CX|CN|CH|XR|SO|LC|IN|FD', case=False, na=False)]
+        # Filtra le righe escludendo ITEM_ID_CUSTOM contenenti "OG", "SD", "RS", "CX", "CH", "XR", "SO", "LC", "IN", "FD"
+        df = df[~df['ITEM_ID_CUSTOM'].str.contains('OG|SD|RS|CX|CH|XR|SO|LC|IN|FD', case=False, na=False)]
 
         # Valori predefiniti per celle vuote
         default_speed_transport = 1.5
@@ -229,7 +229,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                     df.at[index, 'GlobalCarouselNumber'] = global_carousel_counter
                     global_carousel_counter += 1
                     df.at[index, 'GlobalUtenzaNumber'] = None
-                elif "ST" in item_id.upper():
+                elif "ST" in item_id.upper() or "CN" in item_id.upper():
                     df.at[index, 'GlobalUtenzaNumber'] = global_utenza_counter
                     global_utenza_counter += 1
                     df.at[index, 'GlobalCarouselNumber'] = None
@@ -311,6 +311,15 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                             except (ValueError, TypeError):
                                 print(f"Attenzione: Impossibile convertire GlobalUtenzaNumber '{utenza_number}' in intero per ITEM_ID_CUSTOM '{item_id_custom}'. Uso l'ID originale.")
                                 item_id_custom_new = item_id_custom
+                        elif "CN" in item_id_custom.upper():
+                            if utenza_number is not None:
+                                try:
+                                    item_id_custom_new = f"UTENZA{int(utenza_number)}"
+                                except (ValueError, TypeError):
+                                    print(f"Attenzione: Impossibile convertire GlobalUtenzaNumber '{utenza_number}' in intero per ITEM_ID_CUSTOM '{item_id_custom}'. Uso l'ID originale.")
+                                    item_id_custom_new = item_id_custom
+                            else:
+                                item_id_custom_new = item_id_custom
                         else:
                             item_id_custom_new = item_id_custom
                         
@@ -369,7 +378,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                             print(f"Attenzione: Impossibile convertire ITEM_L '{item_l}' in float per ITEM_ID_CUSTOM '{item_id_custom}'. Uso il valore di default {default_item_l/1000.0}.")
                             item_l_float = default_item_l / 1000.0
                             
-                        if "ST" in item_id_custom.upper() or count_ca_occurrences(comment_name) == 2:
+                        if "ST" in item_id_custom.upper() or count_ca_occurrences(comment_name) == 2 or "CN" in item_id_custom.upper():
                             configuration += f"""    REGION {component_type}.Data.CNF
 
         "{item_id_custom_new}".{component_type}.Data.CNF.Pht01En := FALSE;
@@ -486,9 +495,10 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                 
                 # Filtra e Memorizza dati per MAIN
                 condition_st = trunk_group['ITEM_ID_CUSTOM'].str.contains('ST', case=False, na=False)
+                condition_cn = trunk_group['ITEM_ID_CUSTOM'].str.contains('CN', case=False, na=False)
                 condition_ca2 = trunk_group['ITEM_ID_CUSTOM'].apply(lambda x: count_ca_occurrences(str(x)) == 2)
 
-                valid_items_for_main = trunk_group[condition_st | condition_ca2]
+                valid_items_for_main = trunk_group[condition_st | condition_cn | condition_ca2]
 
                 if not valid_items_for_main.empty:
                     items_ordered_dict = valid_items_for_main.sort_values(by='LastThreeDigits').to_dict('records') 
