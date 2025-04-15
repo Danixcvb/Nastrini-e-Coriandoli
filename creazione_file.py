@@ -798,34 +798,40 @@ def create_conf_file(selected_cab_plc, df, output_folder, order):
     # Regione di configurazione dei device per ogni linea
     for line_idx, line_prefix in enumerate(unique_lines, 1):
         content.append(f'    REGION Conf Device Line {line_idx}')
+        content.append('        ')
         if 'ITEM_LINE' in df.columns:
             line_trunks = sorted(df[df['ITEM_LINE'] == line_prefix]['ITEM_TRUNK'].unique())
         else:
-            line_trunks = sorted(df[df['ITEM_ID_CUSTOM'].str.startswith(str(line_prefix))]['ITEM_TRUNK'].unique())
+            line_trunks = sorted(df[df['ITEM_ID_CUSTOM'].str.lower().str.startswith(line_prefix.lower())]['ITEM_TRUNK'].unique())
         
+        # Aggiungi le chiamate CONF_Tx per ogni trunk della linea
         for trunk_num in line_trunks:
             content.append(f'        "CONF_T{global_trunk_counter}"();')
             global_trunk_counter += 1
+        
+        content.append('        ')
         content.append('    END_REGION')
-        content.append('')
+        content.append('    ')
+        content.append('    ')
     
     # Regione di configurazione della comunicazione SAC
     content.append('    REGION Conf Sac communication')
+    content.append('        ')
     content.append('        "GtwConfiguration"();')
+    content.append('        ')
     content.append('    END_REGION')
-    content.append('')
+    content.append('    ')
+    content.append('    ')
     
-    # Regione di abilitazione del log
-    content.append('    REGION Enabling log')
-    content.append('        IF #EnableLog THEN')
-    content.append('            "PANEL1".Data.CNF.LogEventEn := TRUE;')
-    content.append('        ELSE')
-    content.append('            "PANEL1".Data.CNF.LogEventEn := FALSE;')
-    content.append('        END_IF;')
+    # Regione di abilitazione log
+    content.append('    REGION Enable log')
+    content.append('        ')
+    content.append('        "LOG_ENABLE"(EnableLog := "Ist-Logger".LogSocket.ConnStConnected,')
+    content.append('                     EnableDebug:=TRUE);')
+    content.append('        ')
     content.append('    END_REGION')
-    content.append('')
+    content.append('    ')
     
-    # Chiusura della funzione
     content.append('END_FUNCTION')
     
     # Salva il file
