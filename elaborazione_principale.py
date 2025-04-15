@@ -498,11 +498,13 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                 condition_st = trunk_group['ITEM_ID_CUSTOM'].str.contains('ST', case=False, na=False)
                 condition_cn = trunk_group['ITEM_ID_CUSTOM'].str.contains('CN', case=False, na=False)
                 condition_ca2 = trunk_group['ITEM_ID_CUSTOM'].apply(lambda x: count_ca_occurrences(str(x)) == 2)
+                condition_sc = trunk_group['ITEM_ID_CUSTOM'].str.contains('SC', case=False, na=False)
 
-                valid_items_for_main = trunk_group[condition_st | condition_cn | condition_ca2]
+                # Includi anche i Datalogic (SC) nella lista degli elementi validi
+                valid_items_for_main = trunk_group[condition_st | condition_cn | condition_ca2 | condition_sc]
 
                 if not valid_items_for_main.empty:
-                    items_ordered_dict = valid_items_for_main.sort_values(by='LastThreeDigits').to_dict('records') 
+                    items_ordered_dict = valid_items_for_main.sort_values(by='LastThreeDigits').to_dict('records')
                     main_data_by_trunk[global_trunk_counter] = items_ordered_dict
                 
                 # Aggiunge END_FUNCTION alla fine delle configurazioni del tronco

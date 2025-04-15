@@ -186,7 +186,7 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
     
     Args:
         trunk_number (int): Numero del tronco
-        valid_items (list): Lista di elementi VALIDI (no 'SC') nel tronco (dizionari)
+        valid_items (list): Lista di elementi nel tronco (dizionari)
         output_folder (str): Cartella di output
         last_valid_prev_item_data (dict, optional): Dati dell'ultimo item valido del tronco precedente.
         first_valid_next_item_data (dict, optional): Dati del primo item valido del tronco successivo.
@@ -217,6 +217,43 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
     
     # Aggiungi le chiamate ai blocchi funzionali
     for i, item in enumerate(valid_items):
+        item_id = item.get('ITEM_ID_CUSTOM', '')
+        
+        # Se è un Datalogic (contiene SC), aggiungi la configurazione specifica
+        if 'SC' in item_id.upper():
+            # Trova l'utenza precedente valida
+            prev_utenza = None
+            for j in range(i-1, -1, -1):
+                prev_item = valid_items[j]
+                prev_id = prev_item.get('ITEM_ID_CUSTOM', '')
+                if 'ST' in prev_id.upper() or 'CN' in prev_id.upper():
+                    prev_utenza = prev_item
+                    break
+            
+            if prev_utenza:
+                try:
+                    prev_utenza_num = int(prev_utenza.get('GlobalUtenzaNumber', 0))
+                except (ValueError, TypeError):
+                    print(f"Attenzione: Impossibile convertire GlobalUtenzaNumber in intero per {item_id}. Uso 0.")
+                    prev_utenza_num = 0
+                    
+                content.append(f'REGION Call Datalogic ATR 360 ({item_id})')
+                content.append('    ')
+                content.append(f'    "DATALOGIC_{item_id}"(')
+                content.append('                          TimeData := "UpstreamDB-Globale".Global_Data.TimeData,')
+                content.append(f'                          Trk := "UTENZA{prev_utenza_num}".Conveyor.Trk,')
+                content.append('                          PANYTO_SA := "SV_DB_DATALOGIC_SA".DATALOGIC_1,')
+                content.append('                          PANYTO_CMD := "SV_DB_DATALOGIC_CMD".DATALOGIC_1,')
+                content.append('                          DB_OBJ := "DBsObject".DbObj[1],')
+                content.append('                          "Ist-McpChmMsgBuffer" := "Ist-GtwChmMsgBuffer",')
+                content.append('                          "Ist-PcSocket" := "Ist-GtwManageSocket",')
+                content.append('                          "Ist-LogBuffer" := "Ist-LogBuffer",')
+                content.append('                          "Ist-Logger" := "Ist-Logger",')
+                content.append('                          "Ist-VidGenerator" := "Ist_Sub-VidGenerator");')
+                content.append('    ')
+                content.append('END_REGION')
+                content.append('')
+            continue  # Salta il resto della logica per i Datalogic
         
         # --- Ottieni dettagli per item corrente, precedente e successivo EFFETTIVI ---
         current_name, current_number = _get_item_details(item, i + 1) 
