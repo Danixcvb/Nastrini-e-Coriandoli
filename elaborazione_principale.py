@@ -21,7 +21,8 @@ from creazione_file import (
     create_linea_files,
     create_main_file,
     create_trunk_file,
-    create_main_structure_file
+    create_main_structure_file,
+    create_conf_file
 )
 import random
 import math
@@ -571,6 +572,11 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                 except Exception as e:
                     print(f"Errore durante la creazione dei file per il tronco {trunk_num}: {e}")
                     continue
+
+        # Crea il file CONF.scl nella cartella CONF dopo che tutti i trunk sono stati processati
+        conf_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'CONF')
+        os.makedirs(conf_output_folder, exist_ok=True)  # Crea la cartella se non esiste
+        create_conf_file(selected_cab_plc, df, conf_output_folder)
 
         # Calcola il numero di linee basato sui prefissi unici
         ordered_prefixes = []

@@ -121,7 +121,7 @@ def create_linea_files(df, selected_cab_plc):
     for index, prefix in enumerate(unique_prefixes):
         filename = f"LINEA{index + 1}.scl"
         with open(os.path.join(linee_folder, filename), 'w') as f:
-            f.write(f"""DATA_BLOCK "LINE_{index + 1}"
+            f.write(f"""DATA_BLOCK "LINEA{index + 1}"
 {{ S7_Optimized_Access := 'TRUE' }}
 AUTHOR : RP
 VERSION : 0.1
@@ -643,3 +643,171 @@ def create_main_structure_file(output_folder, num_lines, selected_cab_plc, trunk
         print(f"Errore durante la creazione del file: {e}")
         
     print("File MAIN [OB1].scl creato con successo!") 
+
+def create_conf_file(selected_cab_plc, df, output_folder):
+    """
+    Crea il file CONF.scl con le configurazioni dei trunk e delle linee.
+    
+    Args:
+        selected_cab_plc (str): CAB_PLC selezionato
+        df (DataFrame): DataFrame con i dati
+        output_folder (str): Cartella di output
+    """
+    content = []
+    
+    # Intestazione della funzione
+    content.append('FUNCTION "CONF" : Void')
+    content.append('{ S7_Optimized_Access := \'TRUE\' }')
+    content.append('VERSION : 0.1')
+    content.append('   VAR_TEMP')
+    content.append('      RetVal : Int;')
+    content.append('      ZeroWord : Word;')
+    content.append('   END_VAR')
+    content.append('')
+    content.append('BEGIN')
+    
+    # Regione di inizializzazione
+    content.append('    REGION Initialization')
+    content.append('        #ZeroWord := W#16#0;')
+    content.append('    END_REGION')
+    content.append('')
+    
+    # Regione di configurazione generale
+    content.append('    REGION General Configuration')
+    content.append('        "UpstreamDB-Globale".Global_Data.MachineId := 101;')
+    content.append('    END_REGION')
+    content.append('')
+    
+    # Regione di configurazione PANEL1
+    content.append('    REGION Config PANEL1 ()')
+    content.append('        ')
+    content.append('        "PANEL1".Data.CNF.TIME_SIL := L#20000;    // L#20000;')
+    content.append('        ')
+    content.append('        //Posso lasciare tutto a false, al limite custom per SCADA da vedere a posteriori')
+    content.append('        "PANEL1".Data.CNF.BLOCK_ALL1  := TRUE;       //  -> Sono a gruppi di 20 allarmi da Signal1 a Signal20')
+    content.append('        "PANEL1".Data.CNF.BLOCK_ALL2  := FALSE;      // FALSE;')
+    content.append('        "PANEL1".Data.CNF.BLOCK_ALL3  := FALSE;      // FALSE;')
+    content.append('        "PANEL1".Data.CNF.BLOCK_ALL4  := FALSE;      // FALSE;')
+    content.append('        "PANEL1".Data.CNF.BLOCK_ALL5  := FALSE;      // FALSE;')
+    content.append('        "PANEL1".Data.CNF.BLOCK_ALL6  := FALSE;      // FALSE;')
+    content.append('        "PANEL1".Data.CNF.BLOCK_ALL7  := FALSE;      // FALSE;')
+    content.append('        "PANEL1".Data.CNF.BLOCK_ALL8  := FALSE;      // FALSE;')
+    content.append('        "PANEL1".Data.CNF.BLOCK_ALL9  := FALSE;      // FALSE;')
+    content.append('        "PANEL1".Data.CNF.BLOCK_ALL10 := FALSE;      // FALSE;')
+    content.append('        ')
+    content.append('        //Profinet alarms CNF')
+    content.append('        //Essendo che gli allarmi sono a gruppi di 20, devono essere valorizzati tutti e 20, per questo si mette lo stesso nodo del controller per evitare indice 0')
+    content.append('        ')
+    content.append('        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[1]  := ###; ')
+    content.append('        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[2]  := ###; ')
+    content.append('        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[3]  := ###; ')
+    content.append('        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[4]  := ###; ')
+    content.append('        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[5]  := ###; ')
+    content.append('        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[6]  := ###; ')
+    content.append('        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[7]  := ###; ')
+    content.append('        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[8]  := ###; ')
+    content.append('        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[9]  := ###; ')
+    content.append('        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[10] := ###; ')
+    content.append('        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[11] := ###; ')
+    content.append('        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[12] := ###; ')
+    content.append('        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[13] := ###; ')
+    content.append('        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[14] := ###; ')
+    content.append('        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[15] := ###; ')
+    content.append('        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[16] := ###;')
+    content.append('        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[17] := ###;')
+    content.append('        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[18] := ###;')
+    content.append('        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[19] := ###;')
+    content.append('        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[20] := ###;')
+    content.append('        ')
+    content.append('    END_REGION')
+    content.append('')
+    
+    # Estrai le linee uniche
+    if 'ITEM_LINE' in df.columns:
+        unique_lines = sorted(df['ITEM_LINE'].unique())
+    else:
+        # Se non esiste ITEM_LINE, usa i prefissi unici come linee
+        unique_lines = sorted(df['ITEM_ID_CUSTOM'].str[:4].unique())
+    
+    # Contatore globale per i trunk
+    global_trunk_counter = 1
+    
+    # Per ogni linea (usando l'indice per la numerazione)
+    for line_idx, line_prefix in enumerate(unique_lines, 1):
+        # Regione di configurazione della linea
+        content.append(f'    REGION Conf Line {line_idx}')
+        content.append(f'        "LINEA{line_idx}".Data.CNF.T_PRESTART_RES := L#5000;')
+        content.append(f'        "LINEA{line_idx}".Data.CNF.T_SRNAVR := L#3000;')
+        content.append('    END_REGION')
+        content.append('')
+        
+        # Estrai i trunk unici per questa linea
+        if 'ITEM_LINE' in df.columns:
+            line_trunks = sorted(df[df['ITEM_LINE'] == line_prefix]['ITEM_TRUNK'].unique())
+        else:
+            line_trunks = sorted(df[df['ITEM_ID_CUSTOM'].str.startswith(str(line_prefix))]['ITEM_TRUNK'].unique())
+        
+        # Per ogni trunk della linea
+        for trunk_num in line_trunks:
+            # Conta il numero di conveyor nel trunk
+            if 'ITEM_LINE' in df.columns:
+                trunk_conveyors = df[(df['ITEM_LINE'] == line_prefix) & (df['ITEM_TRUNK'] == trunk_num)]
+            else:
+                trunk_conveyors = df[(df['ITEM_ID_CUSTOM'].str.startswith(str(line_prefix))) & (df['ITEM_TRUNK'] == trunk_num)]
+            total_conveyors = len(trunk_conveyors)
+            
+            # Regione di configurazione del trunk usando il contatore globale
+            content.append(f'    REGION Conf Trunk {global_trunk_counter} Line {line_idx}')
+            content.append(f'        "TRUNK{global_trunk_counter}".Data.CNF.PRESTART_TIMER := T#10S;     // Prestart Time [ms]')
+            content.append(f'        "TRUNK{global_trunk_counter}".Data.CNF.ENGSAV_TIMER := T#5S;        // Disable trunk time [ms]')
+            content.append(f'        "TRUNK{global_trunk_counter}".Data.CNF.SEGN_RESTART_PCT := TRUE;    // TRUE=Signal Restart after reset from PCT')
+            content.append(f'        "TRUNK{global_trunk_counter}".Data.CNF.SEGN_RESTART := TRUE;        // TRUE=Signal Restart')
+            content.append(f'        "TRUNK{global_trunk_counter}".Data.CNF.SEGN_REMG := TRUE;           // TRUE=reset emergency also the warning')
+            content.append(f'        "TRUNK{global_trunk_counter}".Data.CNF.TOT_CONVEYORS := {total_conveyors};         // Total number of conveyors in trunk')
+            content.append(f'        "TRUNK{global_trunk_counter}".Data.CNF.EN_FULL_ALLCONV := FALSE;    // TRUE=all conveyors of trunk are full then trunk is full, FALSE = atleast one conveyor of trunk is full then trunk is full')
+            content.append('    END_REGION')
+            content.append('')
+            
+            # Incrementa il contatore globale
+            global_trunk_counter += 1
+    
+    # Reset del contatore globale per la sezione dei device
+    global_trunk_counter = 1
+    
+    # Regione di configurazione dei device per ogni linea
+    for line_idx, line_prefix in enumerate(unique_lines, 1):
+        content.append(f'    REGION Conf Device Line {line_idx}')
+        if 'ITEM_LINE' in df.columns:
+            line_trunks = sorted(df[df['ITEM_LINE'] == line_prefix]['ITEM_TRUNK'].unique())
+        else:
+            line_trunks = sorted(df[df['ITEM_ID_CUSTOM'].str.startswith(str(line_prefix))]['ITEM_TRUNK'].unique())
+        
+        for trunk_num in line_trunks:
+            content.append(f'        "CONF_T{global_trunk_counter}"();')
+            global_trunk_counter += 1
+        content.append('    END_REGION')
+        content.append('')
+    
+    # Regione di configurazione della comunicazione SAC
+    content.append('    REGION Conf Sac communication')
+    content.append('        "GtwConfiguration"();')
+    content.append('    END_REGION')
+    content.append('')
+    
+    # Regione di abilitazione del log
+    content.append('    REGION Enabling log')
+    content.append('        IF #EnableLog THEN')
+    content.append('            "PANEL1".Data.CNF.LogEventEn := TRUE;')
+    content.append('        ELSE')
+    content.append('            "PANEL1".Data.CNF.LogEventEn := FALSE;')
+    content.append('        END_IF;')
+    content.append('    END_REGION')
+    content.append('')
+    
+    # Chiusura della funzione
+    content.append('END_FUNCTION')
+    
+    # Salva il file
+    output_path = os.path.join(output_folder, 'CONF.scl')
+    with open(output_path, 'w') as f:
+        f.write('\n'.join(content)) 
