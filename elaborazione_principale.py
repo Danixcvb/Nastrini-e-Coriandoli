@@ -576,7 +576,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         # Crea il file CONF.scl nella cartella CONF dopo che tutti i trunk sono stati processati
         conf_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'CONF')
         os.makedirs(conf_output_folder, exist_ok=True)  # Crea la cartella se non esiste
-        create_conf_file(selected_cab_plc, df, conf_output_folder)
+        create_conf_file(selected_cab_plc, df, conf_output_folder, order)
 
         # Calcola il numero di linee basato sui prefissi unici
         ordered_prefixes = []

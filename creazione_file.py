@@ -5,6 +5,7 @@ Gestisce la generazione dei file .txt e .scl per le configurazioni dei nastri tr
 
 import os
 from funzioni_elaborazione import count_ca_occurrences, get_last_three_digits
+import pandas as pd
 
 def create_txt_files(df, selected_cab_plc, order):
     """
@@ -644,7 +645,7 @@ def create_main_structure_file(output_folder, num_lines, selected_cab_plc, trunk
         
     print("File MAIN [OB1].scl creato con successo!") 
 
-def create_conf_file(selected_cab_plc, df, output_folder):
+def create_conf_file(selected_cab_plc, df, output_folder, order):
     """
     Crea il file CONF.scl con le configurazioni dei trunk e delle linee.
     
@@ -652,6 +653,7 @@ def create_conf_file(selected_cab_plc, df, output_folder):
         selected_cab_plc (str): CAB_PLC selezionato
         df (DataFrame): DataFrame con i dati
         output_folder (str): Cartella di output
+        order (list): Lista dell'ordine selezionato dall'utente
     """
     content = []
     
@@ -722,18 +724,23 @@ def create_conf_file(selected_cab_plc, df, output_folder):
     content.append('    END_REGION')
     content.append('')
     
-    # Estrai le linee uniche
-    if 'ITEM_LINE' in df.columns:
-        unique_lines = sorted(df['ITEM_LINE'].unique())
-    else:
-        # Se non esiste ITEM_LINE, usa i prefissi unici come linee
-        unique_lines = sorted(df['ITEM_ID_CUSTOM'].str[:4].unique())
+    # Estrai i prefissi dall'ordine selezionato
+    unique_lines = []
+    for item in order:
+        prefix = item.split('. ')[1].lower() if '. ' in item else item.lower()
+        prefix_data = df[df['ITEM_ID_CUSTOM'].str.lower().str.startswith(prefix)]
+        if not prefix_data.empty:
+            unique_lines.append(prefix)
+            print(f"DEBUG - Aggiunta linea con prefisso: {prefix}")
+    
+    print(f"DEBUG - Linee ordinate: {unique_lines}")
     
     # Contatore globale per i trunk
     global_trunk_counter = 1
     
-    # Per ogni linea (usando l'indice per la numerazione)
+    # Per ogni linea nell'ordine selezionato
     for line_idx, line_prefix in enumerate(unique_lines, 1):
+        print(f"\nDEBUG - Elaborazione Linea {line_idx} con prefisso {line_prefix}")
         # Regione di configurazione della linea
         content.append(f'    REGION Conf Line {line_idx}')
         content.append(f'        "LINEA{line_idx}".Data.CNF.T_PRESTART_RES := L#5000;')
@@ -745,16 +752,31 @@ def create_conf_file(selected_cab_plc, df, output_folder):
         if 'ITEM_LINE' in df.columns:
             line_trunks = sorted(df[df['ITEM_LINE'] == line_prefix]['ITEM_TRUNK'].unique())
         else:
-            line_trunks = sorted(df[df['ITEM_ID_CUSTOM'].str.startswith(str(line_prefix))]['ITEM_TRUNK'].unique())
+            line_trunks = sorted(df[df['ITEM_ID_CUSTOM'].str.lower().str.startswith(line_prefix.lower())]['ITEM_TRUNK'].unique())
+        
+        print(f"DEBUG - Tronchi trovati per linea {line_idx}: {line_trunks}")
         
         # Per ogni trunk della linea
         for trunk_num in line_trunks:
-            # Conta il numero di conveyor nel trunk
-            if 'ITEM_LINE' in df.columns:
-                trunk_conveyors = df[(df['ITEM_LINE'] == line_prefix) & (df['ITEM_TRUNK'] == trunk_num)]
-            else:
-                trunk_conveyors = df[(df['ITEM_ID_CUSTOM'].str.startswith(str(line_prefix))) & (df['ITEM_TRUNK'] == trunk_num)]
-            total_conveyors = len(trunk_conveyors)
+            # Estrai gli elementi del trunk
+            trunk_items = df[(df['ITEM_ID_CUSTOM'].str.lower().str.startswith(line_prefix.lower())) & 
+                           (df['ITEM_TRUNK'] == trunk_num)]
+            
+            print(f"\nDEBUG - Trunk {global_trunk_counter} (Linea {line_idx}):")
+            print(f"DEBUG - Elementi nel trunk: {len(trunk_items)}")
+            print("DEBUG - Dettagli elementi:")
+            for _, item in trunk_items.iterrows():
+                print(f"  - ITEM_ID_CUSTOM: {item['ITEM_ID_CUSTOM']}")
+            
+            # Conta solo le utenze (ST o CN) escludendo datalogic (SC) e carousel (doppio CA)
+            total_conveyors = 0
+            for _, item in trunk_items.iterrows():
+                item_id = str(item['ITEM_ID_CUSTOM']).upper()
+                if ('ST' in item_id or 'CN' in item_id) and 'SC' not in item_id and item_id.count('CA') != 2:
+                    total_conveyors += 1
+                    print(f"DEBUG - Trovata utenza valida: {item_id}")
+            
+            print(f"DEBUG - Total conveyors calcolato: {total_conveyors}")
             
             # Regione di configurazione del trunk usando il contatore globale
             content.append(f'    REGION Conf Trunk {global_trunk_counter} Line {line_idx}')
@@ -768,7 +790,6 @@ def create_conf_file(selected_cab_plc, df, output_folder):
             content.append('    END_REGION')
             content.append('')
             
-            # Incrementa il contatore globale
             global_trunk_counter += 1
     
     # Reset del contatore globale per la sezione dei device
@@ -810,4 +831,6 @@ def create_conf_file(selected_cab_plc, df, output_folder):
     # Salva il file
     output_path = os.path.join(output_folder, 'CONF.scl')
     with open(output_path, 'w') as f:
-        f.write('\n'.join(content)) 
+        f.write('\n'.join(content))
+    
+    print(f"DEBUG - File CONF.scl creato in {output_path}") 
