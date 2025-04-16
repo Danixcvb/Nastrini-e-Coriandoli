@@ -278,52 +278,51 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
                 if _is_valid_component_for_chain(valid_items[j]):
                     prev_item_data_to_use = valid_items[j]
                     break
-                    
-        prev_name_formatted, prev_number = _get_item_details(prev_item_data_to_use, i) 
-        prev_component_type = "Carousel" if prev_item_data_to_use and count_ca_occurrences(prev_item_data_to_use.get('ITEM_ID_CUSTOM','')) == 2 else "Conveyor"
-        prev_name_ref = f'"{prev_name_formatted}".{prev_component_type}.Data.OUT' if prev_item_data_to_use else "NULL"
+        # Ottieni i dettagli dell'item precedente
+        prev_name_formatted, prev_number = _get_item_details(prev_item_data_to_use, i)
+        
+        # Determina il tipo di componente precedente (Carousel o Conveyor)
+        prev_component_type = "Carousel" if (
+            prev_item_data_to_use and 
+            count_ca_occurrences(prev_item_data_to_use.get('ITEM_ID_CUSTOM', '')) == 2
+        ) else "Conveyor"
+        
+        # Crea il riferimento al componente precedente o imposta NULL se non esiste
+        prev_name_ref = (
+            f'"{prev_name_formatted}".{prev_component_type}.Data.OUT' 
+            if prev_item_data_to_use 
+            else "NULL"
+        )
 
         # Gestione del riferimento all'item successivo
         next_item_data_to_use = None
-        if i == len(valid_items) - 1: 
-            # Cerca il primo componente valido nel tronco successivo
-            if first_valid_next_item_data and _is_valid_component_for_chain(first_valid_next_item_data):
-                next_item_data_to_use = first_valid_next_item_data
-        elif i < len(valid_items) - 1:
-            # Cerca il prossimo componente valido nel tronco corrente
+        found_next_in_trunk = False
+
+        # Cerca il prossimo componente valido nel tronco corrente
+        if i < len(valid_items) - 1:
             for j in range(i+1, len(valid_items)):
                 if _is_valid_component_for_chain(valid_items[j]):
                     next_item_data_to_use = valid_items[j]
+                    found_next_in_trunk = True
                     break
-                    
+
+        # Se non è stato trovato un successore valido NEL tronco corrente,
+        # usa il primo valido del tronco SUCCESSIVO (se esiste e è valido)
+        if not found_next_in_trunk and first_valid_next_item_data and _is_valid_component_for_chain(first_valid_next_item_data):
+             next_item_data_to_use = first_valid_next_item_data
+
+        # Ottieni dettagli basati sul risultato della ricerca
         next_name_formatted, next_number = _get_item_details(next_item_data_to_use, i+2)
         next_component_type = "Carousel" if next_item_data_to_use and count_ca_occurrences(next_item_data_to_use.get('ITEM_ID_CUSTOM','')) == 2 else "Conveyor"
 
-        # Gestione specifica per UTENZE (ST o CN)
-        if "ST" in item_id_original.upper() or "CN" in item_id_original.upper():
-            # Cerca la prossima UTENZA o CAROUSEL
-            for j in range(i+1, len(valid_items)):
-                item_id = valid_items[j].get('ITEM_ID_CUSTOM', '')
-                if "ST" in item_id.upper() or "CN" in item_id.upper():
-                    next_utenza = valid_items[j]
-                    next_name_formatted, next_number = _get_item_details(next_utenza, i+2)
-                    next_name_ref = f'"{next_name_formatted}".Conveyor.Data.OUT'
-                    break
-                elif count_ca_occurrences(item_id) == 2:
-                    carousel_num = get_last_three_digits(item_id)
-                    next_name_ref = f'"SIDE_INPUT_CAROUSEL{carousel_num}".DATA.OUT'
-                    break
-            else:
-                next_name_ref = "NULL"
+        # Determine next_name_ref based on the correctly identified next_item_data_to_use
+        if next_item_data_to_use and count_ca_occurrences(next_item_data_to_use.get('ITEM_ID_CUSTOM','')) == 2:
+            # Se il successivo è Carousel, punta al suo SIDE_INPUT
+            next_carousel_num_for_side = next_number if next_number is not None else 0
+            next_name_ref = f'"SIDE_INPUT_CAROUSEL{next_carousel_num_for_side}".DATA.OUT'
         else:
-            # Mantieni la logica esistente per SIDE_INPUT e CAROUSEL
-            if next_item_data_to_use and count_ca_occurrences(next_item_data_to_use.get('ITEM_ID_CUSTOM','')) == 2:
-                # Se il successivo è Carousel, punta al suo SIDE_INPUT
-                next_carousel_num_for_side = next_number if next_number is not None else 0
-                next_name_ref = f'"SIDE_INPUT_CAROUSEL{next_carousel_num_for_side}".DATA.OUT'
-            else:
-                # Altrimenti usa il nome formattato e tipo del successivo
-                next_name_ref = f'"{next_name_formatted}".{next_component_type}.Data.OUT' if next_item_data_to_use else "NULL"
+            # Altrimenti usa il nome formattato e tipo del successivo (Conveyor/Utenza)
+            next_name_ref = f'"{next_name_formatted}".{next_component_type}.Data.OUT' if next_item_data_to_use else "NULL"
 
         # --- Gestione Differenziata Chiamata --- 
         if component_type == "Carousel":
@@ -341,14 +340,7 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
             carousel_prev_ref = f'"SIDE_INPUT_CAROUSEL{current_number if current_number is not None else 0}".DATA.OUT' # Usa current_number per SIDE_INPUT
             content.append(f'               PREV := {carousel_prev_ref},') 
 
-            # NEXT: riferimento a item successivo effettivo (gestito sotto)
-            if next_item_data_to_use and count_ca_occurrences(next_item_data_to_use.get('ITEM_ID_CUSTOM','')) == 2:
-                 # Se anche il successivo è Carousel, usa il suo SIDE_INPUT
-                 next_carousel_num_for_side = next_number if next_number is not None else 0
-                 next_name_ref = f'"SIDE_INPUT_CAROUSEL{next_carousel_num_for_side}".DATA.OUT'
-            else:
-                 # Altrimenti usa il nome formattato e tipo del successivo
-                 next_name_ref = f'"{next_name_formatted}".{next_component_type}.Data.OUT' if next_item_data_to_use else "NULL"
+            # NEXT: riferimento a item successivo effettivo (USA LA next_name_ref CALCOLATA SOPRA)
             content.append(f'               NEXT := {next_name_ref},')
                  
             content.append('               START := #StartTronco,')
@@ -392,14 +384,7 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
             # PREV: riferimento a item precedente effettivo (gestito sopra da prev_name_ref)
             content.append(f'               PREV := {prev_name_ref},') 
 
-            # NEXT: riferimento a item successivo effettivo (gestito sotto)
-            if next_item_data_to_use and count_ca_occurrences(next_item_data_to_use.get('ITEM_ID_CUSTOM','')) == 2:
-                 # Se il successivo è Carousel, punta al suo SIDE_INPUT
-                 next_carousel_num_for_side = next_number if next_number is not None else 0
-                 next_name_ref = f'"SIDE_INPUT_CAROUSEL{next_carousel_num_for_side}".DATA.OUT'
-            else:
-                 # Altrimenti usa il nome formattato e tipo del successivo
-                 next_name_ref = f'"{next_name_formatted}".{next_component_type}.Data.OUT' if next_item_data_to_use else "NULL"
+            # NEXT: riferimento a item successivo effettivo (USA LA next_name_ref CALCOLATA SOPRA)
             content.append(f'               NEXT := {next_name_ref},')
 
             content.append('               START := #StartTronco,')

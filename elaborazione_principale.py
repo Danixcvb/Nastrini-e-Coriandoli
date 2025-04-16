@@ -22,7 +22,8 @@ from creazione_file import (
     create_main_file,
     create_trunk_file,
     create_main_structure_file,
-    create_conf_file
+    create_conf_file,
+    _is_valid_component_for_chain
 )
 import random
 import math
@@ -544,21 +545,29 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         for idx, trunk_num in enumerate(ordered_trunk_nums):
             items_ordered = main_data_by_trunk[trunk_num]
             
-            # Trova ultimo elemento valido del tronco precedente
+            # Trova ultimo elemento VALIDO del tronco precedente (skippa Datalogic etc.)
             last_valid_prev_item_data = None
             if idx > 0:
                 prev_trunk_num = ordered_trunk_nums[idx - 1]
-                if main_data_by_trunk[prev_trunk_num]:
-                    last_valid_prev_item_data = main_data_by_trunk[prev_trunk_num][-1]
+                prev_trunk_items = main_data_by_trunk.get(prev_trunk_num, [])
+                # Cerca all'indietro l'ultimo item valido per la catena
+                for item_data in reversed(prev_trunk_items):
+                    if _is_valid_component_for_chain(item_data):
+                        last_valid_prev_item_data = item_data
+                        break # Trovato l'ultimo valido
 
-            # Trova primo elemento valido del tronco successivo
+            # Trova primo elemento VALIDO del tronco successivo (skippa Datalogic etc.)
             first_valid_next_item_data = None
             if idx < len(ordered_trunk_nums) - 1:
                 next_trunk_num = ordered_trunk_nums[idx + 1]
-                if main_data_by_trunk[next_trunk_num]:
-                    first_valid_next_item_data = main_data_by_trunk[next_trunk_num][0]
+                next_trunk_items = main_data_by_trunk.get(next_trunk_num, [])
+                # Cerca in avanti il primo item valido per la catena
+                for item_data in next_trunk_items:
+                     if _is_valid_component_for_chain(item_data):
+                        first_valid_next_item_data = item_data
+                        break # Trovato il primo valido
 
-            # Chiama create_main_file con contesto
+            # Chiama create_main_file con contesto corretto
             if items_ordered:
                 try:
                     create_main_file(
