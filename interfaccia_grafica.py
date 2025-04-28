@@ -10,6 +10,8 @@ import pandas as pd
 import random
 import math
 import config  # Importa il modulo di configurazione
+import subprocess # Added import
+import sys # Added import
 
 def ask_order_of_generation(root, items, selected_cab_plc, status_var, excel_file_path):
     """
@@ -181,6 +183,46 @@ def ask_order_of_generation(root, items, selected_cab_plc, status_var, excel_fil
     x = (order_window.winfo_screenwidth() // 2) - (width // 2)
     y = (order_window.winfo_screenheight() // 2) - (height // 2)
     order_window.geometry(f'{width}x{height}+{x}+{y}')
+
+def launch_alarm_generator(status_var): # Added status_var argument
+    """
+    Lancia lo script alarm_generator_gui.py come processo separato.
+
+    Args:
+        status_var: Variabile Tkinter per aggiornare la barra di stato.
+    """
+    # Determine the base path depending on whether running as script or frozen executable
+    if getattr(sys, 'frozen', False):
+        # Running as executable
+        base_path = os.path.dirname(sys.executable)
+    else:
+        # Running as script
+        base_path = os.path.dirname(os.path.abspath(__file__))
+
+    script_path = os.path.join(base_path, "Generazione-Allarmi", "alarm_generator_gui.py")
+    script_path = os.path.normpath(script_path) # Normalize path separators
+
+    print(f"DEBUG: Tentativo di avviare: {script_path}") # Debug print
+
+    if not os.path.exists(script_path):
+        error_msg = f"Script non trovato: {script_path}"
+        print(f"ERROR: {error_msg}") # Debug print
+        messagebox.showerror("Errore", error_msg)
+        if status_var:
+            status_var.set("Errore: Script Generatore Allarmi non trovato.")
+        return
+
+    try:
+        # Usa sys.executable per assicurarsi di usare lo stesso interprete Python
+        subprocess.Popen([sys.executable, script_path])
+        if status_var:
+            status_var.set("Avviato Generatore Allarmi HMI...")
+    except Exception as e:
+        error_msg = f"Impossibile avviare il generatore di allarmi:\n{e}"
+        print(f"ERROR: {error_msg}") # Debug print
+        messagebox.showerror("Errore Avvio", error_msg)
+        if status_var:
+            status_var.set(f"Errore avvio Generatore Allarmi.")
 
 def create_gui():
     """
@@ -429,12 +471,20 @@ def create_gui():
                               command=on_process, style="Action.TButton")
     process_button.pack(pady=10)
     
+    # Pulsante per avviare il generatore di allarmi HMI
+    alarm_gen_button = ttk.Button(button_frame, text="Genera Allarmi HMI",
+                                  command=lambda: launch_alarm_generator(status_var), # Pass status_var
+                                  style="Action.TButton")
+    alarm_gen_button.pack(pady=(0, 10), padx=10, fill=tk.X) # Add some padding below
+    alarm_gen_button.bind("<Enter>", on_enter) # Reuse hover effects if desired
+    alarm_gen_button.bind("<Leave>", on_leave) # Reuse hover effects if desired
+    
     # Frame per lo stato
     status_frame = ttk.Frame(main_frame)
     status_frame.pack(fill=tk.X, pady=(20, 0))
     
     status_var = tk.StringVar()
-    status_var.set("Pronto")
+    status_var.set("Pronto. Seleziona un file Excel per iniziare.")
     
     status_label = ttk.Label(status_frame, textvariable=status_var, 
                             style="Status.TLabel", anchor="w")

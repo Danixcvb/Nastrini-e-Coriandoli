@@ -6,8 +6,8 @@ e la creazione dei file di configurazione.
 
 import os
 import pandas as pd
-from tkinter import messagebox, ttk
-import tkinter as tk
+from PyQt6.QtWidgets import QMessageBox, QApplication
+import sys
 from funzioni_elaborazione import (
     get_last_three_digits,
     count_ca_occurrences,
@@ -44,26 +44,37 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
     """
     try:
         # Import show_completion_message here to avoid circular import
-        from interfaccia_grafica import show_completion_message
+        # from interfaccia_grafica import show_completion_message
         
-        status_var.set("Elaborazione in corso...")
+        # status_var.set("Elaborazione in corso...")
+        print("process_excel: Elaborazione in corso...")
         
         # Verifica se il file Excel è stato selezionato
         if not excel_file_path:
-            messagebox.showerror("Errore", "Nessun file Excel selezionato. Seleziona un file Excel prima di procedere.")
-            status_var.set("Errore: nessun file selezionato")
-            return False
+            # messagebox.showerror("Errore", "Nessun file Excel selezionato. Seleziona un file Excel prima di procedere.")
+            print("Errore: nessun file selezionato")
+            # status_var.set("Errore: nessun file selezionato")
+            # Show error using QMessageBox if possible (requires QApplication instance)
+            if QApplication.instance():
+                 QMessageBox.critical(None, "Errore File", "Nessun file Excel selezionato. Seleziona un file Excel prima di procedere.")
+            return False, "Nessun file Excel selezionato"
         
         if not os.path.exists(excel_file_path):
-            messagebox.showerror("Errore", f"Il file {excel_file_path} non esiste.")
-            status_var.set("Errore: file non trovato")
-            return False
+            # messagebox.showerror("Errore", f"Il file {excel_file_path} non esiste.")
+            print(f"Errore: file non trovato: {excel_file_path}")
+            # status_var.set("Errore: file non trovato")
+            if QApplication.instance():
+                 QMessageBox.critical(None, "Errore File", f"Il file Excel specificato non esiste:\n{excel_file_path}")
+            return False, "File Excel non trovato"
             
         # Verifica se l'ordine è stato selezionato
         if not order:
-            messagebox.showerror("Errore", "Nessun ordine selezionato. Seleziona l'ordine di generazione prima di procedere.")
-            status_var.set("Errore: nessun ordine selezionato")
-            return False
+            # messagebox.showerror("Errore", "Nessun ordine selezionato. Seleziona l'ordine di generazione prima di procedere.")
+            print("Errore: nessun ordine selezionato")
+            # status_var.set("Errore: nessun ordine selezionato")
+            if QApplication.instance():
+                 QMessageBox.critical(None, "Errore Ordine", "Nessun ordine di generazione selezionato. Seleziona l'ordine prima di procedere.")
+            return False, "Nessun ordine selezionato"
         
         # Carica il file Excel
         df = pd.read_excel(excel_file_path)
@@ -73,9 +84,12 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         required_columns = ['ITEM_ID_CUSTOM', 'CAB_PLC', 'ITEM_TRUNK', 'ITEM_SPEED_TRANSPORT', 
                           'ITEM_SPEED_LAUNCH', 'ITEM_SPEED_MAX', 'ITEM_ACCELERATION', 'ITEM_L']
         if not all(col in df.columns for col in required_columns):
-            messagebox.showerror("Errore", "Alcune colonne richieste sono mancanti nel file Excel.")
-            status_var.set("Errore: colonne mancanti")
-            return False
+            # messagebox.showerror("Errore", "Alcune colonne richieste sono mancanti nel file Excel.")
+            print("Errore: colonne mancanti nel file Excel")
+            # status_var.set("Errore: colonne mancanti")
+            if QApplication.instance():
+                 QMessageBox.critical(None, "Errore Colonne", "Alcune colonne richieste sono mancanti nel file Excel.")
+            return False, "Colonne mancanti nel file Excel"
         
         # Filtra le righe escludendo ITEM_ID_CUSTOM contenenti "OG", "SD", "RS", "CX", "CH", "XR", "SO", "LC", "IN", "FD"
         df = df[~df['ITEM_ID_CUSTOM'].str.contains('OG|SD|RS|CX|CH|XR|SO|LC|IN|FD', case=False, na=False)]
@@ -92,76 +106,50 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         
         # Verifica se ci sono dati per il CAB_PLC selezionato
         if cab_plc_data.empty:
-            messagebox.showerror("Errore", f"Nessun dato trovato per il CAB_PLC {selected_cab_plc} nel file Excel.")
-            status_var.set(f"Errore: nessun dato per {selected_cab_plc}")
-            return False
+            # messagebox.showerror("Errore", f"Nessun dato trovato per il CAB_PLC {selected_cab_plc} nel file Excel.")
+            print(f"Errore: nessun dato trovato per {selected_cab_plc}")
+            # status_var.set(f"Errore: nessun dato per {selected_cab_plc}")
+            if QApplication.instance():
+                 QMessageBox.critical(None, "Errore Dati", f"Nessun dato trovato per il CAB_PLC {selected_cab_plc} nel file Excel.")
+            return False, f"Nessun dato per {selected_cab_plc}"
         
         # Controlla e pulisci la cartella del CAB_PLC se esiste
         output_folder = os.path.join('Configurazioni', selected_cab_plc)
         if os.path.exists(output_folder):
-            # Crea una finestra di dialogo per la conferma
-            confirm_window = tk.Toplevel()
-            confirm_window.title("Conferma Eliminazione")
-            confirm_window.geometry("400x200")
-            confirm_window.configure(bg="#2C3E50")
-            
-            # Centra la finestra
-            confirm_window.update_idletasks()
-            width = confirm_window.winfo_width()
-            height = confirm_window.winfo_height()
-            x = (confirm_window.winfo_screenwidth() // 2) - (width // 2)
-            y = (confirm_window.winfo_screenheight() // 2) - (height // 2)
-            confirm_window.geometry(f'{width}x{height}+{x}+{y}')
-            
-            # Stile
-            style = ttk.Style()
-            style.configure("Confirm.TLabel", background="#2C3E50", foreground="#ECF0F1", 
-                          font=("Segoe UI", 12))
-            style.configure("Confirm.TButton", font=("Segoe UI", 10))
-            
-            # Messaggio
-            message = f"Trovata cartella preesistente per {selected_cab_plc}.\nVuoi procedere con l'eliminazione?"
-            label = ttk.Label(confirm_window, text=message, style="Confirm.TLabel")
-            label.pack(pady=20)
-            
-            # Variabile per il risultato
+            # --- Replace Tkinter confirmation with QMessageBox --- 
+            print(f"Trovata cartella preesistente: {output_folder}")
             confirmed = False
-            
-            def on_confirm():
-                nonlocal confirmed
-                confirmed = True
-                confirm_window.destroy()
-            
-            def on_cancel():
-                confirm_window.destroy()
-            
-            # Pulsanti
-            button_frame = ttk.Frame(confirm_window)
-            button_frame.pack(pady=20)
-            
-            confirm_button = ttk.Button(button_frame, text="Conferma", command=on_confirm, 
-                                      style="Confirm.TButton")
-            confirm_button.pack(side=tk.LEFT, padx=10)
-            
-            cancel_button = ttk.Button(button_frame, text="Annulla", command=on_cancel, 
-                                     style="Confirm.TButton")
-            cancel_button.pack(side=tk.LEFT, padx=10)
-            
-            # Aspetta la chiusura della finestra
-            confirm_window.transient()
-            confirm_window.grab_set()
-            confirm_window.wait_window()
-            
+            # Check if QApplication instance exists before showing MessageBox
+            app = QApplication.instance()
+            if app:
+                reply = QMessageBox.question(None, # No parent window specified
+                                           "Conferma Eliminazione",
+                                           f"La cartella di configurazione per '{selected_cab_plc}' esiste già:\n{output_folder}\n\nVuoi eliminare la cartella esistente e procedere con la nuova generazione?",
+                                           QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                           QMessageBox.StandardButton.No) # Default button
+                if reply == QMessageBox.StandardButton.Yes:
+                    confirmed = True
+            else:
+                 # Fallback to console confirmation if no GUI available
+                 reply_console = input(f"ATTENZIONE: La cartella '{output_folder}' esiste già. Eliminarla e procedere? (s/n): ").lower()
+                 if reply_console == 's':
+                     confirmed = True
+            # --- End of replacement ---
+
             if not confirmed:
+                print("Operazione annullata dall'utente (non eliminazione cartella).")
                 return False, "Operazione annullata dall'utente"
-            
+
             # Procedi con l'eliminazione
             try:
                 import shutil
+                print(f"Eliminazione cartella: {output_folder}...")
                 shutil.rmtree(output_folder)
                 print(f"Cartella {selected_cab_plc} eliminata con successo.")
             except Exception as e:
                 print(f"Errore durante la pulizia della cartella: {e}")
+                if QApplication.instance():
+                     QMessageBox.critical(None, "Errore Eliminazione", f"Errore durante l'eliminazione della cartella:\n{e}")
                 return False, f"Errore durante la pulizia della cartella: {str(e)}"
         
         # Crea i file .txt basati sui prefissi ITEM_ID_CUSTOM
@@ -527,7 +515,10 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                     f.write("\n".join(configurations_by_trunk[trunk]))
                 files_created.append(output_filename)
             except Exception as e:
-                messagebox.showerror("Errore", f"Errore nel salvataggio del file {output_filename}: {e}")
+                # messagebox.showerror("Errore", f"Errore nel salvataggio del file {output_filename}: {e}")
+                print(f"Errore nel salvataggio del file {output_filename}: {e}")
+                if QApplication.instance():
+                     QMessageBox.critical(None, "Errore Salvataggio", f"Errore nel salvataggio del file {output_filename}:\n{e}")
                 continue
         
         # Crea i file LINEA
@@ -612,11 +603,10 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         create_main_structure_file(main_output_folder, num_lines, selected_cab_plc, trunks_per_line, ordered_prefixes)
 
         # Aggiorna lo stato
-        status_var.set(f"Completato! {len(files_created)} file CONF_T e {len(main_data_by_trunk)} file MAIN salvati.")
+        # status_var.set(f"Completato! {len(files_created)} file CONF_T e {len(main_data_by_trunk)} file MAIN salvati.")
+        completion_message = f"Completato! {len(files_created)} file CONF_T e {len(main_data_by_trunk)} file MAIN salvati."
+        print(f"process_excel: {completion_message}")
 
-        # Mostra il messaggio di completamento
-        show_completion_message(root, selected_cab_plc)
-        
         # Crea il file LOG_ENABLE[FC10].scl
         log_enable_path = os.path.join('Configurazioni', selected_cab_plc, 'LOG_ENABLE[FC10].scl')
         os.makedirs(os.path.dirname(log_enable_path), exist_ok=True)
@@ -652,7 +642,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             with open(log_enable_path, 'w') as f:
                 f.write("// Nessuna utenza o carosello trovato per questo CAB_PLC\n")
                 f.write("// Il file è stato generato vuoto perché non ci sono componenti da configurare\n")
-            return True
+            return True, completion_message
         
         # Ordina le utenze e i caroselli secondo l'ordine scelto dall'utente
         ordered_utenze = []
@@ -760,7 +750,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             f.write("    END_IF;\n")
             f.write("END_REGION")
         
-        return True
+        return True, completion_message
         
     except Exception as e:
         messagebox.showerror("Errore", f"Errore nell'elaborazione del file Excel: {e}")
