@@ -57,72 +57,159 @@ class GeneratorThread(QThread):
         self.instance_counts = instance_counts
         self._is_running = True
 
+    def generate_scl_region(self, object_type_full, alarm_details):
+        """Genera il contenuto SCL per una regione di allarmi.
+        alarm_details is a list of dicts: [{'Name': '...', 'Description': '...'}] for alarms with text.
+        """
+        # Remove SV_ prefix if present and get clean name
+        object_type_clean = object_type_full.replace('SV_', '')
+        
+        # Region name should be just the clean name
+        region_name = f"{object_type_clean} Management"
+        
+        # Const name should be Const + clean name (uppercase) + Number
+        const_name = f"Const{object_type_clean.upper()}Number"
+
+        # UsedAlarms is the number of actual alarms with text (max 16)
+        used_alarms_count = min(len(alarm_details), 16)
+        
+        # Prepara il contenuto della regione
+        scl_content = f"""REGION {region_name} - Compact Alarms in Words
+    #AlmBit := 0;
+    #AlmWord := #AlmWord+1;
+    
+    FOR #i := 0 TO {const_name} - 1 DO
+        //Initialize auxiliaries array for alarms"""
+
+        # Aggiungi gli allarmi basati sui dettagli forniti, fino a 16
+        for i in range(16):
+            if i < used_alarms_count:
+                # Use clean object type for the structure
+                name_val = alarm_details[i]['Name']
+                desc_val = alarm_details[i]['Description']
+                # Handle potential NaN/None in Name or Description columns by using empty strings
+                name_val_str = str(name_val).strip() if pd.notna(name_val) else ""
+                desc_val_str = str(desc_val).strip() if pd.notna(desc_val) else ""
+                
+                scl_content += f"""
+        #AuxArray.Alm{i} := "SV_DB_{object_type_clean}_SA".{object_type_clean}[#i].{name_val_str}; //{desc_val_str}"""
+            else:
+                # Fill remaining lines with AlwFalse
+                scl_content += f"""
+        #AuxArray.Alm{i} := "UpstreamDB-Globale".Global_Data.AlwFalse;"""
+        
+        # Aggiungi la chiamata alla funzione di compattazione
+        scl_content += f"""
+        //Compact Alarms in common DB
+        "LIB_Alarms_Compact"(Alarms := #AuxArray,
+                             UsedAlarms := {used_alarms_count},
+                             LastBitUsed := #AlmBit,
+                             LastWordIndex := #AlmWord);
+    END_FOR;
+END_REGION ;\n\n"""
+        return scl_content
+
+    def generate_scl_file(self, scl_content, output_dir):
+        """Genera il file SCL con il contenuto fornito"""
+        try:
+            # Crea la cartella Configurazioni/HMI_Alarms se non esiste
+            config_dir = os.path.join(os.path.dirname(os.path.dirname(output_dir)), "Configurazioni")
+            hmi_alarms_dir = os.path.join(config_dir, "HMI_Alarms")
+            os.makedirs(hmi_alarms_dir, exist_ok=True)
+            
+            # Percorso completo del file SCL
+            scl_output_path = os.path.join(hmi_alarms_dir, "AlarmRegion.scl")
+            
+            # Scrivi il contenuto nel file
+            with open(scl_output_path, 'w', encoding='utf-8') as f:
+                f.write(scl_content)
+            
+            # Emetti il segnale di progresso con il percorso completo
+            self.progress_signal.emit(f"File SCL generato con successo in:\n{scl_output_path}")
+            return True
+        except Exception as e:
+            self.progress_signal.emit(f"Errore durante la generazione del file SCL: {str(e)}")
+            return False
+
     def run(self):
         all_alarms = []
         current_id = 1
+        all_scl_regions = []  # Lista per contenere tutte le regioni SCL
+        
         try:
             self.progress_signal.emit(f"Leggendo il file di input: {os.path.basename(self.input_file)}...")
             with pd.ExcelFile(self.input_file) as xls:
-                # Read the first sheet directly
                 if not xls.sheet_names:
                     raise ValueError("Il file Excel non contiene fogli.")
-                summary_sheet_name = xls.sheet_names[INPUT_FILE_SHEET_INDEX] # Assume INPUT_FILE_SHEET_INDEX is 0 or defined elsewhere
-                # Find the correct summary sheet index (case-insensitive check)
-                # summary_sheet_name = None
-                # for i, name in enumerate(xls.sheet_names):
-                #     if name.lower() == "summary": # Or other name if needed
-                #         summary_sheet_name = name
-                #         summary_sheet_index = i
-                #         break
-                # if summary_sheet_name is None:
-                #      raise ValueError("Foglio di riepilogo 'Summary' non trovato nel file Excel.")
-
+                summary_sheet_name = xls.sheet_names[INPUT_FILE_SHEET_INDEX]
                 summary_df = xls.parse(sheet_name=summary_sheet_name, header=0)
                 self.progress_signal.emit(f"Foglio di riepilogo '{summary_sheet_name}' letto.")
 
-                for object_type, count in self.instance_counts.items():
+                for object_type_full, count in self.instance_counts.items():
                     if count <= 0:
-                        self.progress_signal.emit(f"Skipping {object_type} (numero istanze <= 0).")
+                        self.progress_signal.emit(f"Skipping {object_type_full} (numero istanze <= 0).")
                         continue
 
-                    self.progress_signal.emit(f"Processing {object_type} ({count} istanze)...")
+                    self.progress_signal.emit(f"Processing {object_type_full} ({count} istanze)...")
 
                     # Find offset
-                    offset_row = summary_df[summary_df[OBJECT_TYPE_COL] == object_type]
+                    offset_row = summary_df[summary_df[OBJECT_TYPE_COL] == object_type_full]
                     if offset_row.empty:
-                        self.progress_signal.emit(f"WARN: Tipo oggetto '{object_type}' non trovato nel foglio di riepilogo. Skippato.")
-                        continue # Skip if object type not in summary
+                        self.progress_signal.emit(f"WARN: Tipo oggetto '{object_type_full}' non trovato nel foglio di riepilogo. Skippato.")
+                        continue
                     if OFFSET_COL not in offset_row.columns:
                          raise ValueError(f"Colonna '{OFFSET_COL}' non trovata nel foglio di riepilogo.")
 
                     offset_series = offset_row[OFFSET_COL].dropna()
                     if offset_series.empty:
-                         self.progress_signal.emit(f"WARN: Offset '{OFFSET_COL}' non trovato o vuoto per '{object_type}'. Skippato.")
-                         continue # Skip if offset not found
+                         self.progress_signal.emit(f"WARN: Offset '{OFFSET_COL}' non trovato o vuoto per '{object_type_full}'. Skippato.")
+                         continue
 
                     try:
                         offset = int(offset_series.iloc[0])
                     except (ValueError, TypeError):
-                         raise ValueError(f"Offset '{offset_series.iloc[0]}' per '{object_type}' non è un numero intero valido.")
+                         raise ValueError(f"Offset '{offset_series.iloc[0]}' per '{object_type_full}' non è un numero intero valido.")
 
                     # Check if sheet exists for the object type (case-insensitive check)
                     alarm_def_sheet_name = None
                     for name in xls.sheet_names:
-                         if name.lower() == object_type.lower():
+                         if name.lower() == object_type_full.lower():
                             alarm_def_sheet_name = name
                             break
                     if alarm_def_sheet_name is None:
-                         self.progress_signal.emit(f"WARN: Foglio '{object_type}' non trovato nel file Excel. Skippato.")
-                         continue # Skip if sheet not found
+                         self.progress_signal.emit(f"WARN: Foglio '{object_type_full}' non trovato nel file Excel. Skippato.")
+                         continue
 
                     alarm_def_df = xls.parse(sheet_name=alarm_def_sheet_name)
-                    self.progress_signal.emit(f"Letto foglio '{alarm_def_sheet_name}' per {object_type}.")
+                    self.progress_signal.emit(f"Letto foglio '{alarm_def_sheet_name}' per {object_type_full}.")
 
                     if ADDRESS_COL not in alarm_def_df.columns:
                         raise ValueError(f"Colonna '{ADDRESS_COL}' non trovata nel foglio '{alarm_def_sheet_name}'.")
-                    if ALARM_TEXT_COL not in alarm_def_df.columns:
-                         raise ValueError(f"Colonna '{ALARM_TEXT_COL}' non trovata nel foglio '{alarm_def_sheet_name}'.")
+                    # Ensure 'Name' and 'Description' columns exist for SCL generation
+                    if 'Name' not in alarm_def_df.columns:
+                         self.progress_signal.emit(f"WARN: Colonna 'Name' non trovata nel foglio '{alarm_def_sheet_name}'. Impossibile generare SCL dettagliato per gli allarmi.")
+                         alarm_details_for_scl = [] # Provide empty list if Name column is missing
+                    elif 'Description' not in alarm_def_df.columns:
+                         self.progress_signal.emit(f"WARN: Colonna 'Description' non trovata nel foglio '{alarm_def_sheet_name}'. Descrizioni degli allarmi SCL saranno vuote.")
+                         # Collect only Name if Description is missing
+                         alarm_details_for_scl = alarm_def_df[pd.notna(alarm_def_df[ALARM_TEXT_COL]) & (alarm_def_df[ALARM_TEXT_COL] != '')].apply(
+                             lambda row: {'Name': row.get('Name', ''), 'Description': ''}, axis=1
+                         ).tolist()
+                    else:
+                         # Filter rows with Alarm Text and collect Name and Description
+                         alarm_details_for_scl = alarm_def_df[pd.notna(alarm_def_df[ALARM_TEXT_COL]) & (alarm_def_df[ALARM_TEXT_COL] != '')].apply(
+                             lambda row: {'Name': row['Name'], 'Description': row['Description']}, axis=1
+                         ).tolist()
 
+                    # Genera una regione SCL solo se ci sono allarmi con testo
+                    if alarm_details_for_scl:
+                        scl_region = self.generate_scl_region(
+                            object_type_full,  # Pass full name for processing
+                            alarm_details_for_scl  # Pass collected alarm details
+                        )
+                        all_scl_regions.append(scl_region)
+
+                    # --- Existing logic for Excel output (keep this) ---
                     for i in range(1, count + 1):
                         instance_offset_bytes = offset * (i - 1)
                         for _, row in alarm_def_df.iterrows():
@@ -141,7 +228,12 @@ class GeneratorThread(QThread):
                                 continue
 
                             abs_byte = rel_byte + instance_offset_bytes
-                            trigger_tag = f"{object_type}_{i}[{abs_byte}]" # Added instance number to tag
+                            # Calculate AlmWord index (increment every 16 alarms)
+                            alm_word_index = (current_id - 1) // 16
+                            # Calculate bit index (0-15 loop)
+                            bit_index = (current_id - 1) % 16
+                            
+                            trigger_tag = f"AlmWord[{alm_word_index}]"
                             alarm_text = str(alarm_text_template).replace('#', str(i))
 
                             alarm_row = {col: None for col in OUTPUT_COLUMNS}
@@ -150,7 +242,7 @@ class GeneratorThread(QThread):
                             alarm_row['Alarm text [en-US], Alarm text 1'] = alarm_text
                             alarm_row['Class'] = 'Alarm'
                             alarm_row['Trigger tag'] = trigger_tag
-                            alarm_row['Trigger bit'] = bit
+                            alarm_row['Trigger bit'] = bit_index
                             alarm_row['Trigger mode'] = 'On rising edge'
                             alarm_row['Priority'] = 0
                             alarm_row['Acknowledgement bit'] = 0
@@ -170,27 +262,48 @@ class GeneratorThread(QThread):
 
                             all_alarms.append(alarm_row)
                             current_id += 1
+                    # --- End existing logic for Excel output ---
 
             if not all_alarms:
-                 self.progress_signal.emit("Nessun allarme valido trovato o generato. Il file di output non verrà creato.")
-                 self.finished_signal.emit(True, "Nessun allarme generato. File non creato.")
-                 return
+                 self.progress_signal.emit("Nessun allarme valido trovato o generato. Il file di output Excel non verrà creato.")
+                 # Check if SCL regions were generated even if no Excel alarms were
+                 if not all_scl_regions:
+                    self.finished_signal.emit(True, "Nessun allarme generato. File non creato.")
+                    return
+                 else:
+                    # Still proceed to generate SCL if regions exist
+                    self.progress_signal.emit("Allarmi Excel non generati, ma regioni SCL trovate. Procedo con la generazione SCL.")
 
-            output_df = pd.DataFrame(all_alarms, columns=OUTPUT_COLUMNS)
-            if output_df.empty:
-                self.progress_signal.emit("DataFrame vuoto, nessun file verrà creato.")
-                self.finished_signal.emit(True, "Nessun allarme generato. File non creato.")
-                return
+            # --- Existing logic for writing Excel output (keep this) ---
+            if all_alarms: # Only write Excel if there are alarms
+                output_df = pd.DataFrame(all_alarms, columns=OUTPUT_COLUMNS)
+                if output_df.empty:
+                    self.progress_signal.emit("DataFrame vuoto per Excel, nessun file verrà creato.")
+                else:
+                    output_path = os.path.join(self.output_dir, OUTPUT_FILENAME)
+                    self.progress_signal.emit(f"Scrivendo il file di output Excel: {output_path}...")
+                    os.makedirs(self.output_dir, exist_ok=True)
+                    output_df.to_excel(output_path, index=False, sheet_name=OUTPUT_SHEET_NAME)
+                    self.progress_signal.emit("File Excel generato con successo!")
+            # --- End existing logic for writing Excel output ---
 
-            output_path = os.path.join(self.output_dir, OUTPUT_FILENAME)
-            self.progress_signal.emit(f"Scrivendo il file di output: {output_path}...")
-            # Ensure output directory exists
-            os.makedirs(self.output_dir, exist_ok=True)
-            output_df.to_excel(output_path, index=False, sheet_name=OUTPUT_SHEET_NAME)
+            # Genera il file SCL con tutte le regioni
+            if all_scl_regions:
+                scl_content = ''.join(all_scl_regions)
+                self.generate_scl_file(scl_content, self.output_dir) # generate_scl_file handles pathing and success message
 
-            self.progress_signal.emit("Generazione completata con successo!")
-            success_message = f"File '{OUTPUT_FILENAME}' generato con successo in:\n{self.output_dir}"
-            self.finished_signal.emit(True, success_message)
+            # Final success message (consider both files)
+            final_message = "Generazione completata."
+            if all_alarms and all_scl_regions:
+                final_message = f"Generazione completata con successo! File Excel e SCL creati."
+            elif all_alarms:
+                 final_message = f"Generazione completata con successo! File Excel creato."
+            elif all_scl_regions:
+                 final_message = f"Generazione completata con successo! File SCL creato."
+            else:
+                 final_message = "Generazione completata. Nessun file creato (nessun allarme valido)."
+
+            self.finished_signal.emit(True, final_message)
 
         except FileNotFoundError:
              error_message = f"Errore: File di input non trovato:\n{self.input_file}"
