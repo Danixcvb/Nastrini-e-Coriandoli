@@ -99,13 +99,8 @@ END_REGION ;\n\n"""
     def generate_scl_file(self, scl_content, output_dir):
         """Genera il file SCL con il contenuto fornito"""
         try:
-            # Crea la cartella Configurazioni/HMI_Alarms se non esiste
-            config_dir = os.path.join(os.path.dirname(os.path.dirname(output_dir)), "Configurazioni")
-            hmi_alarms_dir = os.path.join(config_dir, "HMI_Alarms")
-            os.makedirs(hmi_alarms_dir, exist_ok=True)
-            
-            # Percorso completo del file SCL
-            scl_output_path = os.path.join(hmi_alarms_dir, "AlarmRegion.scl")
+            # Percorso completo del file SCL (nella stessa directory del file Excel)
+            scl_output_path = os.path.join(output_dir, "AlarmRegion.scl")
             
             # Scrivi il contenuto nel file
             with open(scl_output_path, 'w', encoding='utf-8') as f:
