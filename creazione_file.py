@@ -45,21 +45,157 @@ def create_txt_files(df, selected_cab_plc, order):
         for item in order:
             order_file.write(f"{item}\n")
 
+def create_safety_shutter_file(shutter_number, output_folder):
+    """
+    Crea un file DATA_BLOCK per un componente SAFETYSHUTTER.
+    
+    Args:
+        shutter_number (int): Numero progressivo dello shutter
+        output_folder (str): Cartella di destinazione
+    """
+    data_block_content = f"""DATA_BLOCK "SAFETYSHUTTER{shutter_number}"
+{{ S7_Optimized_Access := 'TRUE' }}
+VERSION : 0.1
+NON_RETAIN
+"SHUTTER"
+
+BEGIN
+
+END_DATA_BLOCK
+"""
+    
+    data_block_filename = f"SAFETYSHUTTER{shutter_number}.scl"
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+        
+    with open(os.path.join(output_folder, data_block_filename), 'w') as db_file:
+        db_file.write(data_block_content)
+
+def create_fire_shutter_file(shutter_number, output_folder):
+    """
+    Crea un file DATA_BLOCK per un componente FIRESHUTTER.
+    
+    Args:
+        shutter_number (int): Numero progressivo dello shutter
+        output_folder (str): Cartella di destinazione
+    """
+    print(f"DEBUG - create_fire_shutter_file chiamata con:")
+    print(f"DEBUG - shutter_number: {shutter_number}")
+    print(f"DEBUG - output_folder: {output_folder}")
+
+    data_block_content = f"""DATA_BLOCK "FIRESHUTTER{shutter_number}"
+{{ S7_Optimized_Access := 'TRUE' }}
+VERSION : 0.1
+NON_RETAIN
+"FIRESHUTTER"
+
+BEGIN
+
+END_DATA_BLOCK
+"""
+    
+    data_block_filename = f"FIRESHUTTER{shutter_number}.scl"
+    if not os.path.exists(output_folder):
+        print(f"DEBUG - Creazione cartella: {output_folder}")
+        os.makedirs(output_folder)
+        
+    output_path = os.path.join(output_folder, data_block_filename)
+    print(f"DEBUG - Scrittura file: {output_path}")
+    with open(output_path, 'w') as db_file:
+        db_file.write(data_block_content)
+    print(f"DEBUG - File FIRESHUTTER creato con successo: {output_path}")
+
+def create_side_input_file(carousel_number, output_folder):
+    """
+    Crea un file DATA_BLOCK per un componente SIDE_INPUT.
+    
+    Args:
+        carousel_number (int): Numero progressivo del carousel
+        output_folder (str): Cartella di destinazione
+    """
+    print(f"DEBUG - create_side_input_file chiamata con:")
+    print(f"DEBUG - carousel_number: {carousel_number}")
+    print(f"DEBUG - output_folder: {output_folder}")
+
+    data_block_content = f"""DATA_BLOCK "SIDE_INPUT_CAROUSEL{carousel_number}"
+{{ S7_Optimized_Access := 'TRUE' }}
+AUTHOR : DF
+VERSION : 0.3
+NON_RETAIN
+"SIDE_INPUT_NCE"
+
+BEGIN
+
+END_DATA_BLOCK
+"""
+    
+    data_block_filename = f"SIDE_INPUT_CAROUSEL{carousel_number}.scl"
+    if not os.path.exists(output_folder):
+        print(f"DEBUG - Creazione cartella: {output_folder}")
+        os.makedirs(output_folder)
+        
+    output_path = os.path.join(output_folder, data_block_filename)
+    print(f"DEBUG - Scrittura file: {output_path}")
+    with open(output_path, 'w') as db_file:
+        db_file.write(data_block_content)
+    print(f"DEBUG - File SIDE_INPUT creato con successo: {output_path}")
+
 def create_data_block_file(item_id_custom, component_type, output_folder):
     """
     Crea un file DATA_BLOCK per un componente specifico.
     
     Args:
         item_id_custom (str): ID del componente
-        component_type (str): Tipo di componente (Carousel/Conveyor)
+        component_type (str): Tipo di componente (Carousel/Conveyor/FIRESHUTTER/SHUTTER)
         output_folder (str): Cartella di destinazione
     """
+    print(f"DEBUG - create_data_block_file chiamata con:")
+    print(f"DEBUG - item_id_custom: {item_id_custom}")
+    print(f"DEBUG - component_type: {component_type}")
+    print(f"DEBUG - output_folder: {output_folder}")
+
+    # Se l'item contiene "SD", crea un file SAFETYSHUTTER
+    if component_type == "SHUTTER":
+        print(f"DEBUG - Creazione file SAFETYSHUTTER per {item_id_custom}")
+        # Estrai il numero progressivo dal nome del file esistente o usa 1 come default
+        shutter_number = 1
+        existing_files = [f for f in os.listdir(output_folder) if f.startswith("SAFETYSHUTTER") and f.endswith(".scl")]
+        if existing_files:
+            numbers = [int(f.replace("SAFETYSHUTTER", "").replace(".scl", "")) for f in existing_files]
+            shutter_number = max(numbers) + 1 if numbers else 1
+        print(f"DEBUG - Numero SAFETYSHUTTER assegnato: {shutter_number}")
+        create_safety_shutter_file(shutter_number, output_folder)
+        return
+
+    # Se l'item contiene "FD", crea un file FIRESHUTTER
+    if component_type == "FIRESHUTTER":
+        print(f"DEBUG - Creazione file FIRESHUTTER per {item_id_custom}")
+        # Estrai il numero progressivo dal nome del file esistente o usa 1 come default
+        fire_shutter_number = 1
+        existing_files = [f for f in os.listdir(output_folder) if f.startswith("FIRESHUTTER") and f.endswith(".scl")]
+        if existing_files:
+            numbers = [int(f.replace("FIRESHUTTER", "").replace(".scl", "")) for f in existing_files]
+            fire_shutter_number = max(numbers) + 1 if numbers else 1
+        print(f"DEBUG - Numero FIRESHUTTER assegnato: {fire_shutter_number}")
+        create_fire_shutter_file(fire_shutter_number, output_folder)
+        return
+
+    # Per gli altri componenti, usa la logica esistente
+    print(f"DEBUG - Creazione file standard per {item_id_custom} di tipo {component_type}")
+    # Determina il nome corretto del blocco in base al tipo di componente
+    if component_type == "Carousel":
+        block_name = "CAROUSEL_SEW_MOVIGEAR"
+        print(f"DEBUG - Usando nome blocco CAROUSEL: {block_name}")
+    else:
+        block_name = f"{component_type.upper()}_SEW_MOVIGEAR"
+        print(f"DEBUG - Usando nome blocco standard: {block_name}")
+    
     data_block_content = f"""DATA_BLOCK "{item_id_custom}"
 
 {{ S7_Optimized_Access := 'TRUE' }}
 VERSION : 0.1
 NON_RETAIN
-"{component_type}_SEW_MOVIGEAR"
+"{block_name}"
 
 BEGIN
 
@@ -72,6 +208,7 @@ END_DATA_BLOCK
         
     with open(os.path.join(output_folder, data_block_filename), 'w') as db_file:
         db_file.write(data_block_content)
+    print(f"DEBUG - File creato: {os.path.join(output_folder, data_block_filename)}")
 
 def create_datalogic_file(item_id_custom, output_folder):
     """
@@ -193,11 +330,27 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
     """
     content = []
     
+    # Aggiungi l'intestazione della funzione
+    content.append(f'FUNCTION "MAIN{trunk_number}" : Void')
+    content.append('{ S7_Optimized_Access := \'TRUE\' }')
+    content.append('VERSION : 0.1')
+    content.append('   VAR_TEMP')
+    content.append('      StartTronco : Bool;')
+    content.append('      TempEncoderNotUsed : "ENCODER_Interface";')
+    content.append('   END_VAR')
+    content.append('')
+    content.append('BEGIN')
+    content.append('')
+    
     # Aggiungi la sezione di inizializzazione
     content.append("REGION Initializing Temp Section")
     content.append("    #TempEncoderNotUsed.Count := 16#0;")
     content.append("END_REGION")
     content.append("")
+    
+    # Contatori per elementi FD e SD
+    fd_counter = 1
+    sd_counter = 1
     
     # Aggiungi la sezione di gestione richiesta start tronco
     content.append("REGION Gestione Richiesta Start Tronco")
@@ -208,7 +361,9 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
         print(f"Attenzione create_main_file: trunk_number '{trunk_number}' non è un intero valido. Uso 0.")
         safe_trunk_number = 0
         
-    content.append(f'    IF "UpstreamDB-Globale".Global_Data.Start_All OR "UpstreamDB-Globale".Global_Data.StartTronco{safe_trunk_number} OR "TRUNK{safe_trunk_number}".StartReqAutoFp')
+    content.append(f'    IF "UpstreamDB-Globale".Global_Data.Start_All OR') 
+    content.append(f'       "UpstreamDB-Globale".Global_Data.StartTronco{safe_trunk_number} OR')
+    content.append(f'       "TRUNK{safe_trunk_number}".StartReqAutoFp')
     content.append("    THEN")
     content.append("        #StartTronco := TRUE;")
     content.append("    END_IF;")
@@ -255,16 +410,48 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
                 content.append('')
             continue  # Salta il resto della logica per i Datalogic
         
+        # Se contiene SD, gestisci come SHUTTER
+        if "SD" in item_id.upper():
+            content.append(f"REGION Call SHUTTER ({item_id})")
+            content.append(f'    "SAFETYSHUTTER1".Data.CMD := "SV_DB_SHUTTER_CMD".SHUTTER[{sd_counter}];')
+            content.append(f'    "SAFETYSHUTTER1"(Start_From_Line := 1,')
+            content.append(f'                     PANYTOSHUTTER_SA := "SV_DB_SHUTTER_SA".SHUTTER[{sd_counter}]);')
+            content.append("END_REGION")
+            content.append("")
+            sd_counter += 1  # Incrementa il contatore solo per elementi SD
+            continue  # Salta la generazione delle altre regioni per questo elemento
+        
         # --- Ottieni dettagli per item corrente, precedente e successivo EFFETTIVI ---
         current_name, current_number = _get_item_details(item, i + 1) 
         item_id_original = item.get('ITEM_ID_CUSTOM', f'MISSING_ID_{i+1}') 
         
         # Determina il tipo di componente
         item_id_upper = item_id_original.upper()
+        
+        # Se contiene FD, gestisci come FIRESHUTTER
+        if "FD" in item_id_upper:
+            content.append(f"REGION Call FIRESHUTTER ({item_id_original})")
+            content.append("")
+            content.append(f'    "FIRESHUTTER1"(InterfaceTrunkuse := "TRUNK{safe_trunk_number}".ComTrunkUse,')
+            content.append(f'                   SV_FIRESHUTTER_CMD := "SV_DB_FIRESHUTTER_CMD".FIRESHUTTER[{fd_counter}],')
+            content.append(f'                   SV_FIRESHUTTER_SA := "SV_DB_FIRESHUTTER_SA".FIRESHUTTER[{fd_counter}]);')
+            content.append("")
+            content.append("END_REGION")
+            content.append("")
+            fd_counter += 1  # Incrementa il contatore solo per elementi FD
+            continue  # Salta la generazione delle altre regioni per questo elemento
+            
+        # Per gli altri elementi, determina il tipo di componente
         if count_ca_occurrences(item_id_original) == 2:
             component_type = "Carousel"
-        else:
+        elif "ST" in item_id_upper or "CN" in item_id_upper:
             component_type = "Conveyor"
+        else:
+            component_type = None  # Non è né Carousel né Conveyor standard
+            
+        # Se non è un componente valido, salta la generazione delle regioni
+        if component_type is None:
+            continue
         
         # Gestione del riferimento all'item precedente
         prev_item_data_to_use = None
@@ -393,8 +580,8 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
             content.append(f'               InterfaceTrunkUse := "TRUNK{safe_trunk_number}".ComTrunkUse,') 
             
             panytocnv_num_to_use = current_number if current_number is not None else 0
-            content.append(f'               PANYTOCNV_SA := "SV_DB_CONVEYOR_SA".CONVEYOR_{panytocnv_num_to_use},')
-            content.append(f'               PANYTOCNV_CMD := "SV_DB_CONVEYOR_CMD".CONVEYOR_{panytocnv_num_to_use},') # CONVEYOR_CMD
+            content.append(f'               PANYTOCNV_SA := "SV_DB_CONVEYOR_SA".CONVEYOR[{panytocnv_num_to_use}],')
+            content.append(f'               PANYTOCNV_CMD := "SV_DB_CONVEYOR_CMD".CONVEYOR[{panytocnv_num_to_use}],') # CONVEYOR_CMD
 
             content.append('               DB_OBJ := "DBsObject".DbObj[1],')
             content.append('               "Ist-VidGenerator" := "Ist_Sub-VidGenerator",')
@@ -418,6 +605,11 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
         if next_item_data_to_use and count_ca_occurrences(next_item_data_to_use.get('ITEM_ID_CUSTOM','')) == 2:
              side_input_carousel_num = next_number if next_number is not None else 0 
              next_carousel_id = next_item_data_to_use.get('ITEM_ID_CUSTOM', '')
+             
+             # Crea il file SIDE_INPUT nella cartella UTENZE
+             utenze_folder = os.path.join(os.path.dirname(output_folder), 'UTENZE')
+             create_side_input_file(side_input_carousel_num, utenze_folder)
+             
              content.append(f"REGION Call SIDE INPUT for CAROUSEL{side_input_carousel_num} ({next_carousel_id})")
              content.append("    // il side input si inserisce prima di un carosello , nel tronco precedente al carosello")
              
@@ -444,6 +636,9 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
              content.append("END_REGION")
              content.append("")
         # --- Fine Logica SIDE_INPUT ---
+    
+    # Aggiungi END_FUNCTION alla fine
+    content.append("END_FUNCTION")
     
     # Crea il file
     output_path = os.path.join(output_folder, f"MAIN{safe_trunk_number}.scl") # Usa numero tronco sicuro

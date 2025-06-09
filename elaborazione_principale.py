@@ -91,8 +91,8 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                  QMessageBox.critical(None, "Errore Colonne", "Alcune colonne richieste sono mancanti nel file Excel.")
             return False, "Colonne mancanti nel file Excel"
         
-        # Filtra le righe escludendo ITEM_ID_CUSTOM contenenti "OG", "SD", "RS", "CX", "CH", "XR", "SO", "LC", "IN", "FD"
-        df = df[~df['ITEM_ID_CUSTOM'].str.contains('OG|SD|RS|CX|CH|XR|SO|LC|IN|FD', case=False, na=False)]
+        # Filtra le righe escludendo ITEM_ID_CUSTOM contenenti "OG", "RS", "CX", "CH", "XR", "SO", "LC", "IN",
+        df = df[~df['ITEM_ID_CUSTOM'].str.contains('OG|RS|CX|CH|XR|SO|LC|IN', case=False, na=False)]
 
         # Valori predefiniti per celle vuote
         default_speed_transport = 1.5
@@ -264,11 +264,6 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                         utenza_number = None
                         
                         item_id_custom = row['ITEM_ID_CUSTOM']
-                        
-                        # Salta gli elementi che contengono "FD" nel loro ID
-                        if "FD" in item_id_custom:
-                            continue
-                            
                         cab_plc = row['CAB_PLC']
                         item_speed_transport = row['ITEM_SPEED_TRANSPORT']
                         item_speed_launch = row['ITEM_SPEED_LAUNCH']
@@ -320,7 +315,26 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                         item_acceleration = get_value_or_default(item_acceleration, default_acceleration)
                         item_l = get_value_or_default(item_l, default_item_l)
                         
-                        component_type = "Carousel" if count_ca_occurrences(comment_name) == 2 else "Conveyor"
+                        # Determina il tipo di componente usando l'ID originale per il conteggio
+                        original_comment_name = item_id_custom.upper()
+                        print(f"DEBUG - Elaborazione elemento: {item_id_custom_new}")
+                        print(f"DEBUG - ID originale: {item_id_custom}")
+                        print(f"DEBUG - Conteggio CA in ID originale: {count_ca_occurrences(original_comment_name)}")
+                        
+                        if "FD" in original_comment_name:
+                            print(f"DEBUG - Trovato elemento FD: {item_id_custom}")
+                            component_type = "FIRESHUTTER"
+                        elif "SD" in original_comment_name:
+                            print(f"DEBUG - Trovato elemento SD: {item_id_custom}")
+                            component_type = "SHUTTER"
+                        elif count_ca_occurrences(original_comment_name) == 2:
+                            print(f"DEBUG - Trovato elemento CAROUSEL: {item_id_custom}")
+                            print(f"DEBUG - Forzando tipo componente a Carousel")
+                            component_type = "Carousel"
+                        else:
+                            print(f"DEBUG - Elemento non riconosciuto come speciale, impostato come Conveyor")
+                            component_type = "Conveyor"
+                        print(f"DEBUG - Tipo componente determinato: {component_type}")
                         
                         # Costruisci la stringa di configurazione
                         configuration = f"""   REGION {comment_name}
@@ -488,9 +502,11 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                 condition_cn = trunk_group['ITEM_ID_CUSTOM'].str.contains('CN', case=False, na=False)
                 condition_ca2 = trunk_group['ITEM_ID_CUSTOM'].apply(lambda x: count_ca_occurrences(str(x)) == 2)
                 condition_sc = trunk_group['ITEM_ID_CUSTOM'].str.contains('SC', case=False, na=False)
+                condition_fd = trunk_group['ITEM_ID_CUSTOM'].str.contains('FD', case=False, na=False)
+                condition_sd = trunk_group['ITEM_ID_CUSTOM'].str.contains('SD', case=False, na=False)
 
-                # Includi anche i Datalogic (SC) nella lista degli elementi validi
-                valid_items_for_main = trunk_group[condition_st | condition_cn | condition_ca2 | condition_sc]
+                # Includi anche i Datalogic (SC), FIRESHUTTER (FD) e SHUTTER (SD) nella lista degli elementi validi
+                valid_items_for_main = trunk_group[condition_st | condition_cn | condition_ca2 | condition_sc | condition_fd | condition_sd]
 
                 if not valid_items_for_main.empty:
                     items_ordered_dict = valid_items_for_main.sort_values(by='LastThreeDigits').to_dict('records')
@@ -689,10 +705,11 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             
             # Scrivi le configurazioni per i caroselli
             for i, carosello in enumerate(ordered_caroselli, 1):
+                f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking01.Debug.DebugEn := TRUE;\n')
                 f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking02.Debug.DebugEn := TRUE;\n')
-            
+                f.write("\n")
             f.write("    ELSE\n")
-            
+            f.write("\n")
             # Ripeti lo stesso processo per la parte ELSE
             current_prefix = None
             for i, utenza in enumerate(ordered_utenze, 1):
@@ -706,7 +723,9 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             f.write("\n")
             
             for i, carosello in enumerate(ordered_caroselli, 1):
+                f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking01.Debug.DebugEn := FALSE;\n')
                 f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking02.Debug.DebugEn := FALSE;\n')
+                f.write("\n")
             f.write("    END_IF;\n")
             f.write("END_REGION\n\n")
             
@@ -731,11 +750,14 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             
             # Scrivi le configurazioni per i caroselli
             for i, carosello in enumerate(ordered_caroselli, 1):
+                f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking01.Data.CNF.HsitoryEventEn := TRUE;\n')
+                f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking01.Data.CNF.LogEventEn := TRUE;\n')
+                f.write("\n")
                 f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking02.Data.CNF.HsitoryEventEn := TRUE;\n')
                 f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking02.Data.CNF.LogEventEn := TRUE;\n')
-            
+                f.write("\n")
             f.write("    ELSE\n")
-            
+            f.write("\n")
             # Ripeti lo stesso processo per la parte ELSE
             for number, utenze in sorted(utenze_by_number.items()):
                 for utenza in utenze:
@@ -744,9 +766,12 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                 f.write("\n")
             
             for i, carosello in enumerate(ordered_caroselli, 1):
+                f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking01.Data.CNF.HsitoryEventEn := FALSE;\n')
+                f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking01.Data.CNF.LogEventEn := FALSE;\n')
+                f.write("\n")
                 f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking02.Data.CNF.HsitoryEventEn := FALSE;\n')
                 f.write(f'        "CAROUSEL{i}".Carousel.PhtTracking02.Data.CNF.LogEventEn := FALSE;\n')
-            
+                f.write("\n")
             f.write("    END_IF;\n")
             f.write("END_REGION")
         
