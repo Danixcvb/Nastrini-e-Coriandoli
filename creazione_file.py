@@ -17,7 +17,7 @@ def create_txt_files(df, selected_cab_plc, order):
         order: Ordine selezionato per la generazione dei file
     """
     # Crea una directory per LINEE all'interno della cartella CAB_PLC selezionata
-    linee_folder = f'Configurazioni/{selected_cab_plc}/LINEE'
+    linee_folder = f'Configurazioni/{selected_cab_plc}/_DB Line'
     if not os.path.exists(linee_folder):
         os.makedirs(linee_folder)
     
@@ -248,7 +248,7 @@ def create_linea_files(df, selected_cab_plc):
         selected_cab_plc: CAB_PLC selezionato
     """
     # Usa la stessa cartella LINEE per i file LINEA
-    linee_folder = f'Configurazioni/{selected_cab_plc}/LINEE'
+    linee_folder = f'Configurazioni/{selected_cab_plc}/_DB Line'
     if not os.path.exists(linee_folder):
         os.makedirs(linee_folder)
     
@@ -257,9 +257,9 @@ def create_linea_files(df, selected_cab_plc):
     
     # Crea un file LINEA per ogni prefisso
     for index, prefix in enumerate(unique_prefixes):
-        filename = f"LINEA{index + 1}.scl"
+        filename = f"LINE_{index + 1}.scl"
         with open(os.path.join(linee_folder, filename), 'w') as f:
-            f.write(f"""DATA_BLOCK "LINEA{index + 1}"
+            f.write(f"""DATA_BLOCK "LINE_{index + 1}"
 {{ S7_Optimized_Access := 'TRUE' }}
 AUTHOR : RP
 VERSION : 0.1
@@ -606,8 +606,8 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
              side_input_carousel_num = next_number if next_number is not None else 0 
              next_carousel_id = next_item_data_to_use.get('ITEM_ID_CUSTOM', '')
              
-             # Crea il file SIDE_INPUT nella cartella UTENZE
-             utenze_folder = os.path.join(os.path.dirname(output_folder), 'UTENZE')
+             # Crea il file SIDE_INPUT nella cartella _DB User
+             utenze_folder = os.path.join(os.path.dirname(output_folder), '_DB User')
              create_side_input_file(side_input_carousel_num, utenze_folder)
              
              content.append(f"REGION Call SIDE INPUT for CAROUSEL{side_input_carousel_num} ({next_carousel_id})")

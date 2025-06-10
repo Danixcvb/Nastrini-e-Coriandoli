@@ -336,12 +336,16 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                             component_type = "Conveyor"
                         print(f"DEBUG - Tipo componente determinato: {component_type}")
                         
+
                         # Costruisci la stringa di configurazione
                         configuration = f"""   REGION {comment_name}
 
 """
+                        
+
                         if "SC" in item_id_custom:
                             configuration += f"""    REGION Config ATR CAMERA 360 ({item_id_custom})
+
         REGION General data configuration
             "Datalogic_{item_id_custom}".Data.CNF.Position := 0.5;
             "Datalogic_{item_id_custom}".Data.CNF.MachineId := 21;
@@ -355,6 +359,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                     "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.OutputHwId := "{item_id_custom}_CD014~OM_32ByteOut_1";
                     
                 END_REGION
+
                 REGION Driver Configuration
                     "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.DadDriver := TRUE;
                     "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.DpdDriver := FALSE;
@@ -372,8 +377,11 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                 
             END_REGION
             
-            
         END_REGION
+    
+    END_REGION
+
+   END_REGION
 
 """
                         try:
@@ -477,16 +485,16 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             "{item_id_custom_new}".PhonicWeel.Data.CNF.PhtFallFilterThr := T#100MS;
             "{item_id_custom_new}".PhonicWeel.Data.CNF.JamTimeThr := T#1S;
         END_REGION
- END_REGION
+   END_REGION
  """
                         # Aggiungi la configurazione e crea i file necessari
                         if "SC" in item_id_custom:
-                            output_folder = f'Configurazioni/{selected_cab_plc}/UTENZE'
+                            output_folder = f'Configurazioni/{selected_cab_plc}/_DB User'
                             print(f"DEBUG: Creazione file datalogic per {item_id_custom} in {output_folder}")
                             create_datalogic_file(item_id_custom, output_folder)
                             configurations_by_trunk[global_trunk_counter].append(configuration)
                         else:
-                            output_folder = f'Configurazioni/{selected_cab_plc}/UTENZE'
+                            output_folder = f'Configurazioni/{selected_cab_plc}/_DB User'
                             create_data_block_file(item_id_custom_new, component_type, output_folder)
                             configurations_by_trunk[global_trunk_counter].append(configuration)
                         
@@ -543,8 +551,8 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         # Gestione dei file MAIN
         main_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'MAIN')
         conf_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'CONF')
-        utenze_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'UTENZE')
-        db_trunk_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'DB_TRUNK')
+        utenze_output_folder = os.path.join('Configurazioni', selected_cab_plc, '_DB User')
+        db_trunk_output_folder = os.path.join('Configurazioni', selected_cab_plc, '_DB Trunk')
         
         # Ottieni la sequenza ordinata dei numeri di tronco che hanno dati MAIN validi
         ordered_trunk_nums = sorted(main_data_by_trunk.keys())
