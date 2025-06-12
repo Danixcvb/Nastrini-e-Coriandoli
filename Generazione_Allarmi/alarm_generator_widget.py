@@ -57,7 +57,7 @@ class GeneratorThread(QThread):
         self.instance_counts = instance_counts
         self._is_running = True
 
-    def generate_scl_region(self, object_type_full, alarm_details):
+    def generate_scl_region(self, object_type_full, alarm_details, alm_word_index_value):
         """Genera il contenuto SCL per una regione di allarmi.
         alarm_details is a list of dicts: [{'Name': '...', 'Description': '...'}] for alarms with text.
         """
@@ -70,41 +70,52 @@ class GeneratorThread(QThread):
         # Const name should be Const + clean name (uppercase) + Number
         const_name = f"Const{object_type_clean.upper()}Number"
 
-        # UsedAlarms is the number of actual alarms with text (max 16)
-        used_alarms_count = min(len(alarm_details), 16)
-        
+        # Determine the total number of alarms with text
+        total_actual_alarms = len(alarm_details)
+
         # Prepara il contenuto della regione
         scl_content = f"""REGION {region_name} - Compact Alarms in Words
     #AlmBit := 0;
-    #AlmWord := #AlmWord+1;
+    #AlmWord := {alm_word_index_value};
     
     FOR #i := 0 TO {const_name} - 1 DO
         //Initialize auxiliaries array for alarms"""
 
-        # Aggiungi gli allarmi basati sui dettagli forniti, fino a 16
-        for i in range(16):
-            if i < used_alarms_count:
-                # Use clean object type for the structure
-                name_val = alarm_details[i]['Name']
-                desc_val = alarm_details[i]['Description']
-                # Handle potential NaN/None in Name or Description columns by using empty strings
-                name_val_str = str(name_val).strip() if pd.notna(name_val) else ""
-                desc_val_str = str(desc_val).strip() if pd.notna(desc_val) else ""
-                
-                scl_content += f"""
+        # Calcola quanti blocchi di 16 allarmi sono necessari
+        num_blocks = (total_actual_alarms + 15) // 16  # Equivalente a ceil(total_actual_alarms / 16)
+
+        for block_idx in range(num_blocks):
+            start_idx = block_idx * 16
+            end_idx = min(start_idx + 16, total_actual_alarms)
+            alarms_in_block = alarm_details[start_idx:end_idx]
+            used_alarms_count_in_block = len(alarms_in_block)
+
+            # Genera le assegnazioni #AuxArray.AlmX per il blocco corrente
+            for i in range(16):
+                if i < used_alarms_count_in_block:
+                    name_val = alarms_in_block[i]['Name']
+                    desc_val = alarms_in_block[i]['Description']
+                    name_val_str = str(name_val).strip() if pd.notna(name_val) else ""
+                    desc_val_str = str(desc_val).strip() if pd.notna(desc_val) else ""
+                    scl_content += f"""
         #AuxArray.Alm{i} := "SV_DB_{object_type_clean}_SA".{object_type_clean}[#i].{name_val_str}; //{desc_val_str}"""
-            else:
-                # Fill remaining lines with AlwFalse
-                scl_content += f"""
+                else:
+                    scl_content += f"""
         #AuxArray.Alm{i} := "UpstreamDB-Globale".Global_Data.AlwFalse;"""
-        
-        # Aggiungi la chiamata alla funzione di compattazione
-        scl_content += f"""
+            
+            # Aggiungi la chiamata alla funzione di compattazione per il blocco corrente
+            scl_content += f"""
         //Compact Alarms in common DB
         "LIB_Alarms_Compact"(Alarms := #AuxArray,
-                             UsedAlarms := {used_alarms_count},
+                             UsedAlarms := {used_alarms_count_in_block},
                              LastBitUsed := #AlmBit,
-                             LastWordIndex := #AlmWord);
+                             LastWordIndex := #AlmWord);"""
+
+            # Se non è l'ultimo blocco, aggiungi un newline per separare i blocchi SCL
+            if block_idx < num_blocks - 1:
+                scl_content += "\n" # Aggiungo un separatore per chiarezza nel file SCL
+
+        scl_content += f"""
     END_FOR;
 END_REGION ;\n\n"""
         return scl_content
@@ -152,11 +163,36 @@ END_REGION ;\n\n"""
 
                     self.progress_signal.emit(f"Processing {object_type_full} ({count} istanze)...")
 
-                    # Find offset
+                    # Find offset and AlmWord index
                     offset_row = summary_df[summary_df[OBJECT_TYPE_COL] == object_type_full]
                     if offset_row.empty:
                         self.progress_signal.emit(f"WARN: Tipo oggetto '{object_type_full}' non trovato nel foglio di riepilogo. Skippato.")
                         continue
+                    
+                    # Recupera il valore della quarta colonna (word index)
+                    alm_word_index_value = None
+                    try:
+                        # Cerca una colonna che contenga "word index" nel nome
+                        word_index_col_name = None
+                        for col_name in offset_row.columns:
+                            if "word index" in col_name.lower():
+                                word_index_col_name = col_name
+                                break
+
+                        if word_index_col_name:
+                            alm_word_index_value = int(offset_row[word_index_col_name].iloc[0])
+                            self.progress_signal.emit(f"Trovato 'word index' dalla colonna '{word_index_col_name}': {alm_word_index_value}")
+                        elif len(offset_row.columns) > 3: # Se non trovo un nome specifico, uso l'indice 3
+                            alm_word_index_value = int(offset_row.iloc[0, 3])
+                            self.progress_signal.emit(f"Trovato 'word index' dalla quarta colonna (indice 3): {alm_word_index_value}")
+                        else:
+                            raise ValueError("La quarta colonna (word index) non è disponibile o non è stata trovata.")
+                        
+                    except (ValueError, TypeError, IndexError) as e:
+                        self.progress_signal.emit(f"ERRORE: Impossibile recuperare il 'word index' per '{object_type_full}' dal foglio di riepilogo: {e}. Assicurati che la quarta colonna (word index) esista e contenga un numero intero valido.")
+                        self.finished_signal.emit(False, f"Errore grave: {e}")
+                        return # Termina l'esecuzione se non riesco a recuperare il word index
+
                     if OFFSET_COL not in offset_row.columns:
                          raise ValueError(f"Colonna '{OFFSET_COL}' non trovata nel foglio di riepilogo.")
 
@@ -205,11 +241,13 @@ END_REGION ;\n\n"""
                     if alarm_details_for_scl:
                         scl_region = self.generate_scl_region(
                             object_type_full,  # Pass full name for processing
-                            alarm_details_for_scl  # Pass collected alarm details
+                            alarm_details_for_scl,  # Pass collected alarm details
+                            alm_word_index_value # Passa il word index
                         )
                         all_scl_regions.append(scl_region)
 
                     # --- Existing logic for Excel output (keep this) ---
+                    local_alarm_count = 0  # Inizializza il contatore locale per ogni tipo di oggetto
                     for i in range(1, count + 1):
                         instance_offset_bytes = offset * (i - 1)
                         for _, row in alarm_def_df.iterrows():
@@ -228,10 +266,15 @@ END_REGION ;\n\n"""
                                 continue
 
                             abs_byte = rel_byte + instance_offset_bytes
-                            # Calculate AlmWord index (increment every 16 alarms)
-                            alm_word_index = (current_id - 1) // 16
-                            # Calculate bit index (0-15 loop)
-                            bit_index = (current_id - 1) % 16
+                            
+                            local_alarm_count += 1  # Incrementa il contatore locale per ogni allarme valido
+
+                            # Calculate AlmWord index (increment every 16 alarms) based on local count and base word index
+                            alm_word_offset = (local_alarm_count - 1) // 16
+                            alm_word_index = alm_word_index_value + alm_word_offset
+
+                            # Calculate bit index (0-15 loop) based on local count
+                            bit_index = (local_alarm_count - 1) % 16
                             
                             trigger_tag = f"AlmWord[{alm_word_index}]"
                             alarm_text = str(alarm_text_template).replace('#', str(i))

@@ -52,7 +52,7 @@ class GeneratorThread(QThread):
         self.instance_counts = instance_counts
         self._is_running = True
 
-    def generate_scl_region(self, object_type, alarm_texts, instance_number, instance_count):
+    def generate_scl_region(self, object_type, alarm_texts, alm_word_index_value):
         """Genera il contenuto SCL per una regione di allarmi."""
         # Remove SV_ prefix if present and get clean name
         object_type_clean = object_type.replace('SV_', '')
@@ -69,7 +69,7 @@ class GeneratorThread(QThread):
         # Prepara il contenuto della regione
         scl_content = f"""REGION {region_name} - Compact Alarms in Words
     #AlmBit := 0;
-    #AlmWord := #AlmWord+1;
+    #AlmWord := {alm_word_index_value};
     
     FOR #i := 0 TO {const_name} - 1 DO
         //Initialize auxiliaries array for alarms"""
@@ -134,11 +134,36 @@ END_REGION ;\n\n"""
 
                     self.progress_signal.emit(f"Processing {object_type} ({count} istanze)...")
 
-                    # Find offset
+                    # Find offset and AlmWord index
                     offset_row = summary_df[summary_df[OBJECT_TYPE_COL] == object_type]
                     if offset_row.empty:
                         self.progress_signal.emit(f"WARN: Tipo oggetto '{object_type}' non trovato nel foglio di riepilogo. Skippato.")
                         continue
+                    
+                    # Recupera il valore della quarta colonna (word index)
+                    alm_word_index_value = None
+                    try:
+                        # Cerca una colonna che contenga "word index" nel nome
+                        word_index_col_name = None
+                        for col_name in offset_row.columns:
+                            if "word index" in col_name.lower():
+                                word_index_col_name = col_name
+                                break
+
+                        if word_index_col_name:
+                            alm_word_index_value = int(offset_row[word_index_col_name].iloc[0])
+                            self.progress_signal.emit(f"Trovato 'word index' dalla colonna '{word_index_col_name}': {alm_word_index_value}")
+                        elif len(offset_row.columns) > 3: # Se non trovo un nome specifico, uso l'indice 3
+                            alm_word_index_value = int(offset_row.iloc[0, 3])
+                            self.progress_signal.emit(f"Trovato 'word index' dalla quarta colonna (indice 3): {alm_word_index_value}")
+                        else:
+                            raise ValueError("La quarta colonna (word index) non è disponibile o non è stata trovata.")
+                        
+                    except (ValueError, TypeError, IndexError) as e:
+                        self.progress_signal.emit(f"ERRORE: Impossibile recuperare il 'word index' per '{object_type}' dal foglio di riepilogo: {e}. Assicurati che la quarta colonna (word index) esista e contenga un numero intero valido.")
+                        self.finished_signal.emit(False, f"Errore grave: {e}")
+                        return # Termina l'esecuzione se non riesco a recuperare il word index
+
                     if OFFSET_COL not in offset_row.columns:
                          raise ValueError(f"Colonna '{OFFSET_COL}' non trovata nel foglio di riepilogo.")
 
@@ -179,7 +204,8 @@ END_REGION ;\n\n"""
                     if unique_alarms:
                         scl_region = self.generate_scl_region(
                             object_type,  # Pass full name for processing
-                            sorted(list(unique_alarms))  # Pass sorted list of unique alarms
+                            sorted(list(unique_alarms)),  # Pass sorted list of unique alarms
+                            alm_word_index_value # Passa il word index
                         )
                         all_scl_regions.append(scl_region)
 
