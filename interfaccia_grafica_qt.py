@@ -26,7 +26,9 @@ from PyQt6.QtCore import Qt, QPointF, QTimer, QRectF, QPropertyAnimation, QPoint
 import config
 from elaborazione_principale import process_excel # Importa la funzione principale
 # Importa il widget e il thread per la generazione degli allarmi
-from Generazione_Allarmi.alarm_generator_widget import AlarmGeneratorWidget, GeneratorThread
+from Generazione_Allarmi.alarm_generator_scl import AlarmGeneratorWidget, GeneratorThread
+from Generazione_Allarmi.alarm_generator_excel import GeneratorThread as ExcelGeneratorThread
+from Generazione_Allarmi.alarm_generator_scl import GeneratorThread as SclGeneratorThread
 # Assicurati che le altre funzioni necessarie siano importate o riscritte qui
 # from funzioni_elaborazione import ... # Se necessario
 
@@ -378,21 +380,20 @@ class NastriApp(QMainWindow):
             print(traceback.format_exc()) # Log traceback for debugging
 
     def _handle_alarm_generation_request(self, input_file, output_dir, instance_counts):
-        """Starts the alarm generation thread."""
-        self.status_bar.showMessage("Avvio generazione allarmi HMI...", 0)
-        # Disable buttons using the update method
-        # self.generate_config_button.setEnabled(False) # Explicitly disable config gen - REMOVED
-        # self.alarm_gen_widget.enable_generate_button(False) - REMOVED
+        """Starts the alarm generation threads for both Excel and SCL."""
+        self.status_bar.showMessage("Avvio generazione allarmi HMI (Excel e SCL)...", 0)
         QApplication.processEvents()
-
-        # Clear previous log in the widget
         self.alarm_gen_widget.log_text_edit.clear()
-
-        # Create and start the thread
-        self.alarm_gen_thread = GeneratorThread(input_file, output_dir, instance_counts)
-        self.alarm_gen_thread.progress_signal.connect(self.alarm_gen_widget.log_message)
-        self.alarm_gen_thread.finished_signal.connect(self._on_alarm_generation_finished)
-        self.alarm_gen_thread.start()
+        # Avvia thread per Excel
+        self.excel_gen_thread = ExcelGeneratorThread(input_file, output_dir, instance_counts)
+        self.excel_gen_thread.progress_signal.connect(self.alarm_gen_widget.log_message)
+        self.excel_gen_thread.finished_signal.connect(lambda success, msg: self.status_bar.showMessage(f"Excel: {msg}", 5000))
+        self.excel_gen_thread.start()
+        # Avvia thread per SCL
+        self.scl_gen_thread = SclGeneratorThread(input_file, output_dir, instance_counts)
+        self.scl_gen_thread.progress_signal.connect(self.alarm_gen_widget.log_message)
+        self.scl_gen_thread.finished_signal.connect(lambda success, msg: self.status_bar.showMessage(f"SCL: {msg}", 5000))
+        self.scl_gen_thread.start()
 
     def _on_alarm_generation_finished(self):
         """Handles the completion of the alarm generation process."""

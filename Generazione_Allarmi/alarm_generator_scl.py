@@ -20,9 +20,7 @@ INPUT_FILE_SHEET_INDEX = 0
 OBJECT_TYPE_COL = 'Object Type'
 OFFSET_COL = 'Length (Byte) - SA'
 ADDRESS_COL = 'Address'
-ALARM_TEXT_COL = 'Alarm Text'
-OUTPUT_FILENAME = 'HMIAlarms.xlsx'
-OUTPUT_SHEET_NAME = 'DiscreteAlarms'
+ALARM_TEXT_COL_CANDIDATES = ['Alarm Text (EN)', 'Alarm Text']
 CONFIG_FILENAME = 'last_file.cfg' # File to store the last used input path
 
 # Define the structure of the output Excel file based on the example
@@ -67,19 +65,14 @@ class GeneratorThread(QThread):
         # Region name should be just the clean name
         region_name = f"{object_type_clean} Management"
         
-        # Const name should be Const + clean name (uppercase) + Number
-        const_name = f"Const{object_type_clean.upper()}Number"
+        # Const name should be Const + clean name (uppercase) + Number, tra virgolette
+        const_name = f'"Const{object_type_clean.upper()}Number"'
 
         # Determine the total number of alarms with text
         total_actual_alarms = len(alarm_details)
 
         # Prepara il contenuto della regione
-        scl_content = f"""REGION {region_name} - Compact Alarms in Words
-    #AlmBit := 0;
-    #AlmWord := {alm_word_index_value};
-    
-    FOR #i := 0 TO {const_name} - 1 DO
-        //Initialize auxiliaries array for alarms"""
+        scl_content = f"""REGION {region_name} - Compact Alarms in Words\n\t#AlmBit := 0;\n\t#AlmWord := {alm_word_index_value};\n\n\tFOR #i := 1 TO {const_name} DO\n\t\t//Initialize auxiliaries array for alarms"""
 
         # Calcola quanti blocchi di 16 allarmi sono necessari
         num_blocks = (total_actual_alarms + 15) // 16  # Equivalente a ceil(total_actual_alarms / 16)
@@ -97,45 +90,49 @@ class GeneratorThread(QThread):
                     desc_val = alarms_in_block[i]['Description']
                     name_val_str = str(name_val).strip() if pd.notna(name_val) else ""
                     desc_val_str = str(desc_val).strip() if pd.notna(desc_val) else ""
-                    scl_content += f"""
-        #AuxArray.Alm{i} := "SV_DB_{object_type_clean}_SA".{object_type_clean}[#i].{name_val_str}; //{desc_val_str}"""
+                    scl_content += f"\n\t\t#AuxArray.Alm{i} := \"SV_DB_{object_type_clean}_SA\".{object_type_clean}[#i].{name_val_str}; //{desc_val_str}"
                 else:
-                    scl_content += f"""
-        #AuxArray.Alm{i} := "UpstreamDB-Globale".Global_Data.AlwFalse;"""
-            
+                    scl_content += f"\n\t\t#AuxArray.Alm{i} := \"UpstreamDB-Globale\".Global_Data.AlwFalse;"
             # Aggiungi la chiamata alla funzione di compattazione per il blocco corrente
             scl_content += f"""
-        //Compact Alarms in common DB
-        "LIB_Alarms_Compact"(Alarms := #AuxArray,
-                             UsedAlarms := {used_alarms_count_in_block},
-                             LastBitUsed := #AlmBit,
-                             LastWordIndex := #AlmWord);"""
-
-            # Se non è l'ultimo blocco, aggiungi un newline per separare i blocchi SCL
-            if block_idx < num_blocks - 1:
-                scl_content += "\n" # Aggiungo un separatore per chiarezza nel file SCL
-
-        scl_content += f"""
-    END_FOR;
-END_REGION ;\n\n"""
+\t\t//Compact Alarms in common DB
+\t\t\"LIB_Alarms_Compact\"(Alarms := #AuxArray,
+\t\t                     UsedAlarms := {used_alarms_count_in_block},
+\t\t                     LastBitUsed := #AlmBit,
+\t\t                     LastWordIndex := #AlmWord,
+\t\t                     DBAlm := \"DB_HMI_Alm\".AlmWord);"""
+        scl_content += f"\n\tEND_FOR;\nEND_REGION ;\n\n"
         return scl_content
 
     def generate_scl_file(self, scl_content, output_dir):
-        """Genera il file SCL con il contenuto fornito"""
+        """Genera il file SCL con header e footer fissi e contenuto indentato di un tab dopo BEGIN."""
         try:
-            # Crea la cartella Configurazioni/HMI_Alarms se non esiste
-            config_dir = os.path.join(os.path.dirname(os.path.dirname(output_dir)), "Configurazioni")
+            config_dir = os.path.join(os.path.dirname(os.path.dirname(output_dir)), "Output")
             hmi_alarms_dir = os.path.join(config_dir, "HMI_Alarms")
             os.makedirs(hmi_alarms_dir, exist_ok=True)
-            
-            # Percorso completo del file SCL
-            scl_output_path = os.path.join(hmi_alarms_dir, "AlarmRegion.scl")
-            
-            # Scrivi il contenuto nel file
+            scl_output_path = os.path.join(hmi_alarms_dir, "AlarmsCompactHMI.scl")
+
+            scl_header = (
+                'FUNCTION "AlarmsCompactHMI" : Void\n'
+                '{ S7_Optimized_Access := \'TRUE\' }\n'
+                'VERSION : 0.1\n'
+                '   VAR_TEMP \n'
+                '      i : Int;\n'
+                '      AlmBit : ULInt;\n'
+                '      AlmWord : Int;\n'
+                '      AuxArray : "AlarmGenType_16";\n'
+                '   END_VAR\n\n'
+                'BEGIN\n'
+            )
+            scl_footer = 'END_FUNCTION\n'
+
+            # Indenta tutto il contenuto di uno a destra (dopo BEGIN)
+            scl_content_indented = '\n'.join(['\t' + line if line.strip() != '' else '' for line in scl_content.splitlines()])
+
             with open(scl_output_path, 'w', encoding='utf-8') as f:
-                f.write(scl_content)
-            
-            # Emetti il segnale di progresso con il percorso completo
+                f.write(scl_header)
+                f.write(scl_content_indented)
+                f.write('\n' + scl_footer)
             self.progress_signal.emit(f"File SCL generato con successo in:\n{scl_output_path}")
             return True
         except Exception as e:
@@ -143,10 +140,7 @@ END_REGION ;\n\n"""
             return False
 
     def run(self):
-        all_alarms = []
-        current_id = 1
         all_scl_regions = []  # Lista per contenere tutte le regioni SCL
-        
         try:
             self.progress_signal.emit(f"Leggendo il file di input: {os.path.basename(self.input_file)}...")
             with pd.ExcelFile(self.input_file) as xls:
@@ -168,44 +162,36 @@ END_REGION ;\n\n"""
                     if offset_row.empty:
                         self.progress_signal.emit(f"WARN: Tipo oggetto '{object_type_full}' non trovato nel foglio di riepilogo. Skippato.")
                         continue
-                    
                     # Recupera il valore della quarta colonna (word index)
                     alm_word_index_value = None
                     try:
-                        # Cerca una colonna che contenga "word index" nel nome
                         word_index_col_name = None
                         for col_name in offset_row.columns:
                             if "word index" in col_name.lower():
                                 word_index_col_name = col_name
                                 break
-
                         if word_index_col_name:
                             alm_word_index_value = int(offset_row[word_index_col_name].iloc[0])
                             self.progress_signal.emit(f"Trovato 'word index' dalla colonna '{word_index_col_name}': {alm_word_index_value}")
-                        elif len(offset_row.columns) > 3: # Se non trovo un nome specifico, uso l'indice 3
+                        elif len(offset_row.columns) > 3:
                             alm_word_index_value = int(offset_row.iloc[0, 3])
                             self.progress_signal.emit(f"Trovato 'word index' dalla quarta colonna (indice 3): {alm_word_index_value}")
                         else:
                             raise ValueError("La quarta colonna (word index) non è disponibile o non è stata trovata.")
-                        
                     except (ValueError, TypeError, IndexError) as e:
                         self.progress_signal.emit(f"ERRORE: Impossibile recuperare il 'word index' per '{object_type_full}' dal foglio di riepilogo: {e}. Assicurati che la quarta colonna (word index) esista e contenga un numero intero valido.")
                         self.finished_signal.emit(False, f"Errore grave: {e}")
-                        return # Termina l'esecuzione se non riesco a recuperare il word index
-
+                        return
                     if OFFSET_COL not in offset_row.columns:
                          raise ValueError(f"Colonna '{OFFSET_COL}' non trovata nel foglio di riepilogo.")
-
                     offset_series = offset_row[OFFSET_COL].dropna()
                     if offset_series.empty:
                          self.progress_signal.emit(f"WARN: Offset '{OFFSET_COL}' non trovato o vuoto per '{object_type_full}'. Skippato.")
                          continue
-
                     try:
                         offset = int(offset_series.iloc[0])
                     except (ValueError, TypeError):
                          raise ValueError(f"Offset '{offset_series.iloc[0]}' per '{object_type_full}' non è un numero intero valido.")
-
                     # Check if sheet exists for the object type (case-insensitive check)
                     alarm_def_sheet_name = None
                     for name in xls.sheet_names:
@@ -215,28 +201,27 @@ END_REGION ;\n\n"""
                     if alarm_def_sheet_name is None:
                          self.progress_signal.emit(f"WARN: Foglio '{object_type_full}' non trovato nel file Excel. Skippato.")
                          continue
-
                     alarm_def_df = xls.parse(sheet_name=alarm_def_sheet_name)
                     self.progress_signal.emit(f"Letto foglio '{alarm_def_sheet_name}' per {object_type_full}.")
-
                     if ADDRESS_COL not in alarm_def_df.columns:
                         raise ValueError(f"Colonna '{ADDRESS_COL}' non trovata nel foglio '{alarm_def_sheet_name}'.")
-                    # Ensure 'Name' and 'Description' columns exist for SCL generation
-                    if 'Name' not in alarm_def_df.columns:
-                         self.progress_signal.emit(f"WARN: Colonna 'Name' non trovata nel foglio '{alarm_def_sheet_name}'. Impossibile generare SCL dettagliato per gli allarmi.")
-                         alarm_details_for_scl = [] # Provide empty list if Name column is missing
+                    # Trova il nome effettivo della colonna Alarm Text
+                    alarm_text_col = self._find_actual_column_name(ALARM_TEXT_COL_CANDIDATES, alarm_def_df.columns)
+                    if not alarm_text_col:
+                        self.progress_signal.emit(f"Colonna 'Alarm Text (EN)' o 'Alarm Text' non trovata nel foglio '{alarm_def_sheet_name}'.")
+                        alarm_details_for_scl = []
+                    elif 'Name' not in alarm_def_df.columns:
+                        self.progress_signal.emit(f"WARN: Colonna 'Name' non trovata nel foglio '{alarm_def_sheet_name}'. Impossibile generare SCL dettagliato per gli allarmi.")
+                        alarm_details_for_scl = []
                     elif 'Description' not in alarm_def_df.columns:
-                         self.progress_signal.emit(f"WARN: Colonna 'Description' non trovata nel foglio '{alarm_def_sheet_name}'. Descrizioni degli allarmi SCL saranno vuote.")
-                         # Collect only Name if Description is missing
-                         alarm_details_for_scl = alarm_def_df[pd.notna(alarm_def_df[ALARM_TEXT_COL]) & (alarm_def_df[ALARM_TEXT_COL] != '')].apply(
-                             lambda row: {'Name': row.get('Name', ''), 'Description': ''}, axis=1
-                         ).tolist()
+                        self.progress_signal.emit(f"WARN: Colonna 'Description' non trovata nel foglio '{alarm_def_sheet_name}'. Descrizioni degli allarmi SCL saranno vuote.")
+                        alarm_details_for_scl = alarm_def_df[pd.notna(alarm_def_df[alarm_text_col]) & (alarm_def_df[alarm_text_col] != '')].apply(
+                            lambda row: {'Name': row.get('Name', ''), 'Description': ''}, axis=1
+                        ).tolist()
                     else:
-                         # Filter rows with Alarm Text and collect Name and Description
-                         alarm_details_for_scl = alarm_def_df[pd.notna(alarm_def_df[ALARM_TEXT_COL]) & (alarm_def_df[ALARM_TEXT_COL] != '')].apply(
-                             lambda row: {'Name': row['Name'], 'Description': row['Description']}, axis=1
-                         ).tolist()
-
+                        alarm_details_for_scl = alarm_def_df[pd.notna(alarm_def_df[alarm_text_col]) & (alarm_def_df[alarm_text_col] != '')].apply(
+                            lambda row: {'Name': row['Name'], 'Description': row['Description']}, axis=1
+                        ).tolist()
                     # Genera una regione SCL solo se ci sono allarmi con testo
                     if alarm_details_for_scl:
                         scl_region = self.generate_scl_region(
@@ -245,109 +230,15 @@ END_REGION ;\n\n"""
                             alm_word_index_value # Passa il word index
                         )
                         all_scl_regions.append(scl_region)
-
-                    # --- Existing logic for Excel output (keep this) ---
-                    local_alarm_count = 0  # Inizializza il contatore locale per ogni tipo di oggetto
-                    for i in range(1, count + 1):
-                        instance_offset_bytes = offset * (i - 1)
-                        for _, row in alarm_def_df.iterrows():
-                            alarm_text_template = row[ALARM_TEXT_COL]
-                            address_str = str(row[ADDRESS_COL]).strip()
-
-                            if pd.isna(alarm_text_template) or not alarm_text_template or not address_str:
-                                continue
-
-                            try:
-                                rel_byte_str, bit_str = address_str.split('.')
-                                rel_byte = int(rel_byte_str.strip())
-                                bit = int(bit_str.strip())
-                            except ValueError:
-                                self.progress_signal.emit(f"WARN: Indirizzo '{address_str}' non valido (formato atteso: Byte.Bit) nel foglio '{alarm_def_sheet_name}', riga ignorata.")
-                                continue
-
-                            abs_byte = rel_byte + instance_offset_bytes
-                            
-                            local_alarm_count += 1  # Incrementa il contatore locale per ogni allarme valido
-
-                            # Calculate AlmWord index (increment every 16 alarms) based on local count and base word index
-                            alm_word_offset = (local_alarm_count - 1) // 16
-                            alm_word_index = alm_word_index_value + alm_word_offset
-
-                            # Calculate bit index (0-15 loop) based on local count
-                            bit_index = (local_alarm_count - 1) % 16
-                            
-                            trigger_tag = f"AlmWord[{alm_word_index}]"
-                            alarm_text = str(alarm_text_template).replace('#', str(i))
-
-                            alarm_row = {col: None for col in OUTPUT_COLUMNS}
-                            alarm_row['ID'] = current_id
-                            alarm_row['Name'] = f"Discrete alarm_{current_id}"
-                            alarm_row['Alarm text [en-US], Alarm text 1'] = alarm_text
-                            alarm_row['Class'] = 'Alarm'
-                            alarm_row['Trigger tag'] = trigger_tag
-                            alarm_row['Trigger bit'] = bit_index
-                            alarm_row['Trigger mode'] = 'On rising edge'
-                            alarm_row['Priority'] = 0
-                            alarm_row['Acknowledgement bit'] = 0
-                            alarm_row['PLC acknowledgement bit'] = 0
-                            alarm_row['Origin'] = 'HMI_RT_1::Alarming'
-                            alarm_row['Area'] = 'HMI_RT_1::Alarming'
-
-                            no_value_cols = [
-                                'Acknowledgement tag', 'PLC acknowledgement tag', 'Info text [en-US], Info text',
-                                'Alarm parameter 1', 'Alarm parameter 2', 'Alarm parameter 3', 'Alarm parameter 4',
-                                'Alarm parameter 5', 'Alarm parameter 6', 'Alarm parameter 7', 'Alarm parameter 8',
-                                'Alarm parameter 9', 'Alarm parameter 10'
-                            ]
-                            for col in no_value_cols:
-                                if col in alarm_row:
-                                    alarm_row[col] = '<No value>'
-
-                            all_alarms.append(alarm_row)
-                            current_id += 1
-                    # --- End existing logic for Excel output ---
-
-            if not all_alarms:
-                 self.progress_signal.emit("Nessun allarme valido trovato o generato. Il file di output Excel non verrà creato.")
-                 # Check if SCL regions were generated even if no Excel alarms were
-                 if not all_scl_regions:
-                    self.finished_signal.emit(True, "Nessun allarme generato. File non creato.")
-                    return
-                 else:
-                    # Still proceed to generate SCL if regions exist
-                    self.progress_signal.emit("Allarmi Excel non generati, ma regioni SCL trovate. Procedo con la generazione SCL.")
-
-            # --- Existing logic for writing Excel output (keep this) ---
-            if all_alarms: # Only write Excel if there are alarms
-                output_df = pd.DataFrame(all_alarms, columns=OUTPUT_COLUMNS)
-                if output_df.empty:
-                    self.progress_signal.emit("DataFrame vuoto per Excel, nessun file verrà creato.")
-                else:
-                    output_path = os.path.join(self.output_dir, OUTPUT_FILENAME)
-                    self.progress_signal.emit(f"Scrivendo il file di output Excel: {output_path}...")
-                    os.makedirs(self.output_dir, exist_ok=True)
-                    output_df.to_excel(output_path, index=False, sheet_name=OUTPUT_SHEET_NAME)
-                    self.progress_signal.emit("File Excel generato con successo!")
-            # --- End existing logic for writing Excel output ---
-
-            # Genera il file SCL con tutte le regioni
             if all_scl_regions:
                 scl_content = ''.join(all_scl_regions)
-                self.generate_scl_file(scl_content, self.output_dir) # generate_scl_file handles pathing and success message
-
-            # Final success message (consider both files)
+                self.generate_scl_file(scl_content, self.output_dir)
             final_message = "Generazione completata."
-            if all_alarms and all_scl_regions:
-                final_message = f"Generazione completata con successo! File Excel e SCL creati."
-            elif all_alarms:
-                 final_message = f"Generazione completata con successo! File Excel creato."
-            elif all_scl_regions:
-                 final_message = f"Generazione completata con successo! File SCL creato."
+            if all_scl_regions:
+                final_message = f"Generazione completata con successo! File SCL creato."
             else:
-                 final_message = "Generazione completata. Nessun file creato (nessun allarme valido)."
-
+                final_message = "Generazione completata. Nessun file creato (nessun allarme valido)."
             self.finished_signal.emit(True, final_message)
-
         except FileNotFoundError:
              error_message = f"Errore: File di input non trovato:\n{self.input_file}"
              self.progress_signal.emit(error_message)
@@ -365,6 +256,14 @@ END_REGION ;\n\n"""
     def stop(self):
         self._is_running = False
 
+    def _find_actual_column_name(self, candidates, column_list):
+        """Restituisce il nome effettivo della colonna tra i candidati, ignorando maiuscole/minuscole."""
+        for candidate in candidates:
+            for col in column_list:
+                if col.strip().lower() == candidate.lower():
+                    return col
+        return None
+
 # --- Alarm Generator Widget ---
 class AlarmGeneratorWidget(QWidget):
     """Widget contenente l'UI per la generazione degli allarmi."""
@@ -377,7 +276,7 @@ class AlarmGeneratorWidget(QWidget):
         self.input_file_path = None
         # Default output dir to a subfolder in the main project if possible
         # Or use current working directory as fallback
-        self.output_dir_path = os.path.join(os.getcwd(), "Configurazioni", "HMI_Alarms")
+        self.output_dir_path = os.path.join(os.getcwd(), "Output", "HMI_Alarms")
         self.object_types = {} # Dictionary to store {object_type: offset}
         self._init_ui()
         self._load_last_input_file()

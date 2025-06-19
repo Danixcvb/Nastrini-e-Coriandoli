@@ -15,30 +15,30 @@ INPUT_FILE_SHEET_INDEX = 0
 OBJECT_TYPE_COL = 'Object Type'
 OFFSET_COL = 'Length (Byte) - SA'
 ADDRESS_COL = 'Address'
-ALARM_TEXT_COL = 'Alarm Text'
+ALARM_TEXT_COL_CANDIDATES = ['Alarm Text (EN)', 'Alarm Text']
 OUTPUT_FILENAME = 'HMIAlarms.xlsx'
 OUTPUT_SHEET_NAME = 'DiscreteAlarms'
 CONFIG_FILENAME = 'last_file.cfg' # File to store the last used input path
 
 # Define the structure of the output Excel file based on the example
 OUTPUT_COLUMNS = [
-    'ID', 'Name', 'Alarm text [en-US], Alarm text 1', 'FieldInfo [Alarm text 1]',
-    'Class', 'Trigger tag', 'Trigger bit', 'Trigger mode', 'Acknowledgement tag',
-    'Acknowledgement bit', 'PLC acknowledgement tag', 'PLC acknowledgement bit',
-    'Priority', 'Info text [en-US], Info text', 'Additional text 1 [en-US], Alarm text 2',
-    'FieldInfo [Alarm text 2]', 'Additional text 2 [en-US], Alarm text 3',
-    'FieldInfo [Alarm text 3]', 'Additional text 3 [en-US], Alarm text 4',
-    'FieldInfo [Alarm text 4]', 'Additional text 4 [EN-US], Alarm text 5', # Corrected typo EN-US
-    'FieldInfo [Alarm text 5]', 'Additional text 5 [en-US], Alarm text 6',
-    'FieldInfo [Alarm text 6]', 'Additional text 6 [en-US], Alarm text 7',
-    'FieldInfo [Alarm text 7]', 'Additional text 7 [en-US], Alarm text 8',
-    'FieldInfo [Alarm text 8]', 'Additional text 8 [en-US], Alarm text 9',
-    'FieldInfo [Alarm text 9]', 'Additional text 9 [en-US], Alarm text 10',
-    'FieldInfo [Alarm text 10]', 'Alarm parameter 1', 'Alarm parameter 2',
-    'Alarm parameter 3', 'Alarm parameter 4', 'Alarm parameter 5',
-    'Alarm parameter 6', 'Alarm parameter 7', 'Alarm parameter 8',
-    'Alarm parameter 9', 'Alarm parameter 10', 'Area', 'Origin'
+    'ID',
+    'Name',
+    'Alarm text [en-US], Alarm text',
+    'FieldInfo [Alarm text]',
+    'Class',
+    'Trigger tag',
+    'Trigger bit',
+    'Acknowledgement tag',
+    'Acknowledgement bit',
+    'PLC acknowledgement tag',
+    'PLC acknowledgement bit',
+    'Group',
+    'Report',
+    'Info text [en-US], Info text'
 ]
+
+OUTPUT_COLUMNS_FR = [col.replace('en-US', 'fr-FR') for col in OUTPUT_COLUMNS]
 
 # --- Worker Thread for Processing ---
 class GeneratorThread(QThread):
@@ -51,6 +51,14 @@ class GeneratorThread(QThread):
         self.output_dir = output_dir
         self.instance_counts = instance_counts
         self._is_running = True
+
+    def _find_actual_column_name(self, candidates, column_list):
+        """Restituisce il nome effettivo della colonna tra i candidati, ignorando maiuscole/minuscole."""
+        for candidate in candidates:
+            for col in column_list:
+                if col.strip().lower() == candidate.lower():
+                    return col
+        return None
 
     def generate_scl_region(self, object_type, alarm_texts, alm_word_index_value):
         """Genera il contenuto SCL per una regione di allarmi."""
@@ -114,7 +122,8 @@ END_REGION ;\n\n"""
             return False
 
     def run(self):
-        all_alarms = []
+        all_alarms_en = []
+        all_alarms_fr = []
         current_id = 1
         all_scl_regions = []  # Lista per contenere tutte le regioni SCL
         
@@ -193,10 +202,18 @@ END_REGION ;\n\n"""
                     if ADDRESS_COL not in alarm_def_df.columns:
                         raise ValueError(f"Colonna '{ADDRESS_COL}' non trovata nel foglio '{alarm_def_sheet_name}'.")
 
+                    # Trova il nome effettivo della colonna Alarm Text
+                    alarm_text_col_en = self._find_actual_column_name(ALARM_TEXT_COL_CANDIDATES, alarm_def_df.columns)
+                    alarm_text_col_fr = self._find_actual_column_name(['Alarm Text (FR)'], alarm_def_df.columns)
+                    if not alarm_text_col_en:
+                        raise ValueError(f"Colonna 'Alarm Text (EN)' o 'Alarm Text' non trovata nel foglio '{alarm_def_sheet_name}'.")
+                    if not alarm_text_col_fr:
+                        self.progress_signal.emit(f"Colonna 'Alarm Text (FR)' non trovata nel foglio '{alarm_def_sheet_name}'. Verrà generato solo il file EN.")
+
                     # Collect unique alarms with text
                     unique_alarms = set()
                     for _, row in alarm_def_df.iterrows():
-                        alarm_text = row[ALARM_TEXT_COL]
+                        alarm_text = row[alarm_text_col_en]
                         if pd.notna(alarm_text) and alarm_text.strip():
                             unique_alarms.add(alarm_text.strip())
 
@@ -210,13 +227,16 @@ END_REGION ;\n\n"""
                         all_scl_regions.append(scl_region)
 
                     # --- Existing logic for Excel output (keep this) ---
+                    bit_index = 0  # Reset per ogni tipo oggetto
+                    almword_index = alm_word_index_value  # Parte dal Word Index del tipo
                     for i in range(1, count + 1):
                         instance_offset_bytes = offset * (i - 1)
                         for _, row in alarm_def_df.iterrows():
-                            alarm_text_template = row[ALARM_TEXT_COL]
+                            alarm_text_en = row[alarm_text_col_en] if alarm_text_col_en in row else None
+                            alarm_text_fr = row[alarm_text_col_fr] if alarm_text_col_fr and alarm_text_col_fr in row else None
                             address_str = str(row[ADDRESS_COL]).strip()
 
-                            if pd.isna(alarm_text_template) or not alarm_text_template or not address_str:
+                            if pd.isna(alarm_text_en) or not alarm_text_en or not address_str:
                                 continue
 
                             try:
@@ -228,75 +248,71 @@ END_REGION ;\n\n"""
                                 continue
 
                             abs_byte = rel_byte + instance_offset_bytes
-                            # Calculate AlmWord index (increment every 16 alarms)
-                            alm_word_index = (current_id - 1) // 16
-                            # Calculate bit index (0-15 loop)
-                            bit_index = (current_id - 1) % 16
-                            
-                            trigger_tag = f"AlmWord[{alm_word_index}]"
-                            alarm_text = str(alarm_text_template).replace('#', str(i))
-
-                            alarm_row = {col: None for col in OUTPUT_COLUMNS}
-                            alarm_row['ID'] = current_id
-                            alarm_row['Name'] = f"Discrete alarm_{current_id}"
-                            alarm_row['Alarm text [en-US], Alarm text 1'] = alarm_text
-                            alarm_row['Class'] = 'Alarm'
-                            alarm_row['Trigger tag'] = trigger_tag
-                            alarm_row['Trigger bit'] = bit_index
-                            alarm_row['Trigger mode'] = 'On rising edge'
-                            alarm_row['Priority'] = 0
-                            alarm_row['Acknowledgement bit'] = 0
-                            alarm_row['PLC acknowledgement bit'] = 0
-                            alarm_row['Origin'] = 'HMI_RT_1::Alarming'
-                            alarm_row['Area'] = 'HMI_RT_1::Alarming'
-
-                            no_value_cols = [
-                                'Acknowledgement tag', 'PLC acknowledgement tag', 'Info text [en-US], Info text',
-                                'Alarm parameter 1', 'Alarm parameter 2', 'Alarm parameter 3', 'Alarm parameter 4',
-                                'Alarm parameter 5', 'Alarm parameter 6', 'Alarm parameter 7', 'Alarm parameter 8',
-                                'Alarm parameter 9', 'Alarm parameter 10'
-                            ]
-                            for col in no_value_cols:
-                                if col in alarm_row:
-                                    alarm_row[col] = '<No value>'
-
-                            all_alarms.append(alarm_row)
+                            trigger_tag = f'AlmWord[{almword_index}]'
+                            # EN
+                            alarm_row_en = {col: None for col in OUTPUT_COLUMNS}
+                            alarm_row_en['ID'] = current_id
+                            alarm_row_en['Name'] = f"Discrete alarm_{current_id}"
+                            alarm_row_en['Alarm text [en-US], Alarm text'] = str(alarm_text_en).replace('#', str(i))
+                            alarm_row_en['FieldInfo [Alarm text]'] = ''
+                            alarm_row_en['Class'] = 'Alarm'
+                            alarm_row_en['Trigger tag'] = f'"{trigger_tag}"'
+                            alarm_row_en['Trigger bit'] = bit_index
+                            alarm_row_en['Acknowledgement tag'] = '<No value>'
+                            alarm_row_en['Acknowledgement bit'] = 0
+                            alarm_row_en['PLC acknowledgement tag'] = '<No value>'
+                            alarm_row_en['PLC acknowledgement bit'] = 0
+                            alarm_row_en['Group'] = '<No value>'
+                            alarm_row_en['Report'] = 'False'
+                            alarm_row_en['Info text [en-US], Info text'] = '<No value>'
+                            all_alarms_en.append(alarm_row_en)
+                            # FR
+                            if alarm_text_col_fr and pd.notna(alarm_text_fr) and str(alarm_text_fr).strip():
+                                alarm_row_fr = {col: None for col in OUTPUT_COLUMNS_FR}
+                                alarm_row_fr['ID'] = current_id
+                                alarm_row_fr['Name'] = f"Discrete alarm_{current_id}"
+                                alarm_row_fr['Alarm text [fr-FR], Alarm text'] = str(alarm_text_fr).replace('#', str(i))
+                                alarm_row_fr['FieldInfo [Alarm text]'] = ''
+                                alarm_row_fr['Class'] = 'Alarm'
+                                alarm_row_fr['Trigger tag'] = f'"{trigger_tag}"'
+                                alarm_row_fr['Trigger bit'] = bit_index
+                                alarm_row_fr['Acknowledgement tag'] = '<No value>'
+                                alarm_row_fr['Acknowledgement bit'] = 0
+                                alarm_row_fr['PLC acknowledgement tag'] = '<No value>'
+                                alarm_row_fr['PLC acknowledgement bit'] = 0
+                                alarm_row_fr['Group'] = '<No value>'
+                                alarm_row_fr['Report'] = 'False'
+                                alarm_row_fr['Info text [fr-FR], Info text'] = '<No value>'
+                                all_alarms_fr.append(alarm_row_fr)
                             current_id += 1
+                            bit_index += 1
+                            if bit_index > 15:
+                                bit_index = 0
+                                almword_index += 1
                     # --- End existing logic for Excel output ---
 
-            if not all_alarms:
+            if not all_alarms_en and not all_alarms_fr:
                  self.progress_signal.emit("Nessun allarme valido trovato o generato. Il file di output non verrà creato.")
                  self.finished_signal.emit(True, "Nessun allarme generato. File non creato.")
                  return
 
-            output_df = pd.DataFrame(all_alarms, columns=OUTPUT_COLUMNS)
-            if output_df.empty:
-                self.progress_signal.emit("DataFrame vuoto, nessun file verrà creato.")
-                self.finished_signal.emit(True, "Nessun allarme generato. File non creato.")
-                return
-
-            output_path = os.path.join(self.output_dir, OUTPUT_FILENAME)
-            self.progress_signal.emit(f"Scrivendo il file di output: {output_path}...")
-            os.makedirs(self.output_dir, exist_ok=True)
-            output_df.to_excel(output_path, index=False, sheet_name=OUTPUT_SHEET_NAME)
-
-            # Genera il file SCL con tutte le regioni
-            if all_scl_regions:
-                # Crea la cartella Configurazioni/HMI_Alarms se non esiste
-                config_dir = os.path.join(os.path.dirname(os.path.dirname(self.output_dir)), "Configurazioni")
-                hmi_alarms_dir = os.path.join(config_dir, "HMI_Alarms")
-                os.makedirs(hmi_alarms_dir, exist_ok=True)
-                
-                scl_output_path = os.path.join(hmi_alarms_dir, "AlarmRegion.scl")
-                try:
-                    with open(scl_output_path, 'w', encoding='utf-8') as f:
-                        f.write(''.join(all_scl_regions))
-                    self.progress_signal.emit(f"File SCL generato con successo in:\n{scl_output_path}")
-                except Exception as e:
-                    self.progress_signal.emit(f"Errore durante la generazione del file SCL: {str(e)}")
+            # Scrivi file EN
+            if all_alarms_en:
+                output_df_en = pd.DataFrame(all_alarms_en, columns=OUTPUT_COLUMNS)
+                output_path_en = os.path.join(self.output_dir, 'HMIAlarms_EN.xlsx')
+                self.progress_signal.emit(f"Scrivendo il file di output: {output_path_en}...")
+                os.makedirs(self.output_dir, exist_ok=True)
+                output_df_en.to_excel(output_path_en, index=False, sheet_name=OUTPUT_SHEET_NAME)
+            # Scrivi file FR
+            if all_alarms_fr:
+                output_df_fr = pd.DataFrame(all_alarms_fr, columns=OUTPUT_COLUMNS_FR)
+                output_path_fr = os.path.join(self.output_dir, 'HMIAlarms_FR.xlsx')
+                self.progress_signal.emit(f"Scrivendo il file di output: {output_path_fr}...")
+                os.makedirs(self.output_dir, exist_ok=True)
+                output_df_fr.to_excel(output_path_fr, index=False, sheet_name=OUTPUT_SHEET_NAME)
 
             self.progress_signal.emit("Generazione completata con successo!")
-            success_message = f"File '{OUTPUT_FILENAME}' generato con successo in:\n{self.output_dir}"
+            success_message = f"File EN/FR generati con successo in:\n{self.output_dir}"
             self.finished_signal.emit(True, success_message)
 
         except FileNotFoundError:
