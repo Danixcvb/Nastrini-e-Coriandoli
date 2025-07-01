@@ -1,0 +1,344 @@
+FUNCTION "AlarmsCompactHMI" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP 
+      i : Int;
+      AlmBit : ULInt;
+      AlmWord : Int;
+      AuxArray : "AlarmGenType_16";
+   END_VAR
+
+BEGIN
+	REGION PANEL Management - Compact Alarms in Words
+		#AlmBit := 0;
+		#AlmWord := 0;
+
+		FOR #i := 1 TO "ConstPANELNumber" DO
+			//Initialize auxiliaries array for alarms
+			#AuxArray.Alm0 := "SV_DB_PANEL_SA".PANEL[#i].ALL_BUS_COM_GEN; //
+			#AuxArray.Alm1 := "SV_DB_PANEL_SA".PANEL[#i].ALL_VENT; //Cabinet cooling fan fault
+			#AuxArray.Alm2 := "SV_DB_PANEL_SA".PANEL[#i].ALL_TEMP; //Cabinet overtemperature failure
+			#AuxArray.Alm3 := "SV_DB_PANEL_SA".PANEL[#i].ALL_EOK24; //Failure power supply 24Vdc cabinet
+			#AuxArray.Alm4 := "SV_DB_PANEL_SA".PANEL[#i].ALL_EAL24; //Machine board 24Vdc power supply failure
+			#AuxArray.Alm5 := "SV_DB_PANEL_SA".PANEL[#i].ALL_EAL24I; //Failure power supply input 24Vdc cabinet
+			#AuxArray.Alm6 := "SV_DB_PANEL_SA".PANEL[#i].ALL_EAL24O; //Failure power supply output 24Vdc cabinet
+			#AuxArray.Alm7 := "SV_DB_PANEL_SA".PANEL[#i].ALL_GEN; //General switch fuse intervention
+			#AuxArray.Alm8 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm9 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm10 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm11 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm12 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm13 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm14 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm15 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			//Compact Alarms in common DB
+			"LIB_Alarms_Compact"(Alarms := #AuxArray,
+			                     UsedAlarms := 8,
+			                     LastBitUsed := #AlmBit,
+			                     LastWordIndex := #AlmWord,
+			                     DBAlm := "DB_HMI_Alm".AlmWord);
+		END_FOR;
+	END_REGION ;
+
+	REGION LINE Management - Compact Alarms in Words
+		#AlmBit := 0;
+		#AlmWord := 3;
+
+		FOR #i := 1 TO "ConstLINENumber" DO
+			//Initialize auxiliaries array for alarms
+			#AuxArray.Alm0 := "SV_DB_LINE_SA".LINE[#i].ST_ALL_FT; //Photocell fault
+			#AuxArray.Alm1 := "SV_DB_LINE_SA".LINE[#i].ST_ALL_MOT; //Motor fault
+			#AuxArray.Alm2 := "SV_DB_LINE_SA".LINE[#i].ST_ALL_EXT; //External fault
+			#AuxArray.Alm3 := "SV_DB_LINE_SA".LINE[#i].ST_ALL_GEN; //General fault
+			#AuxArray.Alm4 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm5 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm6 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm7 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm8 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm9 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm10 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm11 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm12 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm13 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm14 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm15 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			//Compact Alarms in common DB
+			"LIB_Alarms_Compact"(Alarms := #AuxArray,
+			                     UsedAlarms := 4,
+			                     LastBitUsed := #AlmBit,
+			                     LastWordIndex := #AlmWord,
+			                     DBAlm := "DB_HMI_Alm".AlmWord);
+		END_FOR;
+	END_REGION ;
+
+	REGION TRUNK Management - Compact Alarms in Words
+		#AlmBit := 0;
+		#AlmWord := 10;
+
+		FOR #i := 1 TO "ConstTRUNKNumber" DO
+			//Initialize auxiliaries array for alarms
+			#AuxArray.Alm0 := "SV_DB_TRUNK_SA".TRUNK[#i].ST_ALL_FT; //PHOTOEYE FAULT
+			#AuxArray.Alm1 := "SV_DB_TRUNK_SA".TRUNK[#i].ST_ALL_MOT; //MOTOR FAULT
+			#AuxArray.Alm2 := "SV_DB_TRUNK_SA".TRUNK[#i].ST_ALL_EXT; //EXTERNAL FAULT
+			#AuxArray.Alm3 := "SV_DB_TRUNK_SA".TRUNK[#i].ST_ALL_GEN; //GENERAL FAULT
+			#AuxArray.Alm4 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm5 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm6 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm7 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm8 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm9 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm10 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm11 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm12 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm13 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm14 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm15 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			//Compact Alarms in common DB
+			"LIB_Alarms_Compact"(Alarms := #AuxArray,
+			                     UsedAlarms := 4,
+			                     LastBitUsed := #AlmBit,
+			                     LastWordIndex := #AlmWord,
+			                     DBAlm := "DB_HMI_Alm".AlmWord);
+		END_FOR;
+	END_REGION ;
+
+	REGION PPP Management - Compact Alarms in Words
+		#AlmBit := 0;
+		#AlmWord := 30;
+
+		FOR #i := 1 TO "ConstPPPNumber" DO
+			//Initialize auxiliaries array for alarms
+			#AuxArray.Alm0 := "SV_DB_PPP_SA".PPP[#i].ST_DP_COM; //PROFIBUS NODE COMMUNICATION STATUS (0=OK 1=FAULT)
+			#AuxArray.Alm1 := "SV_DB_PPP_SA".PPP[#i].ALL_PUSH; //ALARM BUTTON PUSHED
+			#AuxArray.Alm2 := "SV_DB_PPP_SA".PPP[#i].ALL_COMM_FLT; //COMMUNICATION FAULT
+			#AuxArray.Alm3 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm4 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm5 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm6 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm7 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm8 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm9 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm10 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm11 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm12 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm13 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm14 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm15 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			//Compact Alarms in common DB
+			"LIB_Alarms_Compact"(Alarms := #AuxArray,
+			                     UsedAlarms := 3,
+			                     LastBitUsed := #AlmBit,
+			                     LastWordIndex := #AlmWord,
+			                     DBAlm := "DB_HMI_Alm".AlmWord);
+		END_FOR;
+	END_REGION ;
+
+	REGION CONVEYOR Management - Compact Alarms in Words
+		#AlmBit := 0;
+		#AlmWord := 120;
+
+		FOR #i := 1 TO "ConstCONVEYORNumber" DO
+			//Initialize auxiliaries array for alarms
+			#AuxArray.Alm0 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ST_ALL_DISABLE; //ALARMS DISABLED BY OP
+			#AuxArray.Alm1 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ST_DP_COM; //COMMUNICATION FAULT
+			#AuxArray.Alm2 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ST_NOPOWER; //POWER FAULT
+			#AuxArray.Alm3 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_SAF_BR; //SAFETY SWITCH OPEN FAULT
+			#AuxArray.Alm4 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_INT_AUT; //SAFETY BREAKER OPEN FAULT
+			#AuxArray.Alm5 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_INV; //INVERTER FAULT
+			#AuxArray.Alm6 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_ISC; //COMMAND NOT ACTUATED FAULT
+			#AuxArray.Alm7 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_ENCODER; //ENCODER FAULT
+			#AuxArray.Alm8 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_EXT; //EXTERNAL FAULT
+			#AuxArray.Alm9 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_JAM_FTI; //
+			#AuxArray.Alm10 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_JAM_FTU; //
+			#AuxArray.Alm11 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_AVR_FTU; //OUTLET PHOTOEYE FAULT
+			#AuxArray.Alm12 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_AVR_FTI; //INLET PHOTOEYE FAULT
+			#AuxArray.Alm13 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_AVR_FT1; //PHOTOEYE 1 FAULT
+			#AuxArray.Alm14 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_AVR_FT2; //PHOTOEYE 2 FAULT
+			#AuxArray.Alm15 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_AVR_FT3; //PHOTOEYE 3 FAULT
+			//Compact Alarms in common DB
+			"LIB_Alarms_Compact"(Alarms := #AuxArray,
+			                     UsedAlarms := 16,
+			                     LastBitUsed := #AlmBit,
+			                     LastWordIndex := #AlmWord,
+			                     DBAlm := "DB_HMI_Alm".AlmWord);
+			#AuxArray.Alm0 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_JAM_PREDICTION_FTU; //
+			#AuxArray.Alm1 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_JAM_PREDICTION_FTI; //
+			#AuxArray.Alm2 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_AVR_FT4; //
+			#AuxArray.Alm3 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_AVR_FT5; //
+			#AuxArray.Alm4 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_CONFIGURATION; //
+			#AuxArray.Alm5 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].WARNING_ROLLING_BAG; //
+			#AuxArray.Alm6 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_AVR_ROLLING_BAG; //
+			#AuxArray.Alm7 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm8 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm9 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm10 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm11 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm12 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm13 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm14 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm15 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			//Compact Alarms in common DB
+			"LIB_Alarms_Compact"(Alarms := #AuxArray,
+			                     UsedAlarms := 7,
+			                     LastBitUsed := #AlmBit,
+			                     LastWordIndex := #AlmWord,
+			                     DBAlm := "DB_HMI_Alm".AlmWord);
+		END_FOR;
+	END_REGION ;
+
+	REGION DATALOGIC Management - Compact Alarms in Words
+		#AlmBit := 0;
+		#AlmWord := 200;
+
+		FOR #i := 1 TO "ConstDATALOGICNumber" DO
+			//Initialize auxiliaries array for alarms
+			#AuxArray.Alm0 := "SV_DB_DATALOGIC_SA".DATALOGIC[#i].Alm_ConnectionError; //CONNECTION WITH THE READER CAN'T BE ESTABLISHED
+			#AuxArray.Alm1 := "SV_DB_DATALOGIC_SA".DATALOGIC[#i].Alm_RcvIncorrectData; //DATA RECEIVED FROM THE SYSTEM CAN'T BE INTERPRETED
+			#AuxArray.Alm2 := "SV_DB_DATALOGIC_SA".DATALOGIC[#i].Alm_NewDiagMessage; //NEW DIAGNOSTIC MESSAGE RECEIVED, CHECK FOR DIAGNOSTIC ARRAY
+			#AuxArray.Alm3 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm4 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm5 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm6 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm7 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm8 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm9 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm10 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm11 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm12 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm13 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm14 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm15 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			//Compact Alarms in common DB
+			"LIB_Alarms_Compact"(Alarms := #AuxArray,
+			                     UsedAlarms := 3,
+			                     LastBitUsed := #AlmBit,
+			                     LastWordIndex := #AlmWord,
+			                     DBAlm := "DB_HMI_Alm".AlmWord);
+		END_FOR;
+	END_REGION ;
+
+	REGION CAROUSEL Management - Compact Alarms in Words
+		#AlmBit := 0;
+		#AlmWord := 310;
+
+		FOR #i := 1 TO "ConstCAROUSELNumber" DO
+			//Initialize auxiliaries array for alarms
+			#AuxArray.Alm0 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_SAF_BR_1; //SAFETY BREAKER OPEN FAULT
+			#AuxArray.Alm1 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_SAF_BR_2; //SAFETY BREAKER OPEN FAULT
+			#AuxArray.Alm2 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_INV_1; //INVERTER FAULT
+			#AuxArray.Alm3 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_INV_2; //INVERTER FAULT
+			#AuxArray.Alm4 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_ISC; //COMMAND NOT ACTUATED FAULT
+			#AuxArray.Alm5 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_ENCODER; //ENCODER FAULT
+			#AuxArray.Alm6 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_EXT; //EXTERNAL FAULT
+			#AuxArray.Alm7 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_EOK_1; //AUTOMATIC TERMIC 1 FAULT
+			#AuxArray.Alm8 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_EOK_2; //AUTOMATIC TERMIC 2 FAULT
+			#AuxArray.Alm9 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_AVR_FTS; //INGECTION FOTOCEL FAULT
+			#AuxArray.Alm10 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].Spare90; //
+			#AuxArray.Alm11 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm12 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm13 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm14 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm15 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			//Compact Alarms in common DB
+			"LIB_Alarms_Compact"(Alarms := #AuxArray,
+			                     UsedAlarms := 11,
+			                     LastBitUsed := #AlmBit,
+			                     LastWordIndex := #AlmWord,
+			                     DBAlm := "DB_HMI_Alm".AlmWord);
+		END_FOR;
+	END_REGION ;
+
+	REGION FIRESHUTTER Management - Compact Alarms in Words
+		#AlmBit := 0;
+		#AlmWord := 330;
+
+		FOR #i := 1 TO "ConstFIRESHUTTERNumber" DO
+			//Initialize auxiliaries array for alarms
+			#AuxArray.Alm0 := "SV_DB_FIRESHUTTER_SA".FIRESHUTTER[#i].ALL_FIRE; //FIRE ALLARM
+			#AuxArray.Alm1 := "SV_DB_FIRESHUTTER_SA".FIRESHUTTER[#i].ALL_NOTCLOSED; //DOOR NOT CLOSED CORRECTLY
+			#AuxArray.Alm2 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm3 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm4 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm5 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm6 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm7 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm8 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm9 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm10 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm11 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm12 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm13 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm14 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm15 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			//Compact Alarms in common DB
+			"LIB_Alarms_Compact"(Alarms := #AuxArray,
+			                     UsedAlarms := 2,
+			                     LastBitUsed := #AlmBit,
+			                     LastWordIndex := #AlmWord,
+			                     DBAlm := "DB_HMI_Alm".AlmWord);
+		END_FOR;
+	END_REGION ;
+
+	REGION SHUTTER Management - Compact Alarms in Words
+		#AlmBit := 0;
+		#AlmWord := 340;
+
+		FOR #i := 1 TO "ConstSHUTTERNumber" DO
+			//Initialize auxiliaries array for alarms
+			#AuxArray.Alm0 := "SV_DB_SHUTTER_SA".SHUTTER[#i].FAULT; //EMPTYING IN PROGRESS
+			#AuxArray.Alm1 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm2 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm3 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm4 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm5 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm6 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm7 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm8 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm9 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm10 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm11 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm12 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm13 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm14 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm15 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			//Compact Alarms in common DB
+			"LIB_Alarms_Compact"(Alarms := #AuxArray,
+			                     UsedAlarms := 1,
+			                     LastBitUsed := #AlmBit,
+			                     LastWordIndex := #AlmWord,
+			                     DBAlm := "DB_HMI_Alm".AlmWord);
+		END_FOR;
+	END_REGION ;
+
+	REGION OVERSIZE Management - Compact Alarms in Words
+		#AlmBit := 0;
+		#AlmWord := 370;
+
+		FOR #i := 1 TO "ConstOVERSIZENumber" DO
+			//Initialize auxiliaries array for alarms
+			#AuxArray.Alm0 := "SV_DB_OVERSIZE_SA".OVERSIZE[#i].ALL_MAX_W; //ALARM MAX WIDTH
+			#AuxArray.Alm1 := "SV_DB_OVERSIZE_SA".OVERSIZE[#i].ALL_MAX_L; //ALARM MAX LENGTH
+			#AuxArray.Alm2 := "SV_DB_OVERSIZE_SA".OVERSIZE[#i].ALL_MAX_H; //ALARM MAX HEIGHT
+			#AuxArray.Alm3 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm4 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm5 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm6 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm7 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm8 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm9 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm10 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm11 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm12 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm13 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm14 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm15 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			//Compact Alarms in common DB
+			"LIB_Alarms_Compact"(Alarms := #AuxArray,
+			                     UsedAlarms := 3,
+			                     LastBitUsed := #AlmBit,
+			                     LastWordIndex := #AlmWord,
+			                     DBAlm := "DB_HMI_Alm".AlmWord);
+		END_FOR;
+	END_REGION ;
+
+END_FUNCTION

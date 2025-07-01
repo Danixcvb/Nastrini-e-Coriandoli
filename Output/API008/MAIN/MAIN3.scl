@@ -1,0 +1,101 @@
+REGION Initializing Temp Section
+    #TempEncoderNotUsed.Count := 16#0;
+END_REGION
+
+REGION Gestione Richiesta Start Tronco
+    IF "UpstreamDB-Globale".Global_Data.Start_All OR "UpstreamDB-Globale".Global_Data.StartTronco3 OR "TRUNK3".StartReqAutoFp
+    THEN
+        #StartTronco := TRUE;
+    END_IF;
+END_REGION
+
+REGION Call CONVEYOR_SEW_MOVIGEAR (CA12ST015)
+
+    "UTENZA5"(
+               ID := 5,
+               PREV := "UTENZA4".Conveyor.Data.OUT,
+               NEXT := "UTENZA6".Conveyor.Data.OUT,
+               START := #StartTronco,
+               TimeData := "UpstreamDB-Globale".Global_Data.TimeData,
+               Constants := "DB_Constants".Constants,
+               InterfaceTrunkUse := "TRUNK3".ComTrunkUse,
+               PANYTOCNV_SA := "SV_DB_CONVEYOR_SA".CONVEYOR_5,
+               PANYTOCNV_CMD := "SV_DB_CONVEYOR_CMD".CONVEYOR_5,
+               DB_OBJ := "DBsObject".DbObj[1],
+               "Ist-VidGenerator" := "Ist_Sub-VidGenerator",
+               EncoderInterface := #TempEncoderNotUsed,
+               DriveInterface_IN := "CA12ST015_IN",
+               DriveInterface_OUT := "CA12ST015_OUT",
+               "Ist-McpCreateChrMsg" := "Ist-McpCreateChrMsg",
+               "Ist-PcSocket" := "Ist-GtwManageSocket",
+               "Ist-McpChrMsgBuffer" := "Ist-GtwChrMsgBuffer",
+               "Ist-LogBuffer" := "Ist-LogBuffer",
+               "Ist-Logger" := "Ist-Logger");
+
+END_REGION
+
+REGION Call CONVEYOR_SEW_MOVIGEAR (CA12ST017)
+
+    "UTENZA6"(
+               ID := 6,
+               PREV := "UTENZA5".Conveyor.Data.OUT,
+               NEXT := "UTENZA7".Conveyor.Data.OUT,
+               START := #StartTronco,
+               TimeData := "UpstreamDB-Globale".Global_Data.TimeData,
+               Constants := "DB_Constants".Constants,
+               InterfaceTrunkUse := "TRUNK3".ComTrunkUse,
+               PANYTOCNV_SA := "SV_DB_CONVEYOR_SA".CONVEYOR_6,
+               PANYTOCNV_CMD := "SV_DB_CONVEYOR_CMD".CONVEYOR_6,
+               DB_OBJ := "DBsObject".DbObj[1],
+               "Ist-VidGenerator" := "Ist_Sub-VidGenerator",
+               EncoderInterface := #TempEncoderNotUsed,
+               DriveInterface_IN := "CA12ST017_IN",
+               DriveInterface_OUT := "CA12ST017_OUT",
+               "Ist-McpCreateChrMsg" := "Ist-McpCreateChrMsg",
+               "Ist-PcSocket" := "Ist-GtwManageSocket",
+               "Ist-McpChrMsgBuffer" := "Ist-GtwChrMsgBuffer",
+               "Ist-LogBuffer" := "Ist-LogBuffer",
+               "Ist-Logger" := "Ist-Logger");
+
+END_REGION
+
+REGION Call CONVEYOR_SEW_MOVIGEAR (CA12ST019)
+
+    "UTENZA7"(
+               ID := 7,
+               PREV := "UTENZA6".Conveyor.Data.OUT,
+               NEXT := "SIDE_INPUT_CAROUSEL1".DATA.OUT,
+               START := #StartTronco,
+               TimeData := "UpstreamDB-Globale".Global_Data.TimeData,
+               Constants := "DB_Constants".Constants,
+               InterfaceTrunkUse := "TRUNK3".ComTrunkUse,
+               PANYTOCNV_SA := "SV_DB_CONVEYOR_SA".CONVEYOR_7,
+               PANYTOCNV_CMD := "SV_DB_CONVEYOR_CMD".CONVEYOR_7,
+               DB_OBJ := "DBsObject".DbObj[1],
+               "Ist-VidGenerator" := "Ist_Sub-VidGenerator",
+               EncoderInterface := #TempEncoderNotUsed,
+               DriveInterface_IN := "CA12ST019_IN",
+               DriveInterface_OUT := "CA12ST019_OUT",
+               "Ist-McpCreateChrMsg" := "Ist-McpCreateChrMsg",
+               "Ist-PcSocket" := "Ist-GtwManageSocket",
+               "Ist-McpChrMsgBuffer" := "Ist-GtwChrMsgBuffer",
+               "Ist-LogBuffer" := "Ist-LogBuffer",
+               "Ist-Logger" := "Ist-Logger");
+
+END_REGION
+
+REGION Call SIDE INPUT for CAROUSEL1 (CA12CA023)
+    // il side input si inserisce prima di un carosello , nel tronco precedente al carosello
+    "SIDE_INPUT_CAROUSEL1"(PREV := "UTENZA7".Conveyor.Data.OUT,
+                         NEXT := "CAROUSEL1".Carousel.Data.OUT,
+                         NextObjTransferIn := FALSE,
+                         NextObjTransferInAboutToStart := FALSE,
+                         PrevFullStatus := "UTENZA7".Conveyor.Data.SA.ST_FULL,
+                         Prev2FullStatus := "CAROUSEL1".Carousel.Data.SA.ST_FULL,
+                         TrunkPrevAutomaticStatus := "TRUNK3".Data.SA.ST_AUTOMATIC,
+                         Prev2BufferingActive := FALSE,
+                         Trk := "CAROUSEL1".Carousel.Trk,
+                         DB_OBJ_PREV := "DBsObject".DbObj[1],
+                         DB_OBJ_NEXT := "DBsObject".DbObj[1]);
+
+END_REGION

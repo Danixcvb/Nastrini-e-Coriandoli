@@ -1,0 +1,38 @@
+REGION Enabling debug
+    IF #EnableDebug THEN
+        // va inserito il phtTracking in base alla fotocellula attivata nella CONF
+        "UTENZA1".Conveyor.PhtTracking02.Debug.DebugEn := TRUE;
+        "UTENZA2".Conveyor.PhtTracking02.Debug.DebugEn := TRUE;
+        "UTENZA3".Conveyor.PhtTracking02.Debug.DebugEn := TRUE;
+
+    ELSE
+        "UTENZA1".Conveyor.PhtTracking02.Debug.DebugEn := FALSE;
+        "UTENZA2".Conveyor.PhtTracking02.Debug.DebugEn := FALSE;
+        "UTENZA3".Conveyor.PhtTracking02.Debug.DebugEn := FALSE;
+
+    END_IF;
+END_REGION
+
+REGION Enabling log
+    IF #EnableLog THEN
+        "UTENZA1".Conveyor.PhtTracking02.Data.CNF.HsitoryEventEn := TRUE;
+        "UTENZA1".Conveyor.PhtTracking02.Data.CNF.LogEventEn := TRUE;
+
+        "UTENZA2".Conveyor.PhtTracking02.Data.CNF.HsitoryEventEn := TRUE;
+        "UTENZA2".Conveyor.PhtTracking02.Data.CNF.LogEventEn := TRUE;
+
+        "UTENZA3".Conveyor.PhtTracking02.Data.CNF.HsitoryEventEn := TRUE;
+        "UTENZA3".Conveyor.PhtTracking02.Data.CNF.LogEventEn := TRUE;
+
+    ELSE
+        "UTENZA1".Conveyor.PhtTracking02.Data.CNF.HsitoryEventEn := FALSE;
+        "UTENZA1".Conveyor.PhtTracking02.Data.CNF.LogEventEn := FALSE;
+
+        "UTENZA2".Conveyor.PhtTracking02.Data.CNF.HsitoryEventEn := FALSE;
+        "UTENZA2".Conveyor.PhtTracking02.Data.CNF.LogEventEn := FALSE;
+
+        "UTENZA3".Conveyor.PhtTracking02.Data.CNF.HsitoryEventEn := FALSE;
+        "UTENZA3".Conveyor.PhtTracking02.Data.CNF.LogEventEn := FALSE;
+
+    END_IF;
+END_REGION

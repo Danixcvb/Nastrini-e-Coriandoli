@@ -9,11 +9,15 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QPalette, QColor
 import traceback
+import json
 
 # --- Constants ---
+UPSTREAM_CONSTANTS_FILENAME = 'UpstreamConstants.xlsx'
+UPSTREAM_CONSTANTS_SHEET_NAME = 'Constants'
+TAG_TABLE_PROPERTIES_SHEET_NAME = 'TagTable Properties'
+
 INPUT_FILE_SHEET_INDEX = 0
 OBJECT_TYPE_COL = 'Object Type'
-OFFSET_COL = 'Length (Byte) - SA'
 ADDRESS_COL = 'Address'
 ALARM_TEXT_COL_CANDIDATES = ['Alarm Text (EN)', 'Alarm Text']
 OUTPUT_FILENAME = 'HMIAlarms.xlsx'
@@ -51,6 +55,37 @@ class GeneratorThread(QThread):
         self.output_dir = output_dir
         self.instance_counts = instance_counts
         self._is_running = True
+
+    def _generate_upstream_constants_sheet(self, writer):
+        self.progress_signal.emit("Generating UpstreamConstants - Constants sheet...")
+        constants_data = []
+        for obj_type, count in self.instance_counts.items():
+            if count > 0: # Only include if the count is greater than zero
+                # Clean up object type name for constant name
+                clean_obj_type = obj_type.replace('SV_', '')
+                constant_name = f"Const{clean_obj_type.upper()}Number"
+                constants_data.append({
+                    'Name': constant_name,
+                    'Path': 'Costants\\UpstreamCostants',
+                    'Data Type': 'Int',
+                    'Value': count,
+                    'Comment': ''
+                })
+        
+        constants_df = pd.DataFrame(constants_data, columns=['Name', 'Path', 'Data Type', 'Value', 'Comment'])
+        constants_df.to_excel(writer, sheet_name=UPSTREAM_CONSTANTS_SHEET_NAME, index=False)
+        self.progress_signal.emit(f"'{UPSTREAM_CONSTANTS_SHEET_NAME}' sheet generated.")
+
+    def _generate_tag_table_properties_sheet(self, writer):
+        self.progress_signal.emit("Generating UpstreamConstants - TagTable Properties sheet...")
+        tag_table_data = {
+            'Path': ['Costants\\UpstreamCostants'],
+            'BelongsToUnit': [''],
+            'Accessibility': ['']
+        }
+        tag_table_df = pd.DataFrame(tag_table_data, columns=['Path', 'BelongsToUnit', 'Accessibility'])
+        tag_table_df.to_excel(writer, sheet_name=TAG_TABLE_PROPERTIES_SHEET_NAME, index=False)
+        self.progress_signal.emit(f"'{TAG_TABLE_PROPERTIES_SHEET_NAME}' sheet generated.")
 
     def _find_actual_column_name(self, candidates, column_list):
         """Restituisce il nome effettivo della colonna tra i candidati, ignorando maiuscole/minuscole."""
@@ -173,19 +208,6 @@ END_REGION ;\n\n"""
                         self.finished_signal.emit(False, f"Errore grave: {e}")
                         return # Termina l'esecuzione se non riesco a recuperare il word index
 
-                    if OFFSET_COL not in offset_row.columns:
-                         raise ValueError(f"Colonna '{OFFSET_COL}' non trovata nel foglio di riepilogo.")
-
-                    offset_series = offset_row[OFFSET_COL].dropna()
-                    if offset_series.empty:
-                         self.progress_signal.emit(f"WARN: Offset '{OFFSET_COL}' non trovato o vuoto per '{object_type}'. Skippato.")
-                         continue
-
-                    try:
-                        offset = int(offset_series.iloc[0])
-                    except (ValueError, TypeError):
-                         raise ValueError(f"Offset '{offset_series.iloc[0]}' per '{object_type}' non è un numero intero valido.")
-
                     # Check if sheet exists for the object type (case-insensitive check)
                     alarm_def_sheet_name = None
                     for name in xls.sheet_names:
@@ -230,7 +252,6 @@ END_REGION ;\n\n"""
                     bit_index = 0  # Reset per ogni tipo oggetto
                     almword_index = alm_word_index_value  # Parte dal Word Index del tipo
                     for i in range(1, count + 1):
-                        instance_offset_bytes = offset * (i - 1)
                         for _, row in alarm_def_df.iterrows():
                             alarm_text_en = row[alarm_text_col_en] if alarm_text_col_en in row else None
                             alarm_text_fr = row[alarm_text_col_fr] if alarm_text_col_fr and alarm_text_col_fr in row else None
@@ -247,7 +268,8 @@ END_REGION ;\n\n"""
                                 self.progress_signal.emit(f"WARN: Indirizzo '{address_str}' non valido (formato atteso: Byte.Bit) nel foglio '{alarm_def_sheet_name}', riga ignorata.")
                                 continue
 
-                            abs_byte = rel_byte + instance_offset_bytes
+                            # abs_byte now just rel_byte as instance_offset_bytes is removed
+                            abs_byte = rel_byte
                             trigger_tag = f'AlmWord[{almword_index}]'
                             # EN
                             alarm_row_en = {col: None for col in OUTPUT_COLUMNS}
@@ -311,8 +333,20 @@ END_REGION ;\n\n"""
                 os.makedirs(self.output_dir, exist_ok=True)
                 output_df_fr.to_excel(output_path_fr, index=False, sheet_name=OUTPUT_SHEET_NAME)
 
+            # Generate UpstreamConstants.xlsx
+            upstream_constants_path = os.path.join(self.output_dir, UPSTREAM_CONSTANTS_FILENAME)
+            try:
+                self.progress_signal.emit(f"Generating {UPSTREAM_CONSTANTS_FILENAME} at {upstream_constants_path}...")
+                with pd.ExcelWriter(upstream_constants_path) as writer:
+                    self._generate_upstream_constants_sheet(writer)
+                    self._generate_tag_table_properties_sheet(writer)
+                self.progress_signal.emit(f"{UPSTREAM_CONSTANTS_FILENAME} generated successfully.")
+            except Exception as e:
+                self.progress_signal.emit(f"Error generating {UPSTREAM_CONSTANTS_FILENAME}: {e}")
+                # Do not re-raise, allow other files to be generated if this one fails
+
             self.progress_signal.emit("Generazione completata con successo!")
-            success_message = f"File EN/FR generati con successo in:\n{self.output_dir}"
+            success_message = f"File EN/FR e Costanti generati con successo in:\n{self.output_dir}"
             self.finished_signal.emit(True, success_message)
 
         except FileNotFoundError:
@@ -337,8 +371,9 @@ class AlarmGeneratorApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.input_file_path = None
-        self.output_dir_path = os.getcwd() # Default to current dir
+        self.output_dir_path = os.path.join(os.getcwd(), "Output", "HMI_Alarms")
         self.object_types = {} # Dictionary to store {object_type: offset}
+        self.saved_instance_counts = {} # To store counts loaded from config
         self.generator_thread = None
 
         self.setWindowTitle("Generatore Allarmi TIA Portal")
@@ -402,43 +437,70 @@ class AlarmGeneratorApp(QMainWindow):
         self._load_last_input_file() # Try loading the last used file on startup
 
     def _save_last_input_file(self, file_path):
-        """Saves the given file path to the config file."""
+        """Saves the given file path and current instance counts to the config file."""
         try:
+            # Get current instance counts before saving
+            current_instance_counts = self.get_instance_counts()
+            config_data = {
+                'last_input_file': file_path,
+                'instance_counts': current_instance_counts
+            }
             with open(CONFIG_FILENAME, 'w') as f:
-                f.write(file_path)
-            self.log_message(f"Percorso file salvato: {file_path}")
+                json.dump(config_data, f, indent=4)
+            self.log_message(f"Percorso file e conteggi istanze salvati: {file_path}")
         except IOError as e:
             self.log_message(f"Errore durante il salvataggio del percorso file ({CONFIG_FILENAME}): {e}")
 
     def _load_last_input_file(self):
-        """Loads the last used input file path from the config file if it exists and is valid."""
-        if os.path.exists(CONFIG_FILENAME):
-            try:
+        """Loads the last used input file path and instance counts from the config file."""
+        try:
+            if os.path.exists(CONFIG_FILENAME):
                 with open(CONFIG_FILENAME, 'r') as f:
-                    last_file_path = f.read().strip()
+                    config_data = json.load(f)
+                    if 'last_input_file' in config_data:
+                        file_path = config_data['last_input_file']
+                        if os.path.exists(file_path):
+                            self.input_file_path = file_path
+                            self.input_file_label.setText(os.path.basename(file_path))
+                            self.log_message(f"Caricato l'ultimo file master: {os.path.basename(file_path)}")
+                            self.status_bar.showMessage(f"File selezionato: {os.path.basename(file_path)}")
+                            # Load object types and then apply saved instance counts
+                            self.load_object_types()
+                            
+                            if 'instance_counts' in config_data:
+                                self.saved_instance_counts = config_data['instance_counts']
+                                self.log_message("Caricati i conteggi delle istanze precedenti.")
+                                # Apply saved counts to table after object types are loaded
+                                self._apply_saved_instance_counts()
+                            else:
+                                self.saved_instance_counts = {}
 
-                if last_file_path and os.path.exists(last_file_path):
-                    self.log_message(f"Trovato ultimo file valido: {last_file_path}. Caricamento...")
-                    self.input_file_path = last_file_path
-                    self.input_file_label.setText(os.path.basename(last_file_path))
-                    self.load_object_types() # Load types if file is valid
-                    if self.object_table.rowCount() > 0:
-                        self.generate_button.setEnabled(True)
-                        self.status_bar.showMessage(f"Ultimo file caricato: {os.path.basename(last_file_path)}")
+                            if self.object_table.rowCount() > 0:
+                                self.generate_button.setEnabled(True)
+                            else:
+                                self.generate_button.setEnabled(False)
+                        else:
+                            self.log_message(f"File salvato in {CONFIG_FILENAME} non trovato: {file_path}. Rimuovo il riferimento.")
+                            os.remove(CONFIG_FILENAME) # Clean up invalid config
+                            self.input_file_path = None
+                            self.input_file_label.setText("Nessun file selezionato")
+                            self.generate_button.setEnabled(False)
                     else:
-                        # If loading types failed for the saved file, reset
-                        self.input_file_path = None
-                        self.input_file_label.setText("Nessun file selezionato")
-                        self.status_bar.showMessage("Ultimo file non valido o errore caricamento tipi.")
-                else:
-                    self.log_message("Percorso salvato non trovato o non valido.")
-                    self.status_bar.showMessage("Pronto. Seleziona il file master.")
-            except IOError as e:
-                self.log_message(f"Errore durante la lettura del percorso file ({CONFIG_FILENAME}): {e}")
-                self.status_bar.showMessage("Errore lettura configurazione.")
-        else:
-            self.log_message(f"File di configurazione ({CONFIG_FILENAME}) non trovato. Seleziona il file master.")
-            self.status_bar.showMessage("Pronto. Seleziona il file master.")
+                        self.log_message(f"Nessun percorso file trovato in {CONFIG_FILENAME}.")
+            else:
+                self.log_message(f"File di configurazione {CONFIG_FILENAME} non trovato.")
+        except json.JSONDecodeError as e:
+            self.log_message(f"Errore di lettura del file di configurazione {CONFIG_FILENAME}: {e}. Il file potrebbe essere corrotto. Lo elimino.")
+            if os.path.exists(CONFIG_FILENAME):
+                os.remove(CONFIG_FILENAME) # Corrupted file, delete it
+            self.input_file_path = None
+            self.input_file_label.setText("Nessun file selezionato")
+            self.generate_button.setEnabled(False)
+        except IOError as e:
+            self.log_message(f"Errore di I/O durante il caricamento del file di configurazione {CONFIG_FILENAME}: {e}")
+            self.input_file_path = None
+            self.input_file_label.setText("Nessun file selezionato")
+            self.generate_button.setEnabled(False)
 
     def select_input_file(self):
         # Suggest starting directory based on last used file or desktop
@@ -456,6 +518,10 @@ class AlarmGeneratorApp(QMainWindow):
             self.log_message(f"File selezionato: {file_path}")
             self.status_bar.showMessage(f"File selezionato: {os.path.basename(file_path)}")
             self.load_object_types()
+            # Apply saved instance counts if available
+            if self.saved_instance_counts:
+                self._apply_saved_instance_counts()
+            
             # Enable button only if types were loaded successfully
             if self.object_table.rowCount() > 0:
                  self.generate_button.setEnabled(True)
@@ -506,13 +572,10 @@ class AlarmGeneratorApp(QMainWindow):
 
             # Find actual column names, ignoring leading/trailing spaces
             actual_obj_type_col = self._find_actual_column_name(OBJECT_TYPE_COL, summary_df.columns)
-            actual_offset_col = self._find_actual_column_name(OFFSET_COL, summary_df.columns)
 
             # Check if columns were found
             if actual_obj_type_col is None:
                 raise ValueError(f"Colonna '{OBJECT_TYPE_COL}' (o variante con spazi) non trovata nel primo foglio. Colonne trovate: {summary_df.columns.tolist()}")
-            if actual_offset_col is None:
-                raise ValueError(f"Colonna '{OFFSET_COL}' (o variante con spazi) non trovata nel primo foglio. Colonne trovate: {summary_df.columns.tolist()}")
 
             # Clear previous data
             self.object_types.clear()
@@ -523,10 +586,9 @@ class AlarmGeneratorApp(QMainWindow):
             for index, row in summary_df.iterrows():
                 # Use actual column names found earlier
                 obj_type = row[actual_obj_type_col]
-                offset = row[actual_offset_col]
 
-                # Check if object type is valid (not NaN, not empty) and offset is valid
-                if pd.notna(obj_type) and str(obj_type).strip() and pd.notna(offset):
+                # Check if object type is valid (not NaN, not empty)
+                if pd.notna(obj_type) and str(obj_type).strip():
                      obj_type_str = str(obj_type).strip()
                      if obj_type_str in processed_types:
                          continue # Already processed this type
@@ -540,11 +602,11 @@ class AlarmGeneratorApp(QMainWindow):
                      if sheet_exists:
                         try:
                             # Store the object type and its offset
-                            self.object_types[obj_type_str] = int(offset)
+                            self.object_types[obj_type_str] = 0 # Assuming offset is 0 as per the new logic
                             self.add_object_type_to_table(obj_type_str)
                             processed_types.add(obj_type_str)
                         except ValueError:
-                             self.log_message(f"WARN: Offset '{offset}' per '{obj_type_str}' non è un numero intero valido, tipo ignorato.")
+                             self.log_message(f"WARN: Offset '{0}' per '{obj_type_str}' non è un numero intero valido, tipo ignorato.")
                      else:
                          self.log_message(f"INFO: Tipo oggetto '{obj_type_str}' trovato nel riepilogo, ma nessun foglio corrispondente trovato. Ignorato.")
 
@@ -586,9 +648,24 @@ class AlarmGeneratorApp(QMainWindow):
         spin_box = QSpinBox()
         spin_box.setMinimum(0)
         spin_box.setMaximum(999) # Set a reasonable maximum
-        spin_box.setValue(0) # Default to 0 instances
+        # Set default value from saved_instance_counts if available
+        if obj_type in self.saved_instance_counts:
+            spin_box.setValue(self.saved_instance_counts[obj_type])
+        else:
+            spin_box.setValue(0) # Default to 0 instances
         spin_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.object_table.setCellWidget(row_position, 1, spin_box)
+
+    def _apply_saved_instance_counts(self):
+        """Applies saved instance counts to the table widgets."""
+        for row in range(self.object_table.rowCount()):
+            type_item = self.object_table.item(row, 0)
+            spin_box = self.object_table.cellWidget(row, 1)
+            if type_item and spin_box:
+                obj_type = type_item.text()
+                if obj_type in self.saved_instance_counts:
+                    spin_box.setValue(self.saved_instance_counts[obj_type])
+                    self.log_message(f"Applied saved count for {obj_type}: {self.saved_instance_counts[obj_type]}")
 
     def get_instance_counts(self):
         counts = {}

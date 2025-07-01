@@ -1,0 +1,101 @@
+REGION Initializing Temp Section
+    #TempEncoderNotUsed.Count := 16#0;
+END_REGION
+
+REGION Gestione Richiesta Start Tronco
+    IF "UpstreamDB-Globale".Global_Data.Start_All OR "UpstreamDB-Globale".Global_Data.StartTronco4 OR "TRUNK4".StartReqAutoFp
+    THEN
+        #StartTronco := TRUE;
+    END_IF;
+END_REGION
+
+REGION Call CONVEYOR_SEW_MOVIGEAR (CA41ST015)
+
+    "UTENZA6"(
+               ID := 6,
+               PREV := "UTENZA5".Conveyor.Data.OUT,
+               NEXT := "UTENZA7".Conveyor.Data.OUT,
+               START := #StartTronco,
+               TimeData := "UpstreamDB-Globale".Global_Data.TimeData,
+               Constants := "DB_Constants".Constants,
+               InterfaceTrunkUse := "TRUNK4".ComTrunkUse,
+               PANYTOCNV_SA := "SV_DB_CONVEYOR_SA".CONVEYOR_6,
+               PANYTOCNV_CMD := "SV_DB_CONVEYOR_CMD".CONVEYOR_6,
+               DB_OBJ := "DBsObject".DbObj[1],
+               "Ist-VidGenerator" := "Ist_Sub-VidGenerator",
+               EncoderInterface := #TempEncoderNotUsed,
+               DriveInterface_IN := "CA41ST015_IN",
+               DriveInterface_OUT := "CA41ST015_OUT",
+               "Ist-McpCreateChrMsg" := "Ist-McpCreateChrMsg",
+               "Ist-PcSocket" := "Ist-GtwManageSocket",
+               "Ist-McpChrMsgBuffer" := "Ist-GtwChrMsgBuffer",
+               "Ist-LogBuffer" := "Ist-LogBuffer",
+               "Ist-Logger" := "Ist-Logger");
+
+END_REGION
+
+REGION Call Datalogic ATR 360 (CA41SC017)
+    
+    "DATALOGIC_CA41SC017"(
+                          TimeData := "UpstreamDB-Globale".Global_Data.TimeData,
+                          Trk := "UTENZA6".Conveyor.Trk,
+                          PANYTO_SA := "SV_DB_DATALOGIC_SA".DATALOGIC_1,
+                          PANYTO_CMD := "SV_DB_DATALOGIC_CMD".DATALOGIC_1,
+                          DB_OBJ := "DBsObject".DbObj[1],
+                          "Ist-McpChmMsgBuffer" := "Ist-GtwChmMsgBuffer",
+                          "Ist-PcSocket" := "Ist-GtwManageSocket",
+                          "Ist-LogBuffer" := "Ist-LogBuffer",
+                          "Ist-Logger" := "Ist-Logger",
+                          "Ist-VidGenerator" := "Ist_Sub-VidGenerator");
+    
+END_REGION
+
+REGION Call CONVEYOR_SEW_MOVIGEAR (CA41ST019)
+
+    "UTENZA7"(
+               ID := 7,
+               PREV := "UTENZA6".Conveyor.Data.OUT,
+               NEXT := "UTENZA8".Conveyor.Data.OUT,
+               START := #StartTronco,
+               TimeData := "UpstreamDB-Globale".Global_Data.TimeData,
+               Constants := "DB_Constants".Constants,
+               InterfaceTrunkUse := "TRUNK4".ComTrunkUse,
+               PANYTOCNV_SA := "SV_DB_CONVEYOR_SA".CONVEYOR_7,
+               PANYTOCNV_CMD := "SV_DB_CONVEYOR_CMD".CONVEYOR_7,
+               DB_OBJ := "DBsObject".DbObj[1],
+               "Ist-VidGenerator" := "Ist_Sub-VidGenerator",
+               EncoderInterface := #TempEncoderNotUsed,
+               DriveInterface_IN := "CA41ST019_IN",
+               DriveInterface_OUT := "CA41ST019_OUT",
+               "Ist-McpCreateChrMsg" := "Ist-McpCreateChrMsg",
+               "Ist-PcSocket" := "Ist-GtwManageSocket",
+               "Ist-McpChrMsgBuffer" := "Ist-GtwChrMsgBuffer",
+               "Ist-LogBuffer" := "Ist-LogBuffer",
+               "Ist-Logger" := "Ist-Logger");
+
+END_REGION
+
+REGION Call CONVEYOR_SEW_MOVIGEAR (CA41ST021)
+
+    "UTENZA8"(
+               ID := 8,
+               PREV := "UTENZA7".Conveyor.Data.OUT,
+               NEXT := "UTENZA9".Conveyor.Data.OUT,
+               START := #StartTronco,
+               TimeData := "UpstreamDB-Globale".Global_Data.TimeData,
+               Constants := "DB_Constants".Constants,
+               InterfaceTrunkUse := "TRUNK4".ComTrunkUse,
+               PANYTOCNV_SA := "SV_DB_CONVEYOR_SA".CONVEYOR_8,
+               PANYTOCNV_CMD := "SV_DB_CONVEYOR_CMD".CONVEYOR_8,
+               DB_OBJ := "DBsObject".DbObj[1],
+               "Ist-VidGenerator" := "Ist_Sub-VidGenerator",
+               EncoderInterface := #TempEncoderNotUsed,
+               DriveInterface_IN := "CA41ST021_IN",
+               DriveInterface_OUT := "CA41ST021_OUT",
+               "Ist-McpCreateChrMsg" := "Ist-McpCreateChrMsg",
+               "Ist-PcSocket" := "Ist-GtwManageSocket",
+               "Ist-McpChrMsgBuffer" := "Ist-GtwChrMsgBuffer",
+               "Ist-LogBuffer" := "Ist-LogBuffer",
+               "Ist-Logger" := "Ist-Logger");
+
+END_REGION

@@ -7,6 +7,7 @@ import sys
 import os
 import pandas as pd
 import traceback
+import json
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QLineEdit, QFileDialog, QMessageBox, QTableWidget, QTableWidgetItem,
@@ -18,7 +19,6 @@ from PyQt6.QtGui import QPalette, QColor, QFont
 # --- Constants (Copied from original script) ---
 INPUT_FILE_SHEET_INDEX = 0
 OBJECT_TYPE_COL = 'Object Type'
-OFFSET_COL = 'Length (Byte) - SA'
 ADDRESS_COL = 'Address'
 ALARM_TEXT_COL_CANDIDATES = ['Alarm Text (EN)', 'Alarm Text']
 CONFIG_FILENAME = 'last_file.cfg' # File to store the last used input path
@@ -182,16 +182,6 @@ class GeneratorThread(QThread):
                         self.progress_signal.emit(f"ERRORE: Impossibile recuperare il 'word index' per '{object_type_full}' dal foglio di riepilogo: {e}. Assicurati che la quarta colonna (word index) esista e contenga un numero intero valido.")
                         self.finished_signal.emit(False, f"Errore grave: {e}")
                         return
-                    if OFFSET_COL not in offset_row.columns:
-                         raise ValueError(f"Colonna '{OFFSET_COL}' non trovata nel foglio di riepilogo.")
-                    offset_series = offset_row[OFFSET_COL].dropna()
-                    if offset_series.empty:
-                         self.progress_signal.emit(f"WARN: Offset '{OFFSET_COL}' non trovato o vuoto per '{object_type_full}'. Skippato.")
-                         continue
-                    try:
-                        offset = int(offset_series.iloc[0])
-                    except (ValueError, TypeError):
-                         raise ValueError(f"Offset '{offset_series.iloc[0]}' per '{object_type_full}' non è un numero intero valido.")
                     # Check if sheet exists for the object type (case-insensitive check)
                     alarm_def_sheet_name = None
                     for name in xls.sheet_names:
@@ -230,6 +220,7 @@ class GeneratorThread(QThread):
                             alm_word_index_value # Passa il word index
                         )
                         all_scl_regions.append(scl_region)
+
             if all_scl_regions:
                 scl_content = ''.join(all_scl_regions)
                 self.generate_scl_file(scl_content, self.output_dir)
@@ -278,6 +269,8 @@ class AlarmGeneratorWidget(QWidget):
         # Or use current working directory as fallback
         self.output_dir_path = os.path.join(os.getcwd(), "Output", "HMI_Alarms")
         self.object_types = {} # Dictionary to store {object_type: offset}
+        self.saved_instance_counts = {} # To store counts loaded from config
+        self.generator_thread = None
         self._init_ui()
         self._load_last_input_file()
 
@@ -344,53 +337,98 @@ class AlarmGeneratorWidget(QWidget):
         return os.path.join(script_dir, CONFIG_FILENAME)
 
     def _save_last_input_file(self, file_path):
-        """Saves the last used input file path to the config file."""
+        """Saves the given file path and current instance counts to the config file."""
         try:
-            config_path = self._get_config_path()
-            with open(config_path, 'w') as f:
-                f.write(file_path)
-        except Exception as e:
-            self.log_message(f"Errore nel salvataggio del percorso file: {e}")
+            # Get current instance counts before saving
+            current_instance_counts = self.get_instance_counts()
+            config_data = {
+                'last_input_file': file_path,
+                'instance_counts': current_instance_counts
+            }
+            with open(CONFIG_FILENAME, 'w') as f:
+                json.dump(config_data, f, indent=4)
+            self.log_message(f"Percorso file e conteggi istanze salvati: {file_path}")
+        except IOError as e:
+            self.log_message(f"Errore durante il salvataggio del percorso file ({CONFIG_FILENAME}): {e}")
 
     def _load_last_input_file(self):
-        """Loads the last used input file path from the config file."""
-        config_path = self._get_config_path()
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, 'r') as f:
-                    last_file = f.read().strip()
-                    if os.path.exists(last_file):
-                        self.input_file_path = last_file
-                        self.input_file_label.setText(os.path.basename(last_file))
-                        self.input_file_label.setToolTip(last_file)
-                        self.load_object_types() # Load types if file is valid
-                        self.log_message(f"Caricato ultimo file: {os.path.basename(last_file)}")
+        """Loads the last used input file path and instance counts from the config file."""
+        try:
+            if os.path.exists(CONFIG_FILENAME):
+                with open(CONFIG_FILENAME, 'r') as f:
+                    config_data = json.load(f)
+                    if 'last_input_file' in config_data:
+                        file_path = config_data['last_input_file']
+                        if os.path.exists(file_path):
+                            self.input_file_path = file_path
+                            self.input_file_label.setText(os.path.basename(file_path))
+                            self.log_message(f"Caricato l'ultimo file master: {os.path.basename(file_path)}")
+                            # Load object types and then apply saved instance counts
+                            self.load_object_types()
+                            
+                            if 'instance_counts' in config_data:
+                                self.saved_instance_counts = config_data['instance_counts']
+                                self.log_message("Caricati i conteggi delle istanze precedenti.")
+                                # Apply saved counts to table after object types are loaded
+                                self._apply_saved_instance_counts()
+                            else:
+                                self.saved_instance_counts = {}
+
+                            if self.object_table.rowCount() > 0:
+                                self.generate_button.setEnabled(True)
+                            else:
+                                self.generate_button.setEnabled(False)
+                        else:
+                            self.log_message(f"File salvato in {CONFIG_FILENAME} non trovato: {file_path}. Rimuovo il riferimento.")
+                            os.remove(CONFIG_FILENAME) # Clean up invalid config
+                            self.input_file_path = None
+                            self.input_file_label.setText("Nessun file selezionato")
+                            self.generate_button.setEnabled(False)
                     else:
-                        self.log_message(f"Ultimo file ({os.path.basename(last_file)}) non trovato. Selezionane uno nuovo.")
-            except Exception as e:
-                self.log_message(f"Errore nel caricamento del percorso file: {e}")
-        else:
-             self.log_message(f"File di configurazione ({CONFIG_FILENAME}) non trovato. Seleziona il file master.")
+                        self.log_message(f"Nessun percorso file trovato in {CONFIG_FILENAME}.")
+            else:
+                self.log_message(f"File di configurazione {CONFIG_FILENAME} non trovato.")
+        except json.JSONDecodeError as e:
+            self.log_message(f"Errore di lettura del file di configurazione {CONFIG_FILENAME}: {e}. Il file potrebbe essere corrotto. Lo elimino.")
+            if os.path.exists(CONFIG_FILENAME):
+                os.remove(CONFIG_FILENAME) # Corrupted file, delete it
+            self.input_file_path = None
+            self.input_file_label.setText("Nessun file selezionato")
+            self.generate_button.setEnabled(False)
+        except IOError as e:
+            self.log_message(f"Errore di I/O durante il caricamento del file di configurazione {CONFIG_FILENAME}: {e}")
+            self.input_file_path = None
+            self.input_file_label.setText("Nessun file selezionato")
+            self.generate_button.setEnabled(False)
 
     def select_input_file(self):
-        """Opens a dialog to select the input Excel file."""
-        start_dir = os.path.dirname(self.input_file_path) if self.input_file_path else os.path.expanduser("~")
+        # Suggest starting directory based on last used file or desktop
+        start_dir = os.path.dirname(self.input_file_path) if self.input_file_path else os.path.join(os.path.expanduser("~"), "Desktop")
+
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Seleziona File Input Master (.xlsx)",
-            start_dir,
-            "Excel Files (*.xlsx);;All Files (*.*)"
+            "Seleziona File Master HMI Structures",
+            start_dir, # Start from last directory or desktop
+            "Excel Files (*.xlsx)"
         )
         if file_path:
             self.input_file_path = file_path
             self.input_file_label.setText(os.path.basename(file_path))
-            self.input_file_label.setToolTip(file_path)
-            self.log_message(f"File master selezionato: {os.path.basename(file_path)}")
+            self.log_message(f"File selezionato: {file_path}")
             self.load_object_types()
-            self._save_last_input_file(file_path)
+            # Apply saved instance counts if available
+            if self.saved_instance_counts:
+                self._apply_saved_instance_counts()
+            
+            # Enable button only if types were loaded successfully
+            if self.object_table.rowCount() > 0:
+                 self.generate_button.setEnabled(True)
+            else:
+                 self.generate_button.setEnabled(False)
+        else:
+            self.log_message("Selezione file annullata.")
 
     def select_output_dir(self):
-        """Opens a dialog to select the output directory."""
         dir_path = QFileDialog.getExistingDirectory(
             self,
             "Seleziona Cartella Output",
@@ -400,6 +438,8 @@ class AlarmGeneratorWidget(QWidget):
             self.output_dir_path = dir_path
             self.output_dir_label.setText(dir_path)
             self.log_message(f"Cartella output selezionata: {dir_path}")
+        else:
+             self.log_message("Selezione cartella output annullata.")
 
     def log_message(self, message):
         """Appends a message to the log area."""
@@ -429,47 +469,46 @@ class AlarmGeneratorWidget(QWidget):
                  # Read the first sheet directly
                 if not xls.sheet_names:
                     raise ValueError("Il file Excel non contiene fogli.")
-                summary_sheet_name = xls.sheet_names[INPUT_FILE_SHEET_INDEX] # Assume INPUT_FILE_SHEET_INDEX is 0 or defined elsewhere
-                 # Find the correct summary sheet index (case-insensitive check)
-                # summary_sheet_name = None
-                # for i, name in enumerate(xls.sheet_names):
-                    # Assume summary is the first sheet if name doesn't match common pattern
-                    # or use a more specific check if needed
-                #    if name.lower() == "summary" or i == INPUT_FILE_SHEET_INDEX:
-                #        summary_sheet_name = name
-                #        summary_sheet_index = i
-                #        break
-                # if summary_sheet_name is None:
-                #     raise ValueError("Foglio di riepilogo non trovato (cercato 'Summary' o primo foglio).")
+                summary_sheet_name = xls.sheet_names[INPUT_FILE_SHEET_INDEX]
 
                 df = xls.parse(sheet_name=summary_sheet_name)
-                # Find actual column names (case-insensitive)
-                actual_object_col = self._find_actual_column_name(OBJECT_TYPE_COL, df.columns)
-                actual_offset_col = self._find_actual_column_name(OFFSET_COL, df.columns)
+                # Find actual column names, ignoring leading/trailing spaces
+                actual_obj_type_col = self._find_actual_column_name(OBJECT_TYPE_COL, df.columns)
 
-                if not actual_object_col:
-                     raise ValueError(f"Colonna '{OBJECT_TYPE_COL}' non trovata nel foglio di riepilogo.")
-                # Offset column is not strictly needed here, just for info
-                if not actual_offset_col:
-                     self.log_message(f"Nota: Colonna '{OFFSET_COL}' non trovata, non mostrata in tabella.")
+                # Check if columns were found
+                if actual_obj_type_col is None:
+                    raise ValueError(f"Colonna '{OBJECT_TYPE_COL}' (o variante con spazi) non trovata nel primo foglio. Colonne trovate: {df.columns.tolist()}")
 
-                # Populate table
+                # Clear previous data
+                self.object_types.clear()
+                self.object_table.setRowCount(0)
+
+                # Use the actual column names found
+                processed_types = set()
                 for index, row in df.iterrows():
-                    obj_type = row[actual_object_col]
-                    if pd.notna(obj_type) and obj_type.strip(): # Check for valid object type
-                        obj_type = obj_type.strip()
-                        # Check if corresponding sheet exists (case-insensitive)
-                        sheet_exists = any(sheet.lower() == obj_type.lower() for sheet in xls.sheet_names)
-                        if sheet_exists:
-                            self.add_object_type_to_table(obj_type)
-                            # Store offset if found
-                            if actual_offset_col and pd.notna(row[actual_offset_col]):
-                                try:
-                                     self.object_types[obj_type] = int(row[actual_offset_col])
-                                except ValueError:
-                                     self.log_message(f"WARN: Offset non valido per {obj_type}, sarà ignorato.")
-                        else:
-                             self.log_message(f"WARN: Foglio per '{obj_type}' non trovato, tipo oggetto ignorato.")
+                    # Use actual column names found earlier
+                    obj_type = row[actual_obj_type_col]
+
+                    # Check if object type is valid (not NaN, not empty)
+                    if pd.notna(obj_type) and str(obj_type).strip():
+                         obj_type_str = str(obj_type).strip()
+                         if obj_type_str in processed_types:
+                             continue # Already processed this type
+
+                         # Check if a sheet with this name exists
+                         with pd.ExcelFile(self.input_file_path) as xls_check:
+                             sheet_exists = obj_type_str in xls_check.sheet_names
+
+                         if sheet_exists:
+                            try:
+                                # Store the object type
+                                self.object_types[obj_type_str] = 0 # No offset needed here
+                                self.add_object_type_to_table(obj_type_str)
+                                processed_types.add(obj_type_str)
+                            except ValueError:
+                                 self.log_message(f"WARN: Errore durante l'elaborazione del tipo oggetto '{obj_type_str}', tipo ignorato.")
+                         else:
+                             self.log_message(f"INFO: Tipo oggetto '{obj_type_str}' trovato nel riepilogo, ma nessun foglio corrispondente trovato. Ignorato.")
 
                 self.log_message(f"Trovati {self.object_table.rowCount()} tipi oggetto validi con foglio corrispondente.")
                 self.generate_button.setEnabled(self.object_table.rowCount() > 0)
@@ -535,6 +574,9 @@ class AlarmGeneratorWidget(QWidget):
         self.generate_button.setEnabled(False)
         self.log_message("Richiesta generazione inviata...")
 
+        # Save the current input file path and instance counts before generating
+        self._save_last_input_file(self.input_file_path)
+
         # Emit the signal with necessary data
         self.generation_requested.emit(
             self.input_file_path,
@@ -546,6 +588,17 @@ class AlarmGeneratorWidget(QWidget):
     def enable_generate_button(self, enabled=True):
         """Slot to enable/disable the generate button from outside."""
         self.generate_button.setEnabled(enabled)
+
+    def _apply_saved_instance_counts(self):
+        """Applies saved instance counts to the table widgets."""
+        for row in range(self.object_table.rowCount()):
+            type_item = self.object_table.item(row, 0)
+            spin_box = self.object_table.cellWidget(row, 1)
+            if type_item and spin_box:
+                obj_type = type_item.text()
+                if obj_type in self.saved_instance_counts:
+                    spin_box.setValue(self.saved_instance_counts[obj_type])
+                    self.log_message(f"Applied saved count for {obj_type}: {self.saved_instance_counts[obj_type]}")
 
 # Example of how to use the widget standalone (for testing)
 if __name__ == '__main__':

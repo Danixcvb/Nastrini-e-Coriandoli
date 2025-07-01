@@ -1,0 +1,129 @@
+FUNCTION "CONF" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_TEMP
+      RetVal : Int;
+      ZeroWord : Word;
+   END_VAR
+
+BEGIN
+    REGION Initialization
+        #ZeroWord := W#16#0;
+    END_REGION
+
+    REGION General Configuration
+        "UpstreamDB-Globale".Global_Data.MachineId := 101;
+    END_REGION
+
+    REGION Config PANEL1 ()
+        
+        "PANEL1".Data.CNF.TIME_SIL := L#20000;    // L#20000;
+        
+        //Posso lasciare tutto a false, al limite custom per SCADA da vedere a posteriori
+        "PANEL1".Data.CNF.BLOCK_ALL1  := TRUE;       //  -> Sono a gruppi di 20 allarmi da Signal1 a Signal20
+        "PANEL1".Data.CNF.BLOCK_ALL2  := FALSE;      // FALSE;
+        "PANEL1".Data.CNF.BLOCK_ALL3  := FALSE;      // FALSE;
+        "PANEL1".Data.CNF.BLOCK_ALL4  := FALSE;      // FALSE;
+        "PANEL1".Data.CNF.BLOCK_ALL5  := FALSE;      // FALSE;
+        "PANEL1".Data.CNF.BLOCK_ALL6  := FALSE;      // FALSE;
+        "PANEL1".Data.CNF.BLOCK_ALL7  := FALSE;      // FALSE;
+        "PANEL1".Data.CNF.BLOCK_ALL8  := FALSE;      // FALSE;
+        "PANEL1".Data.CNF.BLOCK_ALL9  := FALSE;      // FALSE;
+        "PANEL1".Data.CNF.BLOCK_ALL10 := FALSE;      // FALSE;
+        
+        //Profinet alarms CNF
+        //Essendo che gli allarmi sono a gruppi di 20, devono essere valorizzati tutti e 20, per questo si mette lo stesso nodo del controller per evitare indice 0
+        
+        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[1]  := ###; 
+        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[2]  := ###; 
+        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[3]  := ###; 
+        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[4]  := ###; 
+        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[5]  := ###; 
+        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[6]  := ###; 
+        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[7]  := ###; 
+        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[8]  := ###; 
+        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[9]  := ###; 
+        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[10] := ###; 
+        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[11] := ###; 
+        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[12] := ###; 
+        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[13] := ###; 
+        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[14] := ###; 
+        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[15] := ###; 
+        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[16] := ###;
+        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[17] := ###;
+        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[18] := ###;
+        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[19] := ###;
+        "PANEL1".Data.CNF.PROFINET_NODE_BY_SIGNALS[20] := ###;
+        
+    END_REGION
+
+    REGION Conf Line 1
+        "LINEA1".Data.CNF.T_PRESTART_RES := L#5000;
+        "LINEA1".Data.CNF.T_SRNAVR := L#3000;
+    END_REGION
+
+    REGION Conf Trunk 1 Line 1
+        "TRUNK1".Data.CNF.PRESTART_TIMER := T#10S;     // Prestart Time [ms]
+        "TRUNK1".Data.CNF.ENGSAV_TIMER := T#5S;        // Disable trunk time [ms]
+        "TRUNK1".Data.CNF.SEGN_RESTART_PCT := TRUE;    // TRUE=Signal Restart after reset from PCT
+        "TRUNK1".Data.CNF.SEGN_RESTART := TRUE;        // TRUE=Signal Restart
+        "TRUNK1".Data.CNF.SEGN_REMG := TRUE;           // TRUE=reset emergency also the warning
+        "TRUNK1".Data.CNF.TOT_CONVEYORS := 2;         // Total number of conveyors in trunk
+        "TRUNK1".Data.CNF.EN_FULL_ALLCONV := FALSE;    // TRUE=all conveyors of trunk are full then trunk is full, FALSE = atleast one conveyor of trunk is full then trunk is full
+    END_REGION
+
+    REGION Conf Trunk 2 Line 1
+        "TRUNK2".Data.CNF.PRESTART_TIMER := T#10S;     // Prestart Time [ms]
+        "TRUNK2".Data.CNF.ENGSAV_TIMER := T#5S;        // Disable trunk time [ms]
+        "TRUNK2".Data.CNF.SEGN_RESTART_PCT := TRUE;    // TRUE=Signal Restart after reset from PCT
+        "TRUNK2".Data.CNF.SEGN_RESTART := TRUE;        // TRUE=Signal Restart
+        "TRUNK2".Data.CNF.SEGN_REMG := TRUE;           // TRUE=reset emergency also the warning
+        "TRUNK2".Data.CNF.TOT_CONVEYORS := 2;         // Total number of conveyors in trunk
+        "TRUNK2".Data.CNF.EN_FULL_ALLCONV := FALSE;    // TRUE=all conveyors of trunk are full then trunk is full, FALSE = atleast one conveyor of trunk is full then trunk is full
+    END_REGION
+
+    REGION Conf Trunk 3 Line 1
+        "TRUNK3".Data.CNF.PRESTART_TIMER := T#10S;     // Prestart Time [ms]
+        "TRUNK3".Data.CNF.ENGSAV_TIMER := T#5S;        // Disable trunk time [ms]
+        "TRUNK3".Data.CNF.SEGN_RESTART_PCT := TRUE;    // TRUE=Signal Restart after reset from PCT
+        "TRUNK3".Data.CNF.SEGN_RESTART := TRUE;        // TRUE=Signal Restart
+        "TRUNK3".Data.CNF.SEGN_REMG := TRUE;           // TRUE=reset emergency also the warning
+        "TRUNK3".Data.CNF.TOT_CONVEYORS := 3;         // Total number of conveyors in trunk
+        "TRUNK3".Data.CNF.EN_FULL_ALLCONV := FALSE;    // TRUE=all conveyors of trunk are full then trunk is full, FALSE = atleast one conveyor of trunk is full then trunk is full
+    END_REGION
+
+    REGION Conf Trunk 4 Line 1
+        "TRUNK4".Data.CNF.PRESTART_TIMER := T#10S;     // Prestart Time [ms]
+        "TRUNK4".Data.CNF.ENGSAV_TIMER := T#5S;        // Disable trunk time [ms]
+        "TRUNK4".Data.CNF.SEGN_RESTART_PCT := TRUE;    // TRUE=Signal Restart after reset from PCT
+        "TRUNK4".Data.CNF.SEGN_RESTART := TRUE;        // TRUE=Signal Restart
+        "TRUNK4".Data.CNF.SEGN_REMG := TRUE;           // TRUE=reset emergency also the warning
+        "TRUNK4".Data.CNF.TOT_CONVEYORS := 0;         // Total number of conveyors in trunk
+        "TRUNK4".Data.CNF.EN_FULL_ALLCONV := FALSE;    // TRUE=all conveyors of trunk are full then trunk is full, FALSE = atleast one conveyor of trunk is full then trunk is full
+    END_REGION
+
+    REGION Conf Device Line 1
+        
+        "CONF_T1"();
+        "CONF_T2"();
+        "CONF_T3"();
+        "CONF_T4"();
+        
+    END_REGION
+    
+    
+    REGION Conf Sac communication
+        
+        "GtwConfiguration"();
+        
+    END_REGION
+    
+    
+    REGION Enable log
+        
+        "LOG_ENABLE"(EnableLog := "Ist-Logger".LogSocket.ConnStConnected,
+                     EnableDebug:=TRUE);
+        
+    END_REGION
+    
+END_FUNCTION
