@@ -173,8 +173,8 @@ BEGIN
 			#AuxArray.Alm0 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ST_ALL_DISABLE; //ALARMS DISABLED BY OP
 			#AuxArray.Alm1 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ST_DP_COM; //COMMUNICATION FAULT
 			#AuxArray.Alm2 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ST_NOPOWER; //POWER FAULT
-			#AuxArray.Alm3 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_SAF_BR; //SAFETY SWITCH OPEN FAULT
-			#AuxArray.Alm4 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_INT_AUT; //SAFETY BREAKER OPEN FAULT
+			#AuxArray.Alm3 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_SAF_BR; //SAFETY BREAKER OPEN FAULT
+			#AuxArray.Alm4 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_INT_AUT; //SAFETY SWITCH OPEN FAULT
 			#AuxArray.Alm5 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_INV; //INVERTER FAULT
 			#AuxArray.Alm6 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_ISC; //COMMAND NOT ACTUATED FAULT
 			#AuxArray.Alm7 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_ENCODER; //ENCODER FAULT
@@ -199,7 +199,7 @@ BEGIN
 			#AuxArray.Alm4 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_CONFIGURATION; //
 			#AuxArray.Alm5 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].WARNING_ROLLING_BAG; //
 			#AuxArray.Alm6 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_AVR_ROLLING_BAG; //
-			#AuxArray.Alm7 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm7 := "SV_DB_CONVEYOR_SA".CONVEYOR[#i].ALL_LOCAL_SELECTOR; //CONVEYOR LOCAL SELECTOR ON
 			#AuxArray.Alm8 := "UpstreamDB-Globale".Global_Data.AlwFalse;
 			#AuxArray.Alm9 := "UpstreamDB-Globale".Global_Data.AlwFalse;
 			#AuxArray.Alm10 := "UpstreamDB-Globale".Global_Data.AlwFalse;
@@ -210,7 +210,7 @@ BEGIN
 			#AuxArray.Alm15 := "UpstreamDB-Globale".Global_Data.AlwFalse;
 			//Compact Alarms in common DB
 			"LIB_Alarms_Compact"(Alarms := #AuxArray,
-			                     UsedAlarms := 7,
+			                     UsedAlarms := 8,
 			                     LastBitUsed := #AlmBit,
 			                     LastWordIndex := #AlmWord,
 			                     DBAlm := "DB_HMI_Alm".AlmWord);
@@ -285,10 +285,10 @@ BEGIN
 
 		FOR #i := 1 TO "ConstCAROUSELNumber" DO
 			//Initialize auxiliaries array for alarms
-			#AuxArray.Alm0 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_SAF_BR_1; //SAFETY BREAKER OPEN FAULT
-			#AuxArray.Alm1 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_SAF_BR_2; //SAFETY BREAKER OPEN FAULT
-			#AuxArray.Alm2 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_INV_1; //INVERTER FAULT
-			#AuxArray.Alm3 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_INV_2; //INVERTER FAULT
+			#AuxArray.Alm0 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_SAF_BR; //SAFETY BREAKER OPEN FAULT
+			#AuxArray.Alm1 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_INV_1; //INVERTER FAULT
+			#AuxArray.Alm2 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_INV_2; //INVERTER FAULT
+			#AuxArray.Alm3 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_INV_3; //INVERTER FAULT
 			#AuxArray.Alm4 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_ISC; //COMMAND NOT ACTUATED FAULT
 			#AuxArray.Alm5 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_ENCODER; //ENCODER FAULT
 			#AuxArray.Alm6 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_EXT; //EXTERNAL FAULT
@@ -299,11 +299,33 @@ BEGIN
 			#AuxArray.Alm11 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_AVR_FT1; //PHOTOCELL 1 FAILURE
 			#AuxArray.Alm12 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_AVR_FT2; //PHOTOCELL 2 FAILURE
 			#AuxArray.Alm13 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_AVR_FT3; //PHOTOCELL 3 FAILURE
-			#AuxArray.Alm14 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_COMPLETELY_FULL; //
+			#AuxArray.Alm14 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_EOK_3; //AUTOMATIC TERMIC 3 FAULT
+			#AuxArray.Alm15 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_COMPLETELY_FULL; //CAROUSEL COMPLETELY FULL
+			//Compact Alarms in common DB
+			"LIB_Alarms_Compact"(Alarms := #AuxArray,
+			                     UsedAlarms := 16,
+			                     LastBitUsed := #AlmBit,
+			                     LastWordIndex := #AlmWord,
+			                     DBAlm := "DB_HMI_Alm".AlmWord);
+			#AuxArray.Alm0 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_LOCAL_SELECTOR_M1; //MOTOR 1: LOCAL SELECTOR  KEY ON
+			#AuxArray.Alm1 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_LOCAL_SELECTOR_M2; //MOTOR 2: LOCAL SELECTOR  KEY ON
+			#AuxArray.Alm2 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_LOCAL_SELECTOR_M3; //MOTOR 3: LOCAL SELECTOR  KEY ON
+			#AuxArray.Alm3 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_INT_AUT_1; //SAFETY SWITCH OPEN FAULT
+			#AuxArray.Alm4 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_INT_AUT_2; //SAFETY SWITCH OPEN FAULT
+			#AuxArray.Alm5 := "SV_DB_CAROUSEL_SA".CAROUSEL[#i].ALL_INT_AUT_3; //SAFETY SWITCH OPEN FAULT
+			#AuxArray.Alm6 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm7 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm8 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm9 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm10 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm11 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm12 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm13 := "UpstreamDB-Globale".Global_Data.AlwFalse;
+			#AuxArray.Alm14 := "UpstreamDB-Globale".Global_Data.AlwFalse;
 			#AuxArray.Alm15 := "UpstreamDB-Globale".Global_Data.AlwFalse;
 			//Compact Alarms in common DB
 			"LIB_Alarms_Compact"(Alarms := #AuxArray,
-			                     UsedAlarms := 15,
+			                     UsedAlarms := 6,
 			                     LastBitUsed := #AlmBit,
 			                     LastWordIndex := #AlmWord,
 			                     DBAlm := "DB_HMI_Alm".AlmWord);
