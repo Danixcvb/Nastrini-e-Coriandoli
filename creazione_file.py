@@ -186,6 +186,30 @@ def create_data_block_file(item_id_custom, component_type, output_folder):
     if component_type == "Carousel":
         block_name = "CAROUSEL_SEW_MOVIGEAR"
         print(f"DEBUG - Usando nome blocco CAROUSEL: {block_name}")
+        # --- LOGICA CENTRALIZZATA: crea anche un nuovo file LINE_# nella cartella _DB Line ---
+        output_folder_norm = os.path.normpath(output_folder)
+        parts = output_folder_norm.split(os.sep)
+        if parts[-1] == "_DB User":
+            parts[-1] = "_DB Line"
+            db_line_folder = os.sep.join(parts)
+            if not os.path.exists(db_line_folder):
+                os.makedirs(db_line_folder)
+            next_line_number = get_next_line_number(db_line_folder)
+            line_filename = f"LINE_{next_line_number}.scl"
+            line_file_path = os.path.join(db_line_folder, line_filename)
+            with open(line_file_path, 'w') as line_file:
+                line_file.write(f'''DATA_BLOCK "LINE_{next_line_number}"
+{{ S7_Optimized_Access := 'TRUE' }}
+AUTHOR : RP
+VERSION : 0.1
+NON_RETAIN
+"LINE"
+
+BEGIN
+
+END_DATA_BLOCK
+''')
+            print(f"DEBUG - File LINE creato: {line_file_path}")
     else:
         block_name = f"{component_type.upper()}_SEW_MOVIGEAR"
         print(f"DEBUG - Usando nome blocco standard: {block_name}")
@@ -255,21 +279,54 @@ def create_linea_files(df, selected_cab_plc):
     # Estrai i prefissi unici da ITEM_ID_CUSTOM
     unique_prefixes = sorted(set(item[:4].lower() for item in df['ITEM_ID_CUSTOM']))
     
-    # Crea un file LINEA per ogni prefisso
-    for index, prefix in enumerate(unique_prefixes):
-        filename = f"LINE_{index + 1}.scl"
+    # Trova i numeri già usati per i file LINE_#.scl
+    existing_line_files = [f for f in os.listdir(linee_folder) if f.startswith("LINE_") and f.endswith(".scl")]
+    used_numbers = set()
+    for f in existing_line_files:
+        try:
+            n = int(f.replace("LINE_", "").replace(".scl", ""))
+            used_numbers.add(n)
+        except Exception:
+            continue
+    
+    # Crea un file LINEA per ogni prefisso, usando il primo numero libero
+    next_number = 1
+    for prefix in unique_prefixes:
+        # Trova il primo numero libero
+        while next_number in used_numbers:
+            next_number += 1
+        filename = f"LINE_{next_number}.scl"
         with open(os.path.join(linee_folder, filename), 'w') as f:
-            f.write(f"""DATA_BLOCK "LINE_{index + 1}"
+            f.write(f"""DATA_BLOCK \"LINE_{next_number}\"
 {{ S7_Optimized_Access := 'TRUE' }}
 AUTHOR : RP
 VERSION : 0.1
 NON_RETAIN
-"LINE"
+\"LINE\"
 
 BEGIN
 
 END_DATA_BLOCK
 """)
+        used_numbers.add(next_number)
+        next_number += 1
+
+def get_next_line_number(linee_folder):
+    """
+    Restituisce il primo numero libero per un nuovo file LINE_# nella cartella specificata.
+    """
+    existing_line_files = [f for f in os.listdir(linee_folder) if f.startswith("LINE_") and f.endswith(".scl")]
+    used_numbers = set()
+    for f in existing_line_files:
+        try:
+            n = int(f.replace("LINE_", "").replace(".scl", ""))
+            used_numbers.add(n)
+        except Exception:
+            continue
+    next_number = 1
+    while next_number in used_numbers:
+        next_number += 1
+    return next_number
 
 def _get_item_details(item_data, index_fallback):
     """Helper function to get formatted name and integer number for an item."""

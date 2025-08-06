@@ -246,6 +246,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                 header = f"""FUNCTION "CONF_T{global_trunk_counter}" : Void
  {{ S7_Optimized_Access := 'TRUE' }}
  VERSION : 0.1
+ 
  BEGIN
  """
                 configurations_by_trunk[global_trunk_counter].append(header)
@@ -391,7 +392,8 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                             item_l_float = default_item_l / 1000.0
                             
                         if "ST" in item_id_custom.upper() or count_ca_occurrences(comment_name) == 2 or "CN" in item_id_custom.upper():
-                            configuration += f"""    REGION {component_type}.Data.CNF
+                            configuration += f"""    REGION Config CONVEYOR_SEW_MOVIGEAR ({comment_name})
+                            REGION {component_type}.Data.CNF
 
         "{item_id_custom_new}".{component_type}.Data.CNF.Pht01En := FALSE;
         "{item_id_custom_new}".{component_type}.Data.CNF.Pht02En := TRUE;
@@ -406,13 +408,14 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         "{item_id_custom_new}".{component_type}.Data.CNF.DbObjectsNumber := 2011;
         "{item_id_custom_new}".{component_type}.Data.CNF.DecisionPointId := 0;
         "{item_id_custom_new}".{component_type}.Data.CNF.UseTrunkNumber := {progressive_number};
-        "{item_id_custom_new}".{component_type}.Data.CNF.TimeEnergySaving := T#30S;
+        "{item_id_custom_new}".{component_type}.Data.CNFLapForEnergySaving := 1.5; // [default=1.5] Custom for Nizza
+        "{item_id_custom_new}".{component_type}.Data.CNF.TimeEnergySaving := "NCE_Temporary".DelayEngSavingDeposit_ms;  // [default=T#1s] (s) -> Nizza timing removed when badge stop is set
         "{item_id_custom_new}".{component_type}.Data.CNF.TimeAccelerationHighSpeed := T#0S;
-        "{item_id_custom_new}".{component_type}.Data.CNF.Speed1 := {item_speed_transport};
+        "{item_id_custom_new}".{component_type}.Data.CNF.Speed1 :=  "DB_TEST_HMI".BONUS_SPEED +{item_speed_transport};
         "{item_id_custom_new}".{component_type}.Data.CNF.Speed2 := {item_speed_launch};
         "{item_id_custom_new}".{component_type}.Data.CNF.SpeedLow := 0.0;
         "{item_id_custom_new}".{component_type}.Data.CNF.SpeedHigh := 0.0;
-        "{item_id_custom_new}".{component_type}.Data.CNF.DriveMaxSpeed := {item_speed_max};
+        "{item_id_custom_new}".{component_type}.Data.CNF.DriveMaxSpeed := "{item_id_custom_new}".DriveInterface.Par.MaxSpeed;        // [default=2.0] da machine table = {item_speed_max}
         "{item_id_custom_new}".{component_type}.Data.CNF.Acceleration := {item_acceleration};
         "{item_id_custom_new}".{component_type}.Data.CNF.Length := {item_l_float};
         "{item_id_custom_new}".{component_type}.Data.CNF.Gap := 0.4;
@@ -458,7 +461,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.MachineId := "UpstreamDB-Globale".Global_Data.MachineId;
             "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.DecisionPointId := 0;
             "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.MaxLostPiecesForJam := 3;
-            "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.Position := 7.05;
+            "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.Position := "{item_id_custom_new}".Conveyor.Data.CNF.Length - 0.3;       // [default=1200]
             "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.TrkCtrlTollerance := 0.35;
             "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.ObjLengthTollerance := 0;
             "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.TrackingPointID := dint#99999; //To be defined
@@ -473,7 +476,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             "{item_id_custom_new}".DriveInterface.Par.Direction := FALSE;
             "{item_id_custom_new}".DriveInterface.Par.UseDriveSpeedYs := TRUE;
             "{item_id_custom_new}".DriveInterface.Par.HwAddr := 0;
-            "{item_id_custom_new}".DriveInterface.Par.MaxSpeed := 2.0;
+            "{item_id_custom_new}".DriveInterface.Par.MaxSpeed := 0.91;
             "{item_id_custom_new}".DriveInterface.Par.FeedbackTime := T#500MS;
         END_REGION
         
@@ -632,7 +635,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         print(f"process_excel: {completion_message}")
 
         # Crea il file LOG_ENABLE[FC10].scl
-        log_enable_path = os.path.join('Configurazioni', selected_cab_plc, 'LOG_ENABLE[FC10].scl')
+        log_enable_path = os.path.join('Configurazioni', selected_cab_plc, 'LOGGER','LOG_ENABLE[FC10].scl')
         os.makedirs(os.path.dirname(log_enable_path), exist_ok=True)
         
         # Estrai i nomi effettivi delle utenze e caroselli dal DataFrame
@@ -784,11 +787,13 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             f.write("END_REGION")
         
         return True, completion_message
+
         
     except Exception as e:
         messagebox.showerror("Errore", f"Errore nell'elaborazione del file Excel: {e}")
         status_var.set("Errore nell'elaborazione")
         return False
+
 
 if __name__ == "__main__":
     try:
