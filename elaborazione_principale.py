@@ -12,7 +12,8 @@ from funzioni_elaborazione import (
     get_last_three_digits,
     count_ca_occurrences,
     get_value_or_default,
-    extract_numeric_part
+    extract_numeric_part,
+    _get_item_details
 )
 from creazione_file import (
     create_txt_files,
@@ -23,7 +24,8 @@ from creazione_file import (
     create_trunk_file,
     create_main_structure_file,
     create_conf_file,
-    _is_valid_component_for_chain
+    _is_valid_component_for_chain,
+    generate_gen_line_file
 )
 import random
 import math
@@ -46,6 +48,11 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         # Import show_completion_message here to avoid circular import
         # from interfaccia_grafica import show_completion_message
         
+        # Inizializza il dizionario per mappare il tipo di linea (normale o carousel)
+        line_type_mapping = {}
+        # Inizializza il dizionario per mappare i trunk alle linee
+        trunk_to_line_mapping = {}
+
         # status_var.set("Elaborazione in corso...")
         print("process_excel: Elaborazione in corso...")
         
@@ -498,7 +505,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                             configurations_by_trunk[global_trunk_counter].append(configuration)
                         else:
                             output_folder = f'Configurazioni/{selected_cab_plc}/_DB User'
-                            create_data_block_file(item_id_custom_new, component_type, output_folder)
+                            create_data_block_file(item_id_custom_new, component_type, output_folder, line_type_mapping)
                             configurations_by_trunk[global_trunk_counter].append(configuration)
                         
                         # Incrementa il numero progressivo all'interno del gruppo
@@ -549,7 +556,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                 continue
         
         # Crea i file LINEA
-        create_linea_files(df, selected_cab_plc)
+        create_linea_files(df, selected_cab_plc, line_type_mapping)
         
         # Gestione dei file MAIN
         main_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'MAIN')
@@ -628,6 +635,20 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         print(f"DEBUG - Prefissi ordinati: {ordered_prefixes}")
 
         create_main_structure_file(main_output_folder, num_lines, selected_cab_plc, trunks_per_line, ordered_prefixes)
+
+        # Popola trunk_to_line_mapping in base alla nuova logica di creazione delle linee
+        # Itera su tutti gli elementi del cab_plc_data per associare i trunk alle linee (1 o 2)
+        for _, row in cab_plc_data.iterrows():
+            trunk_id = row['ITEM_TRUNK']
+            item_id_custom = str(row['ITEM_ID_CUSTOM'])
+            
+            if count_ca_occurrences(item_id_custom) == 2: # Se è un Carousel, associamo a LINEA2
+                trunk_to_line_mapping[trunk_id] = 2
+            elif trunk_id not in trunk_to_line_mapping: # Se non è un carousel e non è già stato mappato, associamo a LINEA1
+                trunk_to_line_mapping[trunk_id] = 1
+
+        # Genera il file GEN_LINE.scl dopo che tutte le linee e i trunk sono stati processati
+        generate_gen_line_file(df, selected_cab_plc, line_type_mapping, ordered_prefixes, trunk_to_line_mapping)
 
         # Aggiorna lo stato
         # status_var.set(f"Completato! {len(files_created)} file CONF_T e {len(main_data_by_trunk)} file MAIN salvati.")
@@ -793,8 +814,9 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
 
         
     except Exception as e:
-        messagebox.showerror("Errore", f"Errore nell'elaborazione del file Excel: {e}")
-        status_var.set("Errore nell'elaborazione")
+        # messagebox.showerror("Errore", f"Errore nell'elaborazione del file Excel: {e}")
+        print(f"Errore nell'elaborazione del file Excel: {e}")
+        # status_var.set("Errore nell'elaborazione")
         return False
 
 

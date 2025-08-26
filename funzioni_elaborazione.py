@@ -70,3 +70,42 @@ def extract_numeric_part(s):
     if numbers:
         return int(''.join(numbers))
     return 0 
+
+def _get_item_details(item_data, index_fallback):
+    """Helper function to get formatted name and integer number for an item."""
+    if not item_data:
+        return "NULL", None # Handle case where item_data is None (e.g., no prev/next)
+
+    item_id = item_data.get('ITEM_ID_CUSTOM', f'MISSING_ID_{index_fallback}')
+    formatted_name = item_id # Default a ID originale
+    number_int = None
+
+    if "ST" in item_id.upper() or "CN" in item_id.upper():
+        raw_num = item_data.get('GlobalUtenzaNumber')
+        if raw_num is not None:
+            try:
+                number_int = int(raw_num)
+                formatted_name = f"UTENZA{number_int}"
+            except (ValueError, TypeError):
+                print(f"Attenzione (_get_item_details): Impossibile convertire utenza_number '{raw_num}' in int per {item_id}. Uso fallback nome.")
+                formatted_name = f"UTENZA_ERR_{index_fallback}"
+                number_int = None # Reset number if conversion failed
+        else:
+            # Fallback se GlobalUtenzaNumber non trovato
+            number_int = index_fallback 
+            formatted_name = f"UTENZA{number_int}"
+    elif count_ca_occurrences(item_id) == 2:
+        raw_num = item_data.get('GlobalCarouselNumber')
+        if raw_num is not None:
+            try:
+                number_int = int(raw_num)
+                formatted_name = f"CAROUSEL{number_int}"
+            except (ValueError, TypeError):
+                print(f"Attenzione (_get_item_details): Impossibile convertire carousel_number '{raw_num}' in int per {item_id}. Uso fallback nome.")
+                formatted_name = f"CAROUSEL_ERR_{index_fallback}"
+                number_int = None
+        else:
+            number_int = index_fallback
+            formatted_name = f"CAROUSEL{number_int}"
+
+    return formatted_name, number_int 
