@@ -210,6 +210,26 @@ BEGIN
 END_DATA_BLOCK
 ''')
             print(f"DEBUG - File LINE creato: {line_file_path}")
+
+            # Logica per creare CAROUSELX_FULL_TIMEOUT.db
+            carousel_number = item_id_custom.replace("CAROUSEL", "") # Estrae il numero da "CAROUSELX"
+            if carousel_number.isdigit():
+                full_timeout_filename = f"CAROUSEL{carousel_number}_FULL_TIMEOUT.db"
+                full_timeout_file_path = os.path.join(output_folder, full_timeout_filename)
+                full_timeout_content = f"""DATA_BLOCK "CAROUSEL{carousel_number}_FULL_TIMEOUT"
+{{ S7_Optimized_Access := 'TRUE' }}
+VERSION : 0.1
+NON_RETAIN
+"CAROUSEL_FULL_TIMEOUT"
+
+BEGIN
+
+END_DATA_BLOCK
+"""
+                with open(full_timeout_file_path, 'w') as ft_file:
+                    ft_file.write(full_timeout_content)
+                print(f"DEBUG - File CAROUSEL_FULL_TIMEOUT creato: {full_timeout_file_path}")
+
     else:
         block_name = f"{component_type.upper()}_SEW_MOVIGEAR"
         print(f"DEBUG - Usando nome blocco standard: {block_name}")
