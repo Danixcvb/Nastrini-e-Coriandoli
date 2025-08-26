@@ -64,7 +64,7 @@ BEGIN
 END_DATA_BLOCK
 """
     
-    data_block_filename = f"SAFETYSHUTTER{shutter_number}.scl"
+    data_block_filename = f"SAFETYSHUTTER{shutter_number}.db"
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
         
@@ -94,7 +94,7 @@ BEGIN
 END_DATA_BLOCK
 """
     
-    data_block_filename = f"FIRESHUTTER{shutter_number}.scl"
+    data_block_filename = f"FIRESHUTTER{shutter_number}.db"
     if not os.path.exists(output_folder):
         print(f"DEBUG - Creazione cartella: {output_folder}")
         os.makedirs(output_folder)
@@ -129,7 +129,7 @@ BEGIN
 END_DATA_BLOCK
 """
     
-    data_block_filename = f"SIDE_INPUT_CAROUSEL{carousel_number}.scl"
+    data_block_filename = f"SIDE_INPUT_CAROUSEL{carousel_number}.db"
     if not os.path.exists(output_folder):
         print(f"DEBUG - Creazione cartella: {output_folder}")
         os.makedirs(output_folder)
@@ -226,7 +226,7 @@ BEGIN
 END_DATA_BLOCK
 """
     
-    data_block_filename = f"{item_id_custom}.scl"
+    data_block_filename = f"{item_id_custom}.db"
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
         
@@ -256,7 +256,7 @@ BEGIN
 END_DATA_BLOCK
 """
     
-    data_block_filename = f"DATALOGIC_{item_id_custom}.scl"
+    data_block_filename = f"DATALOGIC_{item_id_custom}.db"
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
         
