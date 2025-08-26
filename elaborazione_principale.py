@@ -637,6 +637,9 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         # Crea il file LOG_ENABLE[FC10].scl
         log_enable_path = os.path.join('Configurazioni', selected_cab_plc, 'LOGGER','LOG_ENABLE[FC10].scl')
         os.makedirs(os.path.dirname(log_enable_path), exist_ok=True)
+
+        logger_config_path = os.path.join(os.path.dirname(log_enable_path), 'LoggerConfiguration.scl')
+        create_logger_configuration_file(logger_config_path)
         
         # Estrai i nomi effettivi delle utenze e caroselli dal DataFrame
         print(f"\nDEBUG - Analisi per CAB_PLC {selected_cab_plc}:")
@@ -793,6 +796,67 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         messagebox.showerror("Errore", f"Errore nell'elaborazione del file Excel: {e}")
         status_var.set("Errore nell'elaborazione")
         return False
+
+
+def create_logger_configuration_file(file_path):
+    """Genera il file 'LoggerConfiguration.scl' con il contenuto SCL predefinito.
+    
+    Viene richiamato automaticamente ogni volta che viene generato il file LOG_ENABLE[FC10].scl.
+    """
+    logger_configuration_content = """FUNCTION "LoggerConfiguration" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      JumpStaticLogActivation : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      ConnectionLog {InstructionName := 'TCON_IP_v4'; LibVersion := '1.0'} : TCON_IP_v4;   //   Configurazione del canale di comunicazione
+      "Ist-LogBuffer" : "Gst-LogBuffer";
+      EnabledMessages : Array[0..32767] of Bool;   //   Array di configurazione messaggi abilitati
+   END_VAR
+
+
+BEGIN
+	REGION NETWORK 1 - Logger channel configuration
+	    
+	    // Log connection
+	    #ConnectionLog.InterfaceId := "Local~PROFINET_interface_1";//"Local~PROFINET_interface_GBIT_3";
+	    #ConnectionLog.ID := 8;
+	    #ConnectionLog.ActiveEstablished := TRUE;
+	    #ConnectionLog.ConnectionType := 16#0B;
+	    #ConnectionLog.RemoteAddress.ADDR[1] := 10;//172;
+	    #ConnectionLog.RemoteAddress.ADDR[2] :=0;// 20;
+	    #ConnectionLog.RemoteAddress.ADDR[3] := 8;// 198;
+	    #ConnectionLog.RemoteAddress.ADDR[4] := 133;//28;
+	    #ConnectionLog.RemotePort := 7000;
+	    #ConnectionLog.LocalPort := 0;
+	    
+	    // LogBuffer configuration
+	    #"Ist-LogBuffer".Cfg.BufferClosingTime := T#500ms;
+	    #"Ist-LogBuffer".Cfg.LifeMsgTime := T#5s;
+	    #"Ist-LogBuffer".Cfg.SourceNode := 8;
+	    
+	END_REGION
+	
+	REGION Enable log messages
+	    
+	    IF NOT #JumpStaticLogActivation THEN
+	        // Always active logs
+	        // #EnabledMessages["IDLOG_GTW_CHRTX_SORT_RESULT"] := TRUE;
+	        // #EnabledMessages["IDLOG_GTW_CHMTX_SORT_REQUEST"] := TRUE;
+	        // #EnabledMessages["IDLOG_GTW_CHMTX_SUBSYSTEM_STS"] := TRUE;
+	        // #EnabledMessages["IDLOG_TRK_LogBrokenObject"] := TRUE; //102
+	        #EnabledMessages["IDLOG_TRK_LogPhotocellTrk"] := TRUE;//101
+	        // #EnabledMessages["IDLOG_TRK_LogMsgGapMonitor"] := TRUE;//104
+	    END_IF;
+	    
+	END_REGION
+END_FUNCTION"""
+    
+    with open(file_path, "w") as f:
+        f.write(logger_configuration_content)
+    print(f"File {file_path} generato con successo.")
 
 
 if __name__ == "__main__":
