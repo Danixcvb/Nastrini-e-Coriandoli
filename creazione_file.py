@@ -140,13 +140,41 @@ END_DATA_BLOCK
         db_file.write(data_block_content)
     print(f"DEBUG - File SIDE_INPUT creato con successo: {output_path}")
 
+def create_oversize_file(oversize_number, output_folder):
+    """
+    Crea un file DATA_BLOCK per un componente OVERSIZE.
+    
+    Args:
+        oversize_number (int): Numero progressivo dell'oversize
+        output_folder (str): Cartella di destinazione
+    """
+    data_block_content = f"""DATA_BLOCK "OVERSIZE{oversize_number}"
+{{ S7_Optimized_Access := 'TRUE' }}
+AUTHOR : ENG
+VERSION : 0.2
+NON_RETAIN
+"OVERSIZE"
+
+BEGIN
+
+END_DATA_BLOCK
+"""
+    
+    data_block_filename = f"OVERSIZE{oversize_number}.db"
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+        
+    with open(os.path.join(output_folder, data_block_filename), 'w') as db_file:
+        db_file.write(data_block_content)
+    print(f"DEBUG - File OVERSIZE creato con successo: {os.path.join(output_folder, data_block_filename)}")
+
 def create_data_block_file(item_id_custom, component_type, output_folder, line_type_mapping):
     """
     Crea un file DATA_BLOCK per un componente specifico.
     
     Args:
         item_id_custom (str): ID del componente
-        component_type (str): Tipo di componente (Carousel/Conveyor/FIRESHUTTER/SHUTTER)
+        component_type (str): Tipo di componente (Carousel/Conveyor/FIRESHUTTER/SHUTTER/OVERSIZE)
         output_folder (str): Cartella di destinazione
         line_type_mapping (dict): Dizionario per mappare i numeri di linea ai loro tipi (es. 'Carousel').
     """
@@ -155,8 +183,20 @@ def create_data_block_file(item_id_custom, component_type, output_folder, line_t
     print(f"DEBUG - component_type: {component_type}")
     print(f"DEBUG - output_folder: {output_folder}")
 
+    # Se è un OVERSIZE, crea un file DATA_BLOCK OVERSIZE
+    if component_type == "OVERSIZE":
+        print(f"DEBUG - Creazione file OVERSIZE per {item_id_custom}")
+        oversize_number = 1
+        existing_files = [f for f in os.listdir(output_folder) if f.startswith("OVERSIZE") and f.endswith(".db")]
+        if existing_files:
+            numbers = [int(f.replace("OVERSIZE", "").replace(".db", "")) for f in existing_files]
+            oversize_number = max(numbers) + 1 if numbers else 1
+        print(f"DEBUG - Numero OVERSIZE assegnato: {oversize_number}")
+        create_oversize_file(oversize_number, output_folder)
+        return
+
     # Se l'item contiene "SD", crea un file SAFETYSHUTTER
-    if component_type == "SHUTTER":
+    if component_type == "SAFETYSHUTTER":
         print(f"DEBUG - Creazione file SAFETYSHUTTER per {item_id_custom}")
         # Estrai il numero progressivo dal nome del file esistente o usa 1 come default
         shutter_number = 1
@@ -430,6 +470,7 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
     content.append('')
     content.append('')
     content.append('BEGIN')
+    content.append('')
     
     # Aggiungi la sezione di inizializzazione
     content.append('	REGION Initializing Temp Section')
@@ -443,9 +484,11 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
     fd_counter = 1
     sd_counter = 1
     datalogic_counter = 1
+    oversize_counter = 1
 
     # Aggiungi la sezione di gestione richiesta start tronco
     content.append('	REGION Gestione Richiesta Start Tronco')
+    content.append('')
     # Assicurati che trunk_number sia intero qui
     try:
         safe_trunk_number = int(trunk_number)
@@ -483,6 +526,8 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
             component_type = "Carousel"
         elif "ST" in item_id_upper or "CN" in item_id_upper:
             component_type = "Conveyor"
+        elif "OG" in item_id_upper:
+            component_type = "OVERSIZE"
         
         # Se non è un componente valido per la catena, salta
         if component_type is None:
@@ -585,6 +630,19 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
             fd_counter += 1  # Incrementa il contatore solo per elementi FD
             continue  # Salta la generazione delle altre regioni per questo elemento
             
+        # Se contiene OG, gestisci come OVERSIZE
+        if component_type == "OVERSIZE":
+            content.append(f"	REGION Call OVERSIZE ({item_id_original})")
+            content.append(f'	    "OVERSIZE{oversize_counter}"(ID:=0,')
+            content.append(f'	                InterfaceTrunkUse := "TRUNK{safe_trunk_number}".ComTrunkUse,')
+            content.append(f'	                PANYTO_SA := "SV_DB_OVERSIZE_SA".OVERSIZE[{oversize_counter}],')
+            content.append(f'	                PANYTO_CMD := "SV_DB_OVERSIZE_CMD".OVERSIZE[{oversize_counter}]);')
+            content.append('	    ')
+            content.append("	END_REGION")
+            content.append('	')
+            oversize_counter += 1 # Incrementa il contatore solo per elementi OVERSIZE
+            continue # Salta la generazione delle altre regioni per questo elemento
+
         # Per gli altri elementi (Carousel/Conveyor)
         if component_type == "Carousel":
             # --- Generazione Chiamata CAROUSEL ---
@@ -1049,8 +1107,8 @@ def create_conf_file(selected_cab_plc, df, output_folder, order):
         print(f"\nDEBUG - Elaborazione Linea {line_idx} con prefisso {line_prefix}")
         # Regione di configurazione della linea
         content.append(f'    REGION Conf Line {line_idx}')
-        content.append(f'        "LINEA{line_idx}".Data.CNF.T_PRESTART_RES := L#5000;')
-        content.append(f'        "LINEA{line_idx}".Data.CNF.T_SRNAVR := L#3000;')
+        content.append(f'        "LINE_{line_idx}".Data.CNF.T_PRESTART_RES := L#5000;')
+        content.append(f'        "LINE_{line_idx}".Data.CNF.T_SRNAVR := L#3000;')
         content.append('    END_REGION')
         content.append('')
         

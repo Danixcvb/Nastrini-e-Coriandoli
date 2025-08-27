@@ -98,8 +98,8 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                  QMessageBox.critical(None, "Errore Colonne", "Alcune colonne richieste sono mancanti nel file Excel.")
             return False, "Colonne mancanti nel file Excel"
         
-        # Filtra le righe escludendo ITEM_ID_CUSTOM contenenti "OG", "RS", "CX", "CH", "XR", "SO", "LC", "IN",
-        df = df[~df['ITEM_ID_CUSTOM'].str.contains('OG|RS|CX|CH|XR|SO|LC|IN', case=False, na=False)]
+        # Filtra le righe escludendo ITEM_ID_CUSTOM contenenti "RS", "CX", "CH", "XR", "SO", "LC", "IN",
+        df = df[~df['ITEM_ID_CUSTOM'].str.contains('RS|CX|CH|XR|SO|LC|IN', case=False, na=False)]
 
         # Valori predefiniti per celle vuote
         default_speed_transport = 1.5
@@ -334,11 +334,17 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                             component_type = "FIRESHUTTER"
                         elif "SD" in original_comment_name:
                             print(f"DEBUG - Trovato elemento SD: {item_id_custom}")
-                            component_type = "SHUTTER"
+                            component_type = "SAFETYSHUTTER"
                         elif count_ca_occurrences(original_comment_name) == 2:
                             print(f"DEBUG - Trovato elemento CAROUSEL: {item_id_custom}")
                             print(f"DEBUG - Forzando tipo componente a Carousel")
                             component_type = "Carousel"
+                        elif "OG" in original_comment_name:
+                            print(f"DEBUG - Trovato elemento OVERSIZE: {item_id_custom}")
+                            component_type = "OVERSIZE"
+                        elif "SC" in original_comment_name:
+                            print(f"DEBUG - Trovato elemento Datalogic: {item_id_custom}")
+                            component_type = "Datalogic"
                         else:
                             print(f"DEBUG - Elemento non riconosciuto come speciale, impostato come Conveyor")
                             component_type = "Conveyor"
@@ -346,40 +352,37 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                         
 
                         # Costruisci la stringa di configurazione
-                        configuration = f"""   REGION {comment_name}
-
-"""
+                        configuration = ""
                         
-
-                        if "SC" in item_id_custom:
-                            configuration += f"""    REGION Config ATR CAMERA 360 ({item_id_custom})
+                        if component_type == "Datalogic":
+                            configuration = f"""    REGION Config ATR CAMERA 360 ({item_id_custom})
 
         REGION General data configuration
-            "Datalogic_{item_id_custom}".Data.CNF.Position := 0.5;
-            "Datalogic_{item_id_custom}".Data.CNF.MachineId := 21;
-            "Datalogic_{item_id_custom}".Data.CNF.SeqScanner := 7160;
-            "Datalogic_{item_id_custom}".Data.CNF.DbObjNum := 2011;
+            "DATALOGIC_{item_id_custom}".Data.CNF.Position := 0.5;
+            "DATALOGIC_{item_id_custom}".Data.CNF.MachineId := 21;
+            "DATALOGIC_{item_id_custom}".Data.CNF.SeqScanner := 7160;
+            "DATALOGIC_{item_id_custom}".Data.CNF.DbObjNum := 2011;
             
             REGION PROFINET interface connection
                 
                 REGION Address Configuration
-                    "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.InputHwId := "{item_id_custom}_CD014~IM_128ByteIn_1";
-                    "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.OutputHwId := "{item_id_custom}_CD014~OM_32ByteOut_1";
+                    "DATALOGIC_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.InputHwId := "{item_id_custom}_CD014~IM_128ByteIn_1";
+                    "DATALOGIC_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.OutputHwId := "{item_id_custom}_CD014~OM_32ByteOut_1";
                     
                 END_REGION
 
                 REGION Driver Configuration
-                    "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.DadDriver := TRUE;
-                    "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.DpdDriver := FALSE;
-                    "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.DataConsistency := TRUE;
-                    "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.EnableIO := FALSE;
+                    "DATALOGIC_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.DadDriver := TRUE;
+                    "DATALOGIC_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.DpdDriver := FALSE;
+                    "DATALOGIC_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.DataConsistency := TRUE;
+                    "DATALOGIC_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.EnableIO := FALSE;
                     
                 END_REGION
                 
                 REGION Parameters Configuration
-                    "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.TimeoutKeepAliveRecv := T#20S;
-                    "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.TimeoutKeepAliveSend := T#10S;
-                    "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.MsgSendDelay := T#100MS;
+                    "DATALOGIC_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.TimeoutKeepAliveRecv := T#20S;
+                    "DATALOGIC_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.TimeoutKeepAliveSend := T#10S;
+                    "DATALOGIC_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.MsgSendDelay := T#100MS;
                     
                 END_REGION
                 
@@ -387,19 +390,25 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             
         END_REGION
     
-    END_REGION
 
    END_REGION
 
 """
-                        try:
-                            item_l_float = float(item_l) / 1000.0
-                        except (ValueError, TypeError):
-                            print(f"Attenzione: Impossibile convertire ITEM_L '{item_l}' in float per ITEM_ID_CUSTOM '{item_id_custom}'. Uso il valore di default {default_item_l/1000.0}.")
-                            item_l_float = default_item_l / 1000.0
-                            
-                        if "ST" in item_id_custom.upper() or count_ca_occurrences(comment_name) == 2 or "CN" in item_id_custom.upper():
-                            configuration += f"""    REGION Config CONVEYOR_SEW_MOVIGEAR ({comment_name})
+                        elif component_type == "FIRESHUTTER":
+                            configuration = f"""    REGION Config FIRE SHUTTER  ({item_id_custom})
+        //Managed directly in the MAINx
+    END_REGION
+
+"""
+                        
+                        elif component_type in ["Carousel", "Conveyor"]:
+                            try:
+                                item_l_float = float(item_l) / 1000.0
+                            except (ValueError, TypeError):
+                                print(f"Attenzione: Impossibile convertire ITEM_L '{item_l}' in float per ITEM_ID_CUSTOM '{item_id_custom}'. Uso il valore di default {default_item_l/1000.0}.")
+                                item_l_float = default_item_l / 1000.0
+                                
+                            configuration = f"""    REGION Config CONVEYOR_SEW_MOVIGEAR ({comment_name})
                             REGION {component_type}.Data.CNF
 
         "{item_id_custom_new}".{component_type}.Data.CNF.Pht01En := FALSE;
@@ -480,7 +489,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         END_REGION
         
         REGION DriveInterface.Par
-            "{item_id_custom_new}".DriveInterface.Par.Direction := FALSE;
+            "{item_id_custom_new}".DriveInterface.Par.Direction := TRUE;
             "{item_id_custom_new}".DriveInterface.Par.UseDriveSpeedYs := TRUE;
             "{item_id_custom_new}".DriveInterface.Par.HwAddr := 0;
             "{item_id_custom_new}".DriveInterface.Par.MaxSpeed := 0.91;
@@ -497,16 +506,24 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         END_REGION
    END_REGION
  """
+                        
                         # Aggiungi la configurazione e crea i file necessari
-                        if "SC" in item_id_custom:
+                        if component_type == "Datalogic":
                             output_folder = f'Configurazioni/{selected_cab_plc}/_DB User'
                             print(f"DEBUG: Creazione file datalogic per {item_id_custom} in {output_folder}")
                             create_datalogic_file(item_id_custom, output_folder)
-                            configurations_by_trunk[global_trunk_counter].append(configuration)
-                        else:
+                            if configuration:
+                                configurations_by_trunk[global_trunk_counter].append(configuration)
+                        elif component_type in ["Carousel", "Conveyor"]:
                             output_folder = f'Configurazioni/{selected_cab_plc}/_DB User'
                             create_data_block_file(item_id_custom_new, component_type, output_folder, line_type_mapping)
-                            configurations_by_trunk[global_trunk_counter].append(configuration)
+                            if configuration:
+                                configurations_by_trunk[global_trunk_counter].append(configuration)
+                        elif component_type in ["SAFETYSHUTTER", "FIRESHUTTER", "OVERSIZE"]:
+                            output_folder = f'Configurazioni/{selected_cab_plc}/_DB User'
+                            create_data_block_file(item_id_custom_new, component_type, output_folder, line_type_mapping)
+                            # Non aggiungiamo la 'configuration' qui, poiché la loro regione CONF_Tx è gestita separatamente
+                            # configurations_by_trunk[global_trunk_counter].append(configuration)
                         
                         # Incrementa il numero progressivo all'interno del gruppo
                         progressive_number += 1
@@ -522,13 +539,43 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                 condition_sc = trunk_group['ITEM_ID_CUSTOM'].str.contains('SC', case=False, na=False)
                 condition_fd = trunk_group['ITEM_ID_CUSTOM'].str.contains('FD', case=False, na=False)
                 condition_sd = trunk_group['ITEM_ID_CUSTOM'].str.contains('SD', case=False, na=False)
+                condition_og = trunk_group['ITEM_ID_CUSTOM'].str.contains('OG', case=False, na=False)
 
                 # Includi anche i Datalogic (SC), FIRESHUTTER (FD) e SHUTTER (SD) nella lista degli elementi validi
-                valid_items_for_main = trunk_group[condition_st | condition_cn | condition_ca2 | condition_sc | condition_fd | condition_sd]
+                valid_items_for_main = trunk_group[condition_st | condition_cn | condition_ca2 | condition_sc | condition_fd | condition_sd | condition_og]
 
                 if not valid_items_for_main.empty:
                     items_ordered_dict = valid_items_for_main.sort_values(by='LastThreeDigits').to_dict('records')
                     main_data_by_trunk[global_trunk_counter] = items_ordered_dict
+                
+                # Aggiungi qui la logica per la regione OVERSIZE per CONF_Tx
+                oversize_conf_counter = 1
+                oversize_items_in_trunk = trunk_group[trunk_group['ITEM_ID_CUSTOM'].str.contains('OG', case=False, na=False)].copy()
+                
+                if not oversize_items_in_trunk.empty:
+                    for _ in oversize_items_in_trunk.iterrows():
+                        configurations_by_trunk[global_trunk_counter].append(f'    REGION Config OVERSIZE{oversize_conf_counter}')
+                        configurations_by_trunk[global_trunk_counter].append('        ')
+                        configurations_by_trunk[global_trunk_counter].append(f'        "OVERSIZE{oversize_conf_counter}".DATA.CNF.MaxLength := 0.9; //m')
+                        configurations_by_trunk[global_trunk_counter].append('        ')
+                        configurations_by_trunk[global_trunk_counter].append('    END_REGION')
+                        configurations_by_trunk[global_trunk_counter].append('')
+                        oversize_conf_counter += 1
+                
+                # Aggiungi qui la logica per la regione SAFETYSHUTTER per CONF_Tx
+                safetyshutter_conf_counter = 1
+                safetyshutter_items_in_trunk = trunk_group[trunk_group['ITEM_ID_CUSTOM'].str.contains('SD', case=False, na=False)].copy()
+                
+                if not safetyshutter_items_in_trunk.empty:
+                    for item_idx, _ in safetyshutter_items_in_trunk.iterrows():
+                        item_id_original = safetyshutter_items_in_trunk.loc[item_idx, 'ITEM_ID_CUSTOM'] # Ottieni l'item_id_original
+                        configurations_by_trunk[global_trunk_counter].append(f'    REGION Config SECURITY SAFETYSHUTTER ({item_id_original})')
+                        configurations_by_trunk[global_trunk_counter].append(f'        "SAFETYSHUTTER{safetyshutter_conf_counter}".Data.CNF.Timeout_opening := T#10s;')
+                        configurations_by_trunk[global_trunk_counter].append(f'        "SAFETYSHUTTER{safetyshutter_conf_counter}".Data.CNF.Timeout_closing := T#10s;')
+                        configurations_by_trunk[global_trunk_counter].append(f'        "SAFETYSHUTTER{safetyshutter_conf_counter}".Data.CNF.Command_pulse_duration := T#1000ms;')
+                        configurations_by_trunk[global_trunk_counter].append('    END_REGION')
+                        configurations_by_trunk[global_trunk_counter].append('')
+                        safetyshutter_conf_counter += 1
                 
                 # Aggiunge END_FUNCTION alla fine delle configurazioni del tronco
                 configurations_by_trunk[global_trunk_counter].append("END_FUNCTION")
@@ -880,23 +927,3 @@ END_FUNCTION"""
     with open(file_path, "w") as f:
         f.write(logger_configuration_content)
     print(f"File {file_path} generato con successo.")
-
-
-if __name__ == "__main__":
-    try:
-        # Importa l'interfaccia grafica
-        from interfaccia_grafica import create_gui
-        
-        # Crea e avvia l'interfaccia grafica
-        root = create_gui()
-        
-        # Avvia il loop principale
-        root.mainloop()
-    except Exception as e:
-        print(f"Errore durante l'avvio dell'applicazione: {e}")
-        # Mostra un messaggio di errore in caso di problemi
-        import tkinter as tk
-        from tkinter import messagebox
-        root = tk.Tk()
-        root.withdraw()  # Nasconde la finestra principale
-        messagebox.showerror("Errore di Avvio", f"Si è verificato un errore durante l'avvio dell'applicazione: {e}") 
