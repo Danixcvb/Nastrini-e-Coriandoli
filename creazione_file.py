@@ -160,9 +160,9 @@ def create_data_block_file(item_id_custom, component_type, output_folder, line_t
         print(f"DEBUG - Creazione file SAFETYSHUTTER per {item_id_custom}")
         # Estrai il numero progressivo dal nome del file esistente o usa 1 come default
         shutter_number = 1
-        existing_files = [f for f in os.listdir(output_folder) if f.startswith("SAFETYSHUTTER") and f.endswith(".scl")]
+        existing_files = [f for f in os.listdir(output_folder) if f.startswith("SAFETYSHUTTER") and f.endswith(".db")]
         if existing_files:
-            numbers = [int(f.replace("SAFETYSHUTTER", "").replace(".scl", "")) for f in existing_files]
+            numbers = [int(f.replace("SAFETYSHUTTER", "").replace(".db", "")) for f in existing_files]
             shutter_number = max(numbers) + 1 if numbers else 1
         print(f"DEBUG - Numero SAFETYSHUTTER assegnato: {shutter_number}")
         create_safety_shutter_file(shutter_number, output_folder)
@@ -406,7 +406,7 @@ def _is_valid_component_for_chain(item_data):
     item_id = item_data.get('ITEM_ID_CUSTOM', '')
     return ("ST" in item_id.upper() or "CN" in item_id.upper() or count_ca_occurrences(item_id) == 2)
 
-def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_item_data=None, first_valid_next_item_data=None):
+def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_item_data=None, first_valid_next_item_data=None, trunk_to_line_mapping=None):
     """
     Crea il file MAINx per un tronco specifico.
     
@@ -423,26 +423,29 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
     content.append(f'FUNCTION "MAIN{trunk_number}" : Void')
     content.append('{ S7_Optimized_Access := \'TRUE\' }')
     content.append('VERSION : 0.1')
-    content.append('   VAR_TEMP')
+    content.append('   VAR_TEMP ')
     content.append('      StartTronco : Bool;')
     content.append('      TempEncoderNotUsed : "ENCODER_Interface";')
     content.append('   END_VAR')
     content.append('')
-    content.append('BEGIN')
     content.append('')
+    content.append('BEGIN')
     
     # Aggiungi la sezione di inizializzazione
-    content.append("REGION Initializing Temp Section")
-    content.append("    #TempEncoderNotUsed.Count := 16#0;")
-    content.append("END_REGION")
-    content.append("")
+    content.append('	REGION Initializing Temp Section')
+    content.append('	    ')
+    content.append('	    #TempEncoderNotUsed.Count := 16#0;')
+    content.append('	    ')
+    content.append('	END_REGION')
+    content.append('	')
     
     # Contatori per elementi FD e SD
     fd_counter = 1
     sd_counter = 1
-    
+    datalogic_counter = 1
+
     # Aggiungi la sezione di gestione richiesta start tronco
-    content.append("REGION Gestione Richiesta Start Tronco")
+    content.append('	REGION Gestione Richiesta Start Tronco')
     # Assicurati che trunk_number sia intero qui
     try:
         safe_trunk_number = int(trunk_number)
@@ -450,21 +453,76 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
         print(f"Attenzione create_main_file: trunk_number '{trunk_number}' non è un intero valido. Uso 0.")
         safe_trunk_number = 0
         
-    content.append(f'    IF "UpstreamDB-Globale".Global_Data.Start_All OR') 
-    content.append(f'       "UpstreamDB-Globale".Global_Data.StartTronco{safe_trunk_number} OR')
-    content.append(f'       "TRUNK{safe_trunk_number}".StartReqAutoFp')
-    content.append("    THEN")
-    content.append("        #StartTronco := TRUE;")
-    content.append("    END_IF;")
-    content.append("END_REGION")
-    content.append("")
+    associated_line_num = trunk_to_line_mapping.get(safe_trunk_number, 1) if trunk_to_line_mapping else 1
+
+    content.append(f'	    IF "UpstreamDB-Globale".Global_Data.Start_All OR') 
+    content.append(f'	        "UpstreamDB-Globale".Global_Data.StartTronco{safe_trunk_number} OR')
+    content.append(f'	        "TRUNK{safe_trunk_number}".StartReqAutoFp')
+    content.append(f'	    THEN')
+    content.append('	        #StartTronco := TRUE;')
+    content.append('	    END_IF;')
+    content.append('	    ')
+    content.append('	END_REGION')
+    content.append('	')
     
     # Aggiungi le chiamate ai blocchi funzionali
     for i, item in enumerate(valid_items):
-        item_id = item.get('ITEM_ID_CUSTOM', '')
+        item_id_original = item.get('ITEM_ID_CUSTOM', f'MISSING_ID_{i+1}') 
+        current_name, current_number = _get_item_details(item, i + 1) 
+        item_id_upper = item_id_original.upper()
+
+        # Determina il tipo di componente
+        component_type = None
+        if 'SC' in item_id_upper: # Datalogic
+            component_type = "Datalogic"
+        elif "SD" in item_id_upper:
+            component_type = "SAFETYSHUTTER"
+        elif "FD" in item_id_upper:
+            component_type = "FIRESHUTTER"
+        elif count_ca_occurrences(item_id_original) == 2:
+            component_type = "Carousel"
+        elif "ST" in item_id_upper or "CN" in item_id_upper:
+            component_type = "Conveyor"
+        
+        # Se non è un componente valido per la catena, salta
+        if component_type is None:
+            continue
+
+        # Gestione del riferimento all'item precedente (valido per tutti i tipi di catena)
+        prev_item_data_to_use = None
+        if i == 0: 
+            if last_valid_prev_item_data and _is_valid_component_for_chain(last_valid_prev_item_data):
+                prev_item_data_to_use = last_valid_prev_item_data
+        elif i > 0: 
+            for j in range(i-1, -1, -1):
+                if _is_valid_component_for_chain(valid_items[j]):
+                    prev_item_data_to_use = valid_items[j]
+                    break
+        prev_name_formatted, prev_number = _get_item_details(prev_item_data_to_use, i)
+        prev_component_type = "Carousel" if (prev_item_data_to_use and count_ca_occurrences(prev_item_data_to_use.get('ITEM_ID_CUSTOM', '')) == 2) else "Conveyor"
+        prev_name_ref = (f'"{prev_name_formatted}".{prev_component_type}.Data.OUT' if prev_item_data_to_use else "NULL")
+
+        # Gestione del riferimento all'item successivo (valido per tutti i tipi di catena)
+        next_item_data_to_use = None
+        found_next_in_trunk = False
+        if i < len(valid_items) - 1:
+            for j in range(i+1, len(valid_items)):
+                if _is_valid_component_for_chain(valid_items[j]):
+                    next_item_data_to_use = valid_items[j]
+                    found_next_in_trunk = True
+                    break
+        if not found_next_in_trunk and first_valid_next_item_data and _is_valid_component_for_chain(first_valid_next_item_data):
+             next_item_data_to_use = first_valid_next_item_data
+        next_name_formatted, next_number = _get_item_details(next_item_data_to_use, i+2)
+        next_component_type = "Carousel" if next_item_data_to_use and count_ca_occurrences(next_item_data_to_use.get('ITEM_ID_CUSTOM','')) == 2 else "Conveyor"
+        if next_item_data_to_use and count_ca_occurrences(next_item_data_to_use.get('ITEM_ID_CUSTOM','')) == 2:
+            next_carousel_num_for_side = next_number if next_number is not None else 0
+            next_name_ref = f'"SIDE_INPUT_CAROUSEL{next_carousel_num_for_side}".DATA.OUT'
+        else:
+            next_name_ref = f'"{next_name_formatted}".{next_component_type}.Data.OUT' if next_item_data_to_use else "NULL"
         
         # Se è un Datalogic (contiene SC), aggiungi la configurazione specifica
-        if 'SC' in item_id.upper():
+        if component_type == "Datalogic":
             # Trova l'utenza precedente valida
             prev_utenza = None
             for j in range(i-1, -1, -1):
@@ -478,215 +536,147 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
                 try:
                     prev_utenza_num = int(prev_utenza.get('GlobalUtenzaNumber', 0))
                 except (ValueError, TypeError):
-                    print(f"Attenzione: Impossibile convertire GlobalUtenzaNumber in intero per {item_id}. Uso 0.")
+                    print(f"Attenzione: Impossibile convertire GlobalUtenzaNumber in intero per {item_id_original}. Uso 0.")
                     prev_utenza_num = 0
                     
-                content.append(f'REGION Call Datalogic ATR 360 ({item_id})')
-                content.append('    ')
-                content.append(f'    "DATALOGIC_{item_id}"(')
-                content.append('                          TimeData := "UpstreamDB-Globale".Global_Data.TimeData,')
-                content.append(f'                          Trk := "UTENZA{prev_utenza_num}".Conveyor.Trk,')
-                content.append('                          PANYTO_SA := "SV_DB_DATALOGIC_SA".DATALOGIC_1,')
-                content.append('                          PANYTO_CMD := "SV_DB_DATALOGIC_CMD".DATALOGIC_1,')
-                content.append('                          DB_OBJ := "DBsObject".DbObj[1],')
-                content.append('                          "Ist-McpChmMsgBuffer" := "Ist-GtwChmMsgBuffer",')
-                content.append('                          "Ist-PcSocket" := "Ist-GtwManageSocket",')
-                content.append('                          "Ist-LogBuffer" := "Ist-LogBuffer",')
-                content.append('                          "Ist-Logger" := "Ist-Logger",')
-                content.append('                          "Ist-VidGenerator" := "Ist_Sub-VidGenerator");')
-                content.append('    ')
-                content.append('END_REGION')
-                content.append('')
+                content.append(f'	REGION Call Datalogic ATR 360 ({item_id_original})')
+                content.append('	    ')
+                content.append(f'	    "DATALOGIC_{item_id_original}"(')
+                content.append('	                          TimeData := "UpstreamDB-Globale".Global_Data.TimeData,')
+                content.append(f'	                          Trk := "UTENZA{prev_utenza_num}".Conveyor.Trk,')
+                content.append(f'	                          PANYTO_SA := "SV_DB_DATALOGIC_SA".DATALOGIC[{datalogic_counter}],')
+                content.append(f'	                          PANYTO_CMD := "SV_DB_DATALOGIC_CMD".DATALOGIC[{datalogic_counter}],')
+                content.append('	                          DB_OBJ := "DBsObject".DbObj[1],')
+                content.append('	                          "Ist-McpChmMsgBuffer" := "Ist-GtwChmMsgBuffer",')
+                content.append('	                          "Ist-PcSocket" := "Ist-GtwManageSocket",')
+                content.append('	                          "Ist-LogBuffer" := "Ist-LogBuffer",')
+                content.append('	                          "Ist-Logger" := "Ist-Logger",')
+                content.append('	                          "Ist-VidGenerator" := "Ist_Sub-VidGenerator");')
+                content.append('	    ')
+                content.append('	END_REGION')
+                content.append('	')
+                datalogic_counter += 1
             continue  # Salta il resto della logica per i Datalogic
         
         # Se contiene SD, gestisci come SHUTTER
-        if "SD" in item_id.upper():
-            content.append(f"REGION Call SHUTTER ({item_id})")
-            content.append(f'    "SAFETYSHUTTER1".Data.CMD := "SV_DB_SHUTTER_CMD".SHUTTER[{sd_counter}];')
-            content.append(f'    "SAFETYSHUTTER1"(Start_From_Line := 1,')
-            content.append(f'                     PANYTOSHUTTER_SA := "SV_DB_SHUTTER_SA".SHUTTER[{sd_counter}]);')
-            content.append("END_REGION")
-            content.append("")
+        if component_type == "SAFETYSHUTTER":
+            content.append(f"	REGION Call SAFETYSHUTTER ({item_id_original})")
+            content.append(f'	    "SAFETYSHUTTER{sd_counter}".Data.CMD := "SV_DB_SHUTTER_CMD".SHUTTER[{sd_counter}];')
+            content.append(f'	    "SAFETYSHUTTER{sd_counter}"(PANYTOSHUTTER_SA := "SV_DB_SHUTTER_SA".SHUTTER[{sd_counter}],')
+            content.append(f'	                     PREV := {prev_name_ref},')
+            content.append(f'	                     NEXT := {next_name_ref},')
+            content.append(f'	                     InterfaceTrunkUse := "TRUNK{safe_trunk_number}".ComTrunkUse,')
+            content.append('	                     DB_Globale := "UpstreamDB-Globale".Global_Data);')
+            content.append("	END_REGION")
+            content.append('	')
             sd_counter += 1  # Incrementa il contatore solo per elementi SD
             continue  # Salta la generazione delle altre regioni per questo elemento
         
-        # --- Ottieni dettagli per item corrente, precedente e successivo EFFETTIVI ---
-        current_name, current_number = _get_item_details(item, i + 1) 
-        item_id_original = item.get('ITEM_ID_CUSTOM', f'MISSING_ID_{i+1}') 
-        
-        # Determina il tipo di componente
-        item_id_upper = item_id_original.upper()
-        
         # Se contiene FD, gestisci come FIRESHUTTER
-        if "FD" in item_id_upper:
-            content.append(f"REGION Call FIRESHUTTER ({item_id_original})")
-            content.append("")
-            content.append(f'    "FIRESHUTTER1"(InterfaceTrunkuse := "TRUNK{safe_trunk_number}".ComTrunkUse,')
-            content.append(f'                   SV_FIRESHUTTER_CMD := "SV_DB_FIRESHUTTER_CMD".FIRESHUTTER[{fd_counter}],')
-            content.append(f'                   SV_FIRESHUTTER_SA := "SV_DB_FIRESHUTTER_SA".FIRESHUTTER[{fd_counter}]);')
-            content.append("")
-            content.append("END_REGION")
-            content.append("")
+        if component_type == "FIRESHUTTER":
+            content.append(f"	REGION Call FIRESHUTTER ({item_id_original})")
+            content.append('	    ')
+            content.append(f'	    "FIRESHUTTER{fd_counter}"(InterfaceTrunkuse := "TRUNK{safe_trunk_number}".ComTrunkUse,')
+            content.append(f'	                   SV_FIRESHUTTER_CMD := "SV_DB_FIRESHUTTER_CMD".FIRESHUTTER[{fd_counter}],')
+            content.append(f'	                   SV_FIRESHUTTER_SA := "SV_DB_FIRESHUTTER_SA".FIRESHUTTER[{fd_counter}]);')
+            content.append('	    ')
+            content.append("	END_REGION")
+            content.append('	')
             fd_counter += 1  # Incrementa il contatore solo per elementi FD
             continue  # Salta la generazione delle altre regioni per questo elemento
             
-        # Per gli altri elementi, determina il tipo di componente
-        if count_ca_occurrences(item_id_original) == 2:
-            component_type = "Carousel"
-        elif "ST" in item_id_upper or "CN" in item_id_upper:
-            component_type = "Conveyor"
-        else:
-            component_type = None  # Non è né Carousel né Conveyor standard
-            
-        # Se non è un componente valido, salta la generazione delle regioni
-        if component_type is None:
-            continue
-        
-        # Gestione del riferimento all'item precedente
-        prev_item_data_to_use = None
-        if i == 0: 
-            # Cerca l'ultimo componente valido nel tronco precedente
-            if last_valid_prev_item_data and _is_valid_component_for_chain(last_valid_prev_item_data):
-                prev_item_data_to_use = last_valid_prev_item_data
-        elif i > 0: 
-            # Cerca l'ultimo componente valido nel tronco corrente
-            for j in range(i-1, -1, -1):
-                if _is_valid_component_for_chain(valid_items[j]):
-                    prev_item_data_to_use = valid_items[j]
-                    break
-        # Ottieni i dettagli dell'item precedente
-        prev_name_formatted, prev_number = _get_item_details(prev_item_data_to_use, i)
-        
-        # Determina il tipo di componente precedente (Carousel o Conveyor)
-        prev_component_type = "Carousel" if (
-            prev_item_data_to_use and 
-            count_ca_occurrences(prev_item_data_to_use.get('ITEM_ID_CUSTOM', '')) == 2
-        ) else "Conveyor"
-        
-        # Crea il riferimento al componente precedente o imposta NULL se non esiste
-        prev_name_ref = (
-            f'"{prev_name_formatted}".{prev_component_type}.Data.OUT' 
-            if prev_item_data_to_use 
-            else "NULL"
-        )
-
-        # Gestione del riferimento all'item successivo
-        next_item_data_to_use = None
-        found_next_in_trunk = False
-
-        # Cerca il prossimo componente valido nel tronco corrente
-        if i < len(valid_items) - 1:
-            for j in range(i+1, len(valid_items)):
-                if _is_valid_component_for_chain(valid_items[j]):
-                    next_item_data_to_use = valid_items[j]
-                    found_next_in_trunk = True
-                    break
-
-        # Se non è stato trovato un successore valido NEL tronco corrente,
-        # usa il primo valido del tronco SUCCESSIVO (se esiste e è valido)
-        if not found_next_in_trunk and first_valid_next_item_data and _is_valid_component_for_chain(first_valid_next_item_data):
-             next_item_data_to_use = first_valid_next_item_data
-
-        # Ottieni dettagli basati sul risultato della ricerca
-        next_name_formatted, next_number = _get_item_details(next_item_data_to_use, i+2)
-        next_component_type = "Carousel" if next_item_data_to_use and count_ca_occurrences(next_item_data_to_use.get('ITEM_ID_CUSTOM','')) == 2 else "Conveyor"
-
-        # Determine next_name_ref based on the correctly identified next_item_data_to_use
-        if next_item_data_to_use and count_ca_occurrences(next_item_data_to_use.get('ITEM_ID_CUSTOM','')) == 2:
-            # Se il successivo è Carousel, punta al suo SIDE_INPUT
-            next_carousel_num_for_side = next_number if next_number is not None else 0
-            next_name_ref = f'"SIDE_INPUT_CAROUSEL{next_carousel_num_for_side}".DATA.OUT'
-        else:
-            # Altrimenti usa il nome formattato e tipo del successivo (Conveyor/Utenza)
-            next_name_ref = f'"{next_name_formatted}".{next_component_type}.Data.OUT' if next_item_data_to_use else "NULL"
-
-        # --- Gestione Differenziata Chiamata --- 
+        # Per gli altri elementi (Carousel/Conveyor)
         if component_type == "Carousel":
             # --- Generazione Chiamata CAROUSEL ---
-            content.append(f"REGION Call CAROUSEL_SEW_MOVIGEAR ({item_id_original})")
-            content.append("")
-            content.append(f'    "{current_name}"(')
+            content.append(f"\tREGION Call CAROUSEL_SEW_MOVIGEAR ({item_id_original})")
+            content.append('	    ')
+            content.append(f'	    "{current_name}"(')
             
             # ID: usa sempre current_number per i CAROUSEL, che è il numero progressivo del carousel
             carousel_id = current_number if current_number is not None else i + 1
-            content.append(f'               ID := {carousel_id},')
-            content.append('               DINO := 0,')
+            content.append(f'	              ID := {carousel_id},')
+            content.append('	              DINO := 0,')
             
             # PREV: riferimento a SIDE_INPUT
             carousel_prev_ref = f'"SIDE_INPUT_CAROUSEL{current_number if current_number is not None else 0}".DATA.OUT' # Usa current_number per SIDE_INPUT
-            content.append(f'               PREV := {carousel_prev_ref},') 
+            content.append(f'	              PREV := {carousel_prev_ref},') 
 
             # NEXT: riferimento a item successivo effettivo (USA LA next_name_ref CALCOLATA SOPRA)
-            content.append(f'               NEXT := {next_name_ref},')
+            content.append(f'	              NEXT := {next_name_ref},')
                  
-            content.append('               START := #StartTronco,')
-            content.append('               TimeData := "UpstreamDB-Globale".Global_Data.TimeData,')
-            content.append('               Constants := "DB_Constants".Constants,')
-            content.append('               DB_Globale := "UpstreamDB-Globale".Global_Data,') # Aggiunto DB_Globale
-            content.append(f'               InterfaceTrunkUse := "TRUNK{safe_trunk_number}".ComTrunkUse,') 
+            content.append('	              START := #StartTronco,')
+            content.append('	              TimeData := "UpstreamDB-Globale".Global_Data.TimeData,')
+            content.append('	              Constants := "DB_Constants".Constants,')
+            content.append('	              DB_Globale := "UpstreamDB-Globale".Global_Data,) # Aggiunto DB_Globale')
+            content.append(f'	              InterfaceTrunkUse := "TRUNK{safe_trunk_number}".ComTrunkUse,') 
             
             panytocnv_num_to_use = current_number if current_number is not None else 0
-            content.append(f'               PANYTOCNV_SA := "SV_DB_CAROUSEL_SA".CAROUSEL_{panytocnv_num_to_use},') # Usa CAROUSEL_SA
-            content.append(f'               PANYTOCNV_CMD := "SV_DB_CAROUSEL_CMD".CAROUSEL_{panytocnv_num_to_use},') # Usa CAROUSEL_CMD
+            content.append(f'	              PANYTOCNV_SA := "SV_DB_CAROUSEL_SA".CAROUSEL[{panytocnv_num_to_use}],') # Usa CAROUSEL_SA
+            content.append(f'	              PANYTOCNV_CMD := "SV_DB_CAROUSEL_CMD".CAROUSEL[{panytocnv_num_to_use}],') # Usa CAROUSEL_CMD
 
-            content.append('               DB_OBJ := "DBsObject".DbObj[1],')
-            content.append('               "Ist-VidGenerator" := "Ist_Sub-VidGenerator",')
-            content.append('               EncoderInterface := #TempEncoderNotUsed,')
+            content.append('	              DB_OBJ := "DBsObject".DbObj[1],')
+            content.append('	              "Ist-VidGenerator" := "Ist_Sub-VidGenerator",')
+            content.append('	              EncoderInterface := #TempEncoderNotUsed,')
             # Drive Interface per Carousel
-            content.append(f'               DriveInterface_1_IN := "{item_id_original}_1_IN",') 
-            content.append(f'               DriveInterface_1_OUT := "{item_id_original}_1_OUT",') 
-            content.append(f'               DriveInterface_2_IN := "{item_id_original}_2_IN",') 
-            content.append(f'               DriveInterface_2_OUT := "{item_id_original}_1_OUT",') # Come da esempio
+            content.append(f'	              DriveInterface_1_IN := "{item_id_original}_1_IN",') 
+            content.append(f'	              DriveInterface_1_OUT := "{item_id_original}_1_OUT",') 
+            content.append(f'	              DriveInterface_2_IN := "{item_id_original}_2_IN",') 
+            content.append(f'	              DriveInterface_2_OUT := "{item_id_original}_2_OUT",')
 
-            content.append('               "Ist-McpCreateChrMsg" := "Ist-McpCreateChrMsg",')
-            content.append('               "Ist-PcSocket" := "Ist-GtwManageSocket",')
-            content.append('               "Ist-McpChrMsgBuffer" := "Ist-GtwChrMsgBuffer",')
-            content.append('               "Ist-LogBuffer" := "Ist-LogBuffer",')
-            content.append('               "Ist-Logger" := "Ist-Logger");')
-            content.append("")
-            content.append("END_REGION")
-            content.append("")
+            content.append('	              "Ist-McpCreateChrMsg" := "Ist-McpCreateChrMsg",')
+            content.append('	              "Ist-PcSocket" := "Ist-GtwManageSocket",')
+            content.append('	              "Ist-McpChrMsgBuffer" := "Ist-GtwChrMsgBuffer",')
+            content.append('	              "Ist-LogBuffer" := "Ist-LogBuffer",')
+            content.append('	              "Ist-Logger" := "Ist-Logger");')
+            content.append('	    ')
+            content.append(f'	            "CAROUSEL{carousel_id}_FULL_TIMEOUT"(PrevLineRunning:="LINE_{associated_line_num}".Data.SA.ST_RUN,')
+            content.append('	                                     LapsBeforeStopping:=1,')
+            content.append('	                                     WindowLengthFromBooking:=7.0,')
+            content.append(f'	                                     Carousel :="CAROUSEL{carousel_id}".Carousel);')
+            content.append('	    ')
+            content.append("	END_REGION")
+            content.append('	')
             # --- Fine Chiamata CAROUSEL ---
             
-        else: # component_type == "Conveyor"
+        elif component_type == "Conveyor":
             # --- Generazione Chiamata CONVEYOR/UTENZA (standard) ---
-            content.append(f"REGION Call CONVEYOR_SEW_MOVIGEAR ({item_id_original})")
-            content.append("")
-            content.append(f'    "{current_name}"(')
+            content.append(f"\tREGION Call CONVEYOR_SEW_MOVIGEAR ({item_id_original})")
+            content.append('	    ')
+            content.append(f'	    "{current_name}"(')
             
             id_value_to_use = current_number if current_number is not None else 0 
-            content.append(f'               ID := {id_value_to_use},') 
+            content.append(f'	              ID := {id_value_to_use},') 
             
             # PREV: riferimento a item precedente effettivo (gestito sopra da prev_name_ref)
-            content.append(f'               PREV := {prev_name_ref},') 
+            content.append(f'	              PREV := {prev_name_ref},') 
 
             # NEXT: riferimento a item successivo effettivo (USA LA next_name_ref CALCOLATA SOPRA)
-            content.append(f'               NEXT := {next_name_ref},')
+            content.append(f'	              NEXT := {next_name_ref},')
 
-            content.append('               START := #StartTronco,')
-            content.append('               TimeData := "UpstreamDB-Globale".Global_Data.TimeData,')
-            content.append('               Constants := "DB_Constants".Constants,')
-            content.append(f'               InterfaceTrunkUse := "TRUNK{safe_trunk_number}".ComTrunkUse,') 
+            content.append('	              START := #StartTronco,')
+            content.append('	              TimeData := "UpstreamDB-Globale".Global_Data.TimeData,')
+            content.append('	              Constants := "DB_Constants".Constants,')
+            content.append(f'	              InterfaceTrunkUse := "TRUNK{safe_trunk_number}".ComTrunkUse,') 
             
             panytocnv_num_to_use = current_number if current_number is not None else 0
-            content.append(f'               PANYTOCNV_SA := "SV_DB_CONVEYOR_SA".CONVEYOR[{panytocnv_num_to_use}],')
-            content.append(f'               PANYTOCNV_CMD := "SV_DB_CONVEYOR_CMD".CONVEYOR[{panytocnv_num_to_use}],') # CONVEYOR_CMD
+            content.append(f'	              PANYTOCNV_SA := "SV_DB_CONVEYOR_SA".CONVEYOR[{panytocnv_num_to_use}],')
+            content.append(f'	              PANYTOCNV_CMD := "SV_DB_CONVEYOR_CMD".CONVEYOR[{panytocnv_num_to_use}],) # CONVEYOR_CMD')
 
-            content.append('               DB_OBJ := "DBsObject".DbObj[1],')
-            content.append('               "Ist-VidGenerator" := "Ist_Sub-VidGenerator",')
-            content.append('               EncoderInterface := #TempEncoderNotUsed,')
+            content.append('	              DB_OBJ := "DBsObject".DbObj[1],')
+            content.append('	              "Ist-VidGenerator" := "Ist_Sub-VidGenerator",')
+            content.append('	              EncoderInterface := #TempEncoderNotUsed,')
             # Drive Interface standard
-            content.append(f'               DriveInterface_IN := "{item_id_original}_IN",') 
-            content.append(f'               DriveInterface_OUT := "{item_id_original}_OUT",') 
+            content.append(f'	              DriveInterface_IN := "{item_id_original}_IN",') 
+            content.append(f'	              DriveInterface_OUT := "{item_id_original}_OUT",') 
 
-            content.append('               "Ist-McpCreateChrMsg" := "Ist-McpCreateChrMsg",')
-            content.append('               "Ist-PcSocket" := "Ist-GtwManageSocket",')
-            content.append('               "Ist-McpChrMsgBuffer" := "Ist-GtwChrMsgBuffer",')
-            content.append('               "Ist-LogBuffer" := "Ist-LogBuffer",')
-            content.append('               "Ist-Logger" := "Ist-Logger");')
-            content.append("")
-            content.append("END_REGION")
-            content.append("")
+            content.append('	              "Ist-McpCreateChrMsg" := "Ist-McpCreateChrMsg",')
+            content.append('	              "Ist-PcSocket" := "Ist-GtwManageSocket",')
+            content.append('	              "Ist-McpChrMsgBuffer" := "Ist-GtwChrMsgBuffer",')
+            content.append('	              "Ist-LogBuffer" := "Ist-LogBuffer",')
+            content.append('	              "Ist-Logger" := "Ist-Logger");')
+            content.append('	    ')
+            content.append("	END_REGION")
+            content.append('	')
             # --- Fine Chiamata CONVEYOR/UTENZA ---
             
         # --- Logica SIDE_INPUT (Spostata DOPO la chiamata del blocco i) ---
@@ -699,31 +689,41 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
              utenze_folder = os.path.join(os.path.dirname(output_folder), '_DB User')
              create_side_input_file(side_input_carousel_num, utenze_folder)
              
-             content.append(f"REGION Call SIDE INPUT for CAROUSEL{side_input_carousel_num} ({next_carousel_id})")
-             content.append("    // il side input si inserisce prima di un carosello , nel tronco precedente al carosello")
+             content.append(f"\tREGION Call SIDE INPUT for CAROUSEL{side_input_carousel_num} ({next_carousel_id})")
+             content.append("\t    // il side input si inserisce prima di un carosello , nel tronco precedente al carosello")
              
              # PREV per SIDE_INPUT è l'output dell'elemento CORRENTE (blocco appena generato)
              current_output_ref = f'"{current_name}".{component_type}.Data.OUT'
-             content.append(f'    "SIDE_INPUT_CAROUSEL{side_input_carousel_num}"(PREV := {current_output_ref},')
+             content.append(f'	    "SIDE_INPUT_CAROUSEL{side_input_carousel_num}"(PREV := {current_output_ref},')
              
              next_carousel_name_for_next = f"CAROUSEL{side_input_carousel_num}"
-             content.append(f'                         NEXT := "{next_carousel_name_for_next}".Carousel.Data.OUT,')
-             content.append('                         NextObjTransferIn := FALSE,')
-             content.append('                         NextObjTransferInAboutToStart := FALSE,')
+             content.append(f'	                         NEXT := "{next_carousel_name_for_next}".Carousel.Data.OUT,')
+             content.append('	                         NextObjTransferIn := FALSE,')
+             content.append('	                         NextObjTransferInAboutToStart := FALSE,')
+             
+             # Formatta item_id_original per FTU_Conveyor
+             formatted_item_id_for_ftu = item_id_original
+             if "ST" in item_id_original:
+                 formatted_item_id_for_ftu = item_id_original.replace("ST", "_ST", 1)
+             elif "CN" in item_id_original:
+                 formatted_item_id_for_ftu = item_id_original.replace("CN", "_CN", 1)
+
+             
              
              # PrevFullStatus usa lo stato dell'elemento CORRENTE
              current_full_status_ref = current_output_ref.replace(".Data.OUT", ".Data.SA.ST_FULL")
-             content.append(f'                         PrevFullStatus := {current_full_status_ref},')
+             content.append(f'	                         PrevFullStatus := {current_full_status_ref},')
              
-             content.append(f'                         Prev2FullStatus := "{next_carousel_name_for_next}".Carousel.Data.SA.ST_FULL,')
-             content.append(f'                         TrunkPrevAutomaticStatus := "TRUNK{safe_trunk_number}".Data.SA.ST_AUTOMATIC,')
-             content.append('                         Prev2BufferingActive := FALSE,')
-             content.append(f'                         Trk := "{next_carousel_name_for_next}".Carousel.Trk,')
-             content.append('                         DB_OBJ_PREV := "DBsObject".DbObj[1],')
-             content.append('                         DB_OBJ_NEXT := "DBsObject".DbObj[1]);')
-             content.append("")
-             content.append("END_REGION")
-             content.append("")
+             content.append(f'	                         Prev2FullStatus := "{next_carousel_name_for_next}".Carousel.Data.SA.ST_FULL,')
+             content.append(f'	                         TrunkPrevAutomaticStatus := "TRUNK{safe_trunk_number}".Data.SA.ST_AUTOMATIC,')
+             content.append('	                         Prev2BufferingActive := FALSE,')
+             content.append(f'	                         FTU_Conveyor:= NOT "{formatted_item_id_for_ftu}_B1101_STOP_HEAD_PHOTOCELL",')
+             content.append(f'	                         Trk := "{next_carousel_name_for_next}".Carousel.Trk,')
+             content.append('	                         DB_OBJ_PREV := "DBsObject".DbObj[1],')
+             content.append('	                         DB_OBJ_NEXT := "DBsObject".DbObj[1]);')
+             content.append('	    ')
+             content.append("	END_REGION")
+             content.append('	')
         # --- Fine Logica SIDE_INPUT ---
     
     # Aggiungi END_FUNCTION alla fine

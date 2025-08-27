@@ -600,7 +600,8 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                         items_ordered, 
                         main_output_folder,
                         last_valid_prev_item_data=last_valid_prev_item_data,
-                        first_valid_next_item_data=first_valid_next_item_data
+                        first_valid_next_item_data=first_valid_next_item_data,
+                        trunk_to_line_mapping=trunk_to_line_mapping
                     )
                     
                     # Crea i file correlati
