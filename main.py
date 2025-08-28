@@ -49,8 +49,7 @@ def check_and_install_packages(requirements_file):
 
         if missing_packages:
             print(f"Pacchetti mancanti: {', '.join(missing_packages)}")
-            # We cannot use GUI prompts here as QApplication might not be running yet
-            # or Tkinter is removed. We rely on console interaction.
+
             reply = input("Alcuni pacchetti necessari non sono installati. Vuoi installarli ora? (s/n): ").lower()
             if reply == 's':
                 print("Installazione pacchetti in corso...")

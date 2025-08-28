@@ -45,15 +45,15 @@ def create_txt_files(df, selected_cab_plc, order):
         for item in order:
             order_file.write(f"{item}\n")
 
-def create_safety_shutter_file(shutter_number, output_folder):
+def create_shutter_file(shutter_number, output_folder):
     """
-    Crea un file DATA_BLOCK per un componente SAFETYSHUTTER.
+    Crea un file DATA_BLOCK per un componente SHUTTER.
     
     Args:
         shutter_number (int): Numero progressivo dello shutter
         output_folder (str): Cartella di destinazione
     """
-    data_block_content = f"""DATA_BLOCK "SAFETYSHUTTER{shutter_number}"
+    data_block_content = f"""DATA_BLOCK "SHUTTER{shutter_number}"
 {{ S7_Optimized_Access := 'TRUE' }}
 VERSION : 0.1
 NON_RETAIN
@@ -64,7 +64,7 @@ BEGIN
 END_DATA_BLOCK
 """
     
-    data_block_filename = f"SAFETYSHUTTER{shutter_number}.db"
+    data_block_filename = f"SHUTTER{shutter_number}.db"
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
         
@@ -195,17 +195,17 @@ def create_data_block_file(item_id_custom, component_type, output_folder, line_t
         create_oversize_file(oversize_number, output_folder)
         return
 
-    # Se l'item contiene "SD", crea un file SAFETYSHUTTER
-    if component_type == "SAFETYSHUTTER":
-        print(f"DEBUG - Creazione file SAFETYSHUTTER per {item_id_custom}")
+    # Se l'item contiene "SD", crea un file SHUTTER
+    if component_type == "SHUTTER":
+        print(f"DEBUG - Creazione file SHUTTER per {item_id_custom}")
         # Estrai il numero progressivo dal nome del file esistente o usa 1 come default
         shutter_number = 1
-        existing_files = [f for f in os.listdir(output_folder) if f.startswith("SAFETYSHUTTER") and f.endswith(".db")]
+        existing_files = [f for f in os.listdir(output_folder) if f.startswith("SHUTTER") and f.endswith(".db")]
         if existing_files:
-            numbers = [int(f.replace("SAFETYSHUTTER", "").replace(".db", "")) for f in existing_files]
+            numbers = [int(f.replace("SHUTTER", "").replace(".db", "")) for f in existing_files]
             shutter_number = max(numbers) + 1 if numbers else 1
-        print(f"DEBUG - Numero SAFETYSHUTTER assegnato: {shutter_number}")
-        create_safety_shutter_file(shutter_number, output_folder)
+        print(f"DEBUG - Numero SHUTTER assegnato: {shutter_number}")
+        create_shutter_file(shutter_number, output_folder)
         return
 
     # Se l'item contiene "FD", crea un file FIRESHUTTER
@@ -436,6 +436,19 @@ def _get_item_details(item_data, index_fallback):
         else:
             number_int = index_fallback
             formatted_name = f"CAROUSEL{number_int}"
+    elif "SD" in item_id.upper(): # Aggiungi la logica per SHUTTER
+        raw_num = item_data.get('GlobalShutterNumber')
+        if raw_num is not None:
+            try:
+                number_int = int(raw_num)
+                formatted_name = f"SHUTTER{number_int}"
+            except (ValueError, TypeError):
+                print(f"Attenzione (_get_item_details): Impossibile convertire shutter_number '{raw_num}' in int per {item_id}. Uso fallback nome.")
+                formatted_name = f"SHUTTER_ERR_{index_fallback}"
+                number_int = None
+        else:
+            number_int = index_fallback
+            formatted_name = f"SHUTTER{number_int}"
 
     return formatted_name, number_int
 
@@ -482,7 +495,6 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
     
     # Contatori per elementi FD e SD
     fd_counter = 1
-    sd_counter = 1
     datalogic_counter = 1
     oversize_counter = 1
 
@@ -519,7 +531,7 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
         if 'SC' in item_id_upper: # Datalogic
             component_type = "Datalogic"
         elif "SD" in item_id_upper:
-            component_type = "SAFETYSHUTTER"
+            component_type = "SHUTTER"
         elif "FD" in item_id_upper:
             component_type = "FIRESHUTTER"
         elif count_ca_occurrences(item_id_original) == 2:
@@ -604,17 +616,17 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
             continue  # Salta il resto della logica per i Datalogic
         
         # Se contiene SD, gestisci come SHUTTER
-        if component_type == "SAFETYSHUTTER":
-            content.append(f"	REGION Call SAFETYSHUTTER ({item_id_original})")
-            content.append(f'	    "SAFETYSHUTTER{sd_counter}".Data.CMD := "SV_DB_SHUTTER_CMD".SHUTTER[{sd_counter}];')
-            content.append(f'	    "SAFETYSHUTTER{sd_counter}"(PANYTOSHUTTER_SA := "SV_DB_SHUTTER_SA".SHUTTER[{sd_counter}],')
+        if component_type == "SHUTTER":
+            shutter_num = current_number if current_number is not None else 0 # Use global shutter number
+            content.append(f"	REGION Call SHUTTER ({item_id_original})")
+            content.append(f'	    "SHUTTER{shutter_num}".Data.CMD := "SV_DB_SHUTTER_CMD".SHUTTER[{shutter_num}];')
+            content.append(f'	    "SHUTTER{shutter_num}"(PANYTOSHUTTER_SA := "SV_DB_SHUTTER_SA".SHUTTER[{shutter_num}],')
             content.append(f'	                     PREV := {prev_name_ref},')
             content.append(f'	                     NEXT := {next_name_ref},')
             content.append(f'	                     InterfaceTrunkUse := "TRUNK{safe_trunk_number}".ComTrunkUse,')
-            content.append('	                     DB_Globale := "UpstreamDB-Globale".Global_Data);')
+            content.append(f'	                     DB_Globale := "UpstreamDB-Globale".Global_Data);')
             content.append("	END_REGION")
             content.append('	')
-            sd_counter += 1  # Incrementa il contatore solo per elementi SD
             continue  # Salta la generazione delle altre regioni per questo elemento
         
         # Se contiene FD, gestisci come FIRESHUTTER
@@ -718,7 +730,7 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
             
             panytocnv_num_to_use = current_number if current_number is not None else 0
             content.append(f'	              PANYTOCNV_SA := "SV_DB_CONVEYOR_SA".CONVEYOR[{panytocnv_num_to_use}],')
-            content.append(f'	              PANYTOCNV_CMD := "SV_DB_CONVEYOR_CMD".CONVEYOR[{panytocnv_num_to_use}],) # CONVEYOR_CMD')
+            content.append(f'	              PANYTOCNV_CMD := "SV_DB_CONVEYOR_CMD".CONVEYOR[{panytocnv_num_to_use}],')
 
             content.append('	              DB_OBJ := "DBsObject".DbObj[1],')
             content.append('	              "Ist-VidGenerator" := "Ist_Sub-VidGenerator",')

@@ -199,6 +199,8 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         # Contatori per numeri UTENZA e CAROUSEL unici
         global_utenza_counter = 1
         global_carousel_counter = 1
+        global_shutter_counter = 1 # Added global counter for SHUTTER
+
         
         # Crea un dizionario per mappare i prefissi all'ordine di selezione
         prefix_order = {}
@@ -230,9 +232,15 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                     df.at[index, 'GlobalUtenzaNumber'] = global_utenza_counter
                     global_utenza_counter += 1
                     df.at[index, 'GlobalCarouselNumber'] = None
+                elif "SD" in item_id.upper(): # Added logic for SHUTTER
+                    df.at[index, 'GlobalShutterNumber'] = global_shutter_counter
+                    global_shutter_counter += 1
+                    df.at[index, 'GlobalUtenzaNumber'] = None
+                    df.at[index, 'GlobalCarouselNumber'] = None
                 else:
                     df.at[index, 'GlobalUtenzaNumber'] = None
                     df.at[index, 'GlobalCarouselNumber'] = None
+                    df.at[index, 'GlobalShutterNumber'] = None # Ensure shutter number is None for other types
         
         # Contatore globale per la numerazione progressiva dei file CONFT
         global_trunk_counter = 1
@@ -241,6 +249,8 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         configurations_by_trunk = {}
         # Dizionario per memorizzare i dati per i file MAIN
         main_data_by_trunk = {} 
+        # Dizionario per memorizzare le configurazioni SIDE_INPUT per il tronco precedente
+        side_input_configs_to_inject = {}
         
         # Itera attraverso ogni prefisso nell'ordine selezionato
         for prefix in ordered_prefixes:
@@ -334,7 +344,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                             component_type = "FIRESHUTTER"
                         elif "SD" in original_comment_name:
                             print(f"DEBUG - Trovato elemento SD: {item_id_custom}")
-                            component_type = "SAFETYSHUTTER"
+                            component_type = "SHUTTER"
                         elif count_ca_occurrences(original_comment_name) == 2:
                             print(f"DEBUG - Trovato elemento CAROUSEL: {item_id_custom}")
                             print(f"DEBUG - Forzando tipo componente a Carousel")
@@ -408,105 +418,147 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                                 print(f"Attenzione: Impossibile convertire ITEM_L '{item_l}' in float per ITEM_ID_CUSTOM '{item_id_custom}'. Uso il valore di default {default_item_l/1000.0}.")
                                 item_l_float = default_item_l / 1000.0
                                 
-                            configuration = f"""    REGION Config CONVEYOR_SEW_MOVIGEAR ({comment_name})
+                            # Parte iniziale della configurazione fino a Encoder.Data.CNF
+                            initial_config_part = f"""{f'    REGION Config CAROUSEL LINEAR FLAT ({comment_name})' if component_type == 'Carousel' else f'    REGION Config CONVEYOR_SEW_MOVIGEAR ({comment_name})'}
                             REGION {component_type}.Data.CNF
 
-        "{item_id_custom_new}".{component_type}.Data.CNF.Pht01En := FALSE;
-        "{item_id_custom_new}".{component_type}.Data.CNF.Pht02En := TRUE;
-        "{item_id_custom_new}".{component_type}.Data.CNF.SlowdownOnAsrEn := FALSE;
-        "{item_id_custom_new}".{component_type}.Data.CNF.LinkedToNext := FALSE;
-        "{item_id_custom_new}".{component_type}.Data.CNF.AdjToSpeedNext := FALSE;
-        "{item_id_custom_new}".{component_type}.Data.CNF.ExtDeltaEncoderEn := FALSE;
-        "{item_id_custom_new}".{component_type}.Data.CNF.HmiControlEn := FALSE;
-        "{item_id_custom_new}".{component_type}.Data.CNF.AntiShadowingEn := FALSE;
-        "{item_id_custom_new}".{component_type}.Data.CNF.StrictGapEn := FALSE;
-        "{item_id_custom_new}".{component_type}.Data.CNF.StopForAdjacentJamEn := FALSE;
-        "{item_id_custom_new}".{component_type}.Data.CNF.DbObjectsNumber := 2011;
-        "{item_id_custom_new}".{component_type}.Data.CNF.DecisionPointId := 0;
-        "{item_id_custom_new}".{component_type}.Data.CNF.UseTrunkNumber := {progressive_number};
-        "{item_id_custom_new}".{component_type}.Data.CNFLapForEnergySaving := 1.5; // [default=1.5] Custom for Nizza
-        "{item_id_custom_new}".{component_type}.Data.CNF.TimeEnergySaving := "NCE_Temporary".DelayEngSavingDeposit_ms;  // [default=T#1s] (s) -> Nizza timing removed when badge stop is set
-        "{item_id_custom_new}".{component_type}.Data.CNF.TimeAccelerationHighSpeed := T#0S;
-        "{item_id_custom_new}".{component_type}.Data.CNF.Speed1 :=  "DB_TEST_HMI".BONUS_SPEED +{item_speed_transport};
-        "{item_id_custom_new}".{component_type}.Data.CNF.Speed2 := {item_speed_launch};
-        "{item_id_custom_new}".{component_type}.Data.CNF.SpeedLow := 0.0;
-        "{item_id_custom_new}".{component_type}.Data.CNF.SpeedHigh := 0.0;
-        "{item_id_custom_new}".{component_type}.Data.CNF.DriveMaxSpeed := "{item_id_custom_new}".DriveInterface.Par.MaxSpeed;        // [default=2.0] da machine table = {item_speed_max}
-        "{item_id_custom_new}".{component_type}.Data.CNF.Acceleration := {item_acceleration};
-        "{item_id_custom_new}".{component_type}.Data.CNF.Length := {item_l_float};
-        "{item_id_custom_new}".{component_type}.Data.CNF.Gap := 0.4;
-        "{item_id_custom_new}".{component_type}.Data.CNF.Step := 0.4;
-        "{item_id_custom_new}".{component_type}.Data.CNF.TrackingSlotLength := 0.04;
-        "{item_id_custom_new}".{component_type}.Data.CNF.StopDistance := 0.6;
-        "{item_id_custom_new}".{component_type}.Data.CNF.EndZone := 0.6;
-        "{item_id_custom_new}".{component_type}.Data.CNF.ObjectMaxLength := 0.0;
-        "{item_id_custom_new}".{component_type}.Data.CNF.JamInterferenceDistance := 0.0;
-    END_REGION
+        "{item_id_custom_new}".{component_type}.Data.CNF.Pht01En := FALSE; // [default=FALSE]
+        "{item_id_custom_new}".{component_type}.Data.CNF.Pht02En := TRUE; // [default=TRUE]
+        "{item_id_custom_new}".{component_type}.Data.CNF.SlowdownOnAsrEn := FALSE; // [default=FALSE]
+        "{item_id_custom_new}".{component_type}.Data.CNF.LinkedToNext := FALSE; // [default=FALSE]
+        "{item_id_custom_new}".{component_type}.Data.CNF.AdjToSpeedNext := FALSE; // [default=FALSE]
+        "{item_id_custom_new}".{component_type}.Data.CNF.ExtDeltaEncoderEn := FALSE; // [default=FALSE]
+        "{item_id_custom_new}".{component_type}.Data.CNF.HmiControlEn := FALSE; // [default=FALSE]
+        "{item_id_custom_new}".{component_type}.Data.CNF.AntiShadowingEn := FALSE; // [default=FALSE]
+        "{item_id_custom_new}".{component_type}.Data.CNF.StrictGapEn := FALSE; // [default=FALSE]
+{'' if component_type == "Carousel" else f'''        "{item_id_custom_new}".{component_type}.Data.CNF.StopForAdjacentJamEn := FALSE; // [default=FALSE]
+'''}        "{item_id_custom_new}".{component_type}.Data.CNF.DbObjectsNumber := 2011; // [default=2011]
+        "{item_id_custom_new}".{component_type}.Data.CNF.DecisionPointId := 0; // [default=0]
+        "{item_id_custom_new}".{component_type}.Data.CNF.UseTrunkNumber := {progressive_number}; // [default=1]
+        "{item_id_custom_new}".{component_type}.Data.CNF.LapForEnergySaving := 1.5; // [default=1.5] Custom for Nizza
+        "{item_id_custom_new}".{component_type}.Data.CNF.TimeEnergySaving := T#1s;  // [default=T#1s] (s) -> Nizza timing is managed by the laps for energy saving
+{'' if component_type == "Carousel" else f'''        "{item_id_custom_new}".{component_type}.Data.CNF.TimeAccelerationHighSpeed := T#0S; // [default=T#0S]
+'''}        "{item_id_custom_new}".{component_type}.Data.CNF.Speed1 :=  "DB_TEST_HMI".BONUS_SPEED +{item_speed_transport}; // [default=1.5] (m/s)
+        "{item_id_custom_new}".{component_type}.Data.CNF.Speed2 := {item_speed_launch}; // [default=0.0] (m/s)
+        "{item_id_custom_new}".{component_type}.Data.CNF.SpeedLow := 0.0; // [default=0.0]
+{'' if component_type == "Carousel" else f'''        "{item_id_custom_new}".{component_type}.Data.CNF.SpeedHigh := 0.0; // [default=0.0]
+'''}        "{item_id_custom_new}".{component_type}.Data.CNF.DriveMaxSpeed := "{item_id_custom_new}".DriveInterface.Par.MaxSpeed;        // [default=2.0] da machine table = {item_speed_max}
+        "{item_id_custom_new}".{component_type}.Data.CNF.Acceleration := {item_acceleration}; // [default=2.5]
+        "{item_id_custom_new}".{component_type}.Data.CNF.Length := {item_l_float}; // [default=1600]   (m)
+        "{item_id_custom_new}".{component_type}.Data.CNF.Gap := 0.4; // [default=0.4]
+        "{item_id_custom_new}".{component_type}.Data.CNF.Step := 0.4; // [default=0.4]
+        "{item_id_custom_new}".{component_type}.Data.CNF.TrackingSlotLength := 0.04; // [default=0.04]
+        "{item_id_custom_new}".{component_type}.Data.CNF.StopDistance := 0.6; // [default=0.6]
+        "{item_id_custom_new}".{component_type}.Data.CNF.EndZone := 0.6; // [default=0.6]
+{'' if component_type == "Carousel" else f'''        "{item_id_custom_new}".{component_type}.Data.CNF.ObjectMaxLength := 0.0; // [default=0.0]
+'''}{'' if component_type == "Carousel" else f'''        "{item_id_custom_new}".{component_type}.Data.CNF.JamInterferenceDistance := 0.0; // [default=0.0]
+'''}{'' if component_type == "Conveyor" else f'''        "{item_id_custom_new}".Carousel.Data.CNF.PitchControl1_Enable := FALSE; // [default=false]
+        "{item_id_custom_new}".Carousel.Data.CNF.PitchControl2_Enable := FALSE; // [default=false]
+        "{item_id_custom_new}".Carousel.Data.CNF.DelayCarouselFull := T#10s;    //[default=T#10s]
+        "{item_id_custom_new}".Carousel.Data.CNF.DelaySecondCheck := T#5s;    //[default=T#20s]
+        "{item_id_custom_new}".Carousel.Data.CNF.MinLengthForCarouselFull := 1.5;    //[default=1.5] (m)
+'''}    END_REGION
     
      REGION {component_type}.Pht01.Data.CNF
-            "{item_id_custom_new}".{component_type}.Pht01.Data.CNF.FlickeringMaxFp := 5;
-            "{item_id_custom_new}".{component_type}.Pht01.Data.CNF.FlickeringTime := T#500MS;
-            "{item_id_custom_new}".{component_type}.Pht01.Data.CNF.PhtRiseFilterThr := 0.04;
-            "{item_id_custom_new}".{component_type}.Pht01.Data.CNF.PhtFallFilterThr := 0.04;
-            "{item_id_custom_new}".{component_type}.Pht01.Data.CNF.JamLengthThr := 3;
+            "{item_id_custom_new}".{component_type}.Pht01.Data.CNF.FlickeringMaxFp := 5; // [default=5]
+            "{item_id_custom_new}".{component_type}.Pht01.Data.CNF.FlickeringTime := T#500MS; // [default=T#500MS]
+            "{item_id_custom_new}".{component_type}.Pht01.Data.CNF.PhtRiseFilterThr := 0.04; // [default=0.04]
+            "{item_id_custom_new}".{component_type}.Pht01.Data.CNF.PhtFallFilterThr := 0.04; // [default=0.04]
+            "{item_id_custom_new}".{component_type}.Pht01.Data.CNF.JamLengthThr := 3; // [default=3]
         END_REGION
         
         REGION {component_type}.Pht02.Data.CNF
-            "{item_id_custom_new}".{component_type}.Pht02.Data.CNF.FlickeringMaxFp := 5;
-            "{item_id_custom_new}".{component_type}.Pht02.Data.CNF.FlickeringTime := T#500MS;
-            "{item_id_custom_new}".{component_type}.Pht02.Data.CNF.PhtRiseFilterThr := 0.04;
-            "{item_id_custom_new}".{component_type}.Pht02.Data.CNF.PhtFallFilterThr := 0.04;
-            "{item_id_custom_new}".{component_type}.Pht02.Data.CNF.JamLengthThr := 3;
+            "{item_id_custom_new}".{component_type}.Pht02.Data.CNF.FlickeringMaxFp := 5; // [default=5]
+            "{item_id_custom_new}".{component_type}.Pht02.Data.CNF.FlickeringTime := T#500MS; // [default=T#500MS]
+            "{item_id_custom_new}".{component_type}.Pht02.Data.CNF.PhtRiseFilterThr := 0.04; // [default=0.04]
+            "{item_id_custom_new}".{component_type}.Pht02.Data.CNF.PhtFallFilterThr := 0.04; // [default=0.04]
+            "{item_id_custom_new}".{component_type}.Pht02.Data.CNF.JamLengthThr := 3; // [default=3]
         END_REGION
         
         REGION {component_type}.PhtTracking01.Data.CNF
-            "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.VidGenerationEn := TRUE;
-            "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.ObjLengthUpdateDis := FALSE;
-            "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.MachineId := "UpstreamDB-Globale".Global_Data.MachineId;
-            "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.DecisionPointId := 0;
-            "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.MaxLostPiecesForJam := 3;
-            "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.Position := 0.4;
-            "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.TrkCtrlTollerance := 0.35;
-            "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.ObjLengthTollerance := 0;
+            "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.VidGenerationEn := TRUE; // [default=TRUE]
+            "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.ObjLengthUpdateDis := FALSE; // [default=FALSE]
+            "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.MachineId := "UpstreamDB-Globale".Global_Data.MachineId; // [default=1]
+            "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.DecisionPointId := 0; // [default=0]
+            "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.MaxLostPiecesForJam := 3; // [default=3]
+            "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.Position := 0.4; // [default=400]
+            "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.TrkCtrlTollerance := 0.35; // [default=0.35]
+            "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.ObjLengthTollerance := 0; // [default=0]
             "{item_id_custom_new}".{component_type}.PhtTracking01.Data.CNF.TrackingPointID := dint#99999; //To be defined
         END_REGION
         
         REGION {component_type}.PhtTracking02.Data.CNF
-            "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.VidGenerationEn := TRUE;
-            "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.ObjLengthUpdateDis := FALSE;
-            "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.MachineId := "UpstreamDB-Globale".Global_Data.MachineId;
-            "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.DecisionPointId := 0;
-            "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.MaxLostPiecesForJam := 3;
+            "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.VidGenerationEn := TRUE; // [default=TRUE]
+            "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.ObjLengthUpdateDis := FALSE; // [default=FALSE]
+            "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.MachineId := "UpstreamDB-Globale".Global_Data.MachineId; // [default=1]
+            "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.DecisionPointId := 0; // [default=0]
+            "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.MaxLostPiecesForJam := 3; // [default=3]
             "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.Position := "{item_id_custom_new}".Conveyor.Data.CNF.Length - 0.3;       // [default=1200]
-            "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.TrkCtrlTollerance := 0.35;
-            "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.ObjLengthTollerance := 0;
+            "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.TrkCtrlTollerance := 0.35; // [default=0.35]
+            "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.ObjLengthTollerance := 0; // [default=0]
             "{item_id_custom_new}".{component_type}.PhtTracking02.Data.CNF.TrackingPointID := dint#99999; //To be defined
         END_REGION
         
         REGION Encoder.Data.CNF
-            "{item_id_custom_new}".Encoder.Data.CNF.K_pulse := 0.0;
-            "{item_id_custom_new}".Encoder.Data.CNF.SpeedTollerance := 0.0;
+            "{item_id_custom_new}".Encoder.Data.CNF.K_pulse := 0.0; // [default=0.0]
+            "{item_id_custom_new}".Encoder.Data.CNF.SpeedTollerance := 0.0; // [default=0.0]
+        END_REGION
+"""
+                            # Parte DriveInterface (condizionale)
+                            drive_interface_part = ""
+                            if component_type == "Carousel":
+                                drive_interface_part += f"""
+        REGION DriveInterface_1.Par 
+            "{item_id_custom_new}".DriveInterface_1.Par.Direction := TRUE; // [default=FALSE]
+            "{item_id_custom_new}".DriveInterface_1.Par.UseDriveSpeedYs := TRUE; // [default=TRUE]
+            "{item_id_custom_new}".DriveInterface_1.Par.HwAddr := 0; // [default=0]
+            "{item_id_custom_new}".DriveInterface_1.Par.MaxSpeed := 0.91; // [default=2.0]
+            "{item_id_custom_new}".DriveInterface_1.Par.FeedbackTime := T#500MS; // [default=T#500MS]
         END_REGION
         
-        REGION DriveInterface.Par
-            "{item_id_custom_new}".DriveInterface.Par.Direction := TRUE;
-            "{item_id_custom_new}".DriveInterface.Par.UseDriveSpeedYs := TRUE;
-            "{item_id_custom_new}".DriveInterface.Par.HwAddr := 0;
-            "{item_id_custom_new}".DriveInterface.Par.MaxSpeed := 0.91;
-            "{item_id_custom_new}".DriveInterface.Par.FeedbackTime := T#500MS;
+        REGION DriveInterface_2.Par 
+            "{item_id_custom_new}".DriveInterface_2.Par.Direction := TRUE; // [default=FALSE]
+            "{item_id_custom_new}".DriveInterface_2.Par.UseDriveSpeedYs := TRUE; // [default=TRUE]
+            "{item_id_custom_new}".DriveInterface_2.Par.HwAddr := 0; // [default=0]
+            "{item_id_custom_new}".DriveInterface_2.Par.MaxSpeed := 0.91; // [default=2.0]
+            "{item_id_custom_new}".DriveInterface_2.Par.FeedbackTime := T#500MS; // [default=T#500MS]
+        END_REGION
+"""
+                            elif component_type == "Conveyor":
+                                drive_interface_part += f"""
+        REGION DriveInterface.Par 
+            "{item_id_custom_new}".DriveInterface.Par.Direction := TRUE; // [default=FALSE]
+            "{item_id_custom_new}".DriveInterface.Par.UseDriveSpeedYs := TRUE; // [default=TRUE]
+            "{item_id_custom_new}".DriveInterface.Par.HwAddr := 0; // [default=0]
+            "{item_id_custom_new}".DriveInterface.Par.MaxSpeed := 0.91; // [default=2.0]
+            "{item_id_custom_new}".DriveInterface.Par.FeedbackTime := T#500MS; // [default=T#500MS]
+        END_REGION
+"""
+                            # Parte finale della configurazione
+                            final_config_part = f"""
+{'' if component_type == "Carousel" else f'''        REGION PhonicWeel.Data.CNF
+            "{item_id_custom_new}".PhonicWeel.Data.CNF.PhonicWheelEn := FALSE; // [default=FALSE]
+            "{item_id_custom_new}".PhonicWeel.Data.CNF.FlickeringMaxFp := 0; // [default=0]
+            "{item_id_custom_new}".PhonicWeel.Data.CNF.FlickeringTime := T#500MS; // [default=T#500MS]
+            "{item_id_custom_new}".PhonicWeel.Data.CNF.PhtRiseFilterThr := T#100MS; // [default=T#100MS]
+            "{item_id_custom_new}".PhonicWeel.Data.CNF.PhtFallFilterThr := T#100MS; // [default=T#100MS]
+            "{item_id_custom_new}".PhonicWeel.Data.CNF.JamTimeThr := T#1S; // [default=T#1S]
         END_REGION
         
-        REGION PhonicWeel.Data.CNF
-            "{item_id_custom_new}".PhonicWeel.Data.CNF.PhonicWheelEn := FALSE;
-            "{item_id_custom_new}".PhonicWeel.Data.CNF.FlickeringMaxFp := 0;
-            "{item_id_custom_new}".PhonicWeel.Data.CNF.FlickeringTime := T#500MS;
-            "{item_id_custom_new}".PhonicWeel.Data.CNF.PhtRiseFilterThr := T#100MS;
-            "{item_id_custom_new}".PhonicWeel.Data.CNF.PhtFallFilterThr := T#100MS;
-            "{item_id_custom_new}".PhonicWeel.Data.CNF.JamTimeThr := T#1S;
+'''}            {'' if component_type == "Carousel" else f'''REGION Conveyor.Data.CNF.PhtExternalEn[1]. //Jam Photocell
+            "{item_id_custom_new}".Conveyor.Data.CNF.PhtExternalEn[1] := FALSE; 
+            "{item_id_custom_new}".Conveyor.PhtExternal[1].Data.CNF.FlickeringMaxFp := 5;          // [default=5]
+            "{item_id_custom_new}".Conveyor.PhtExternal[1].Data.CNF.FlickeringTime := T#500MS;    // [default=T#500MS]
+            "{item_id_custom_new}".Conveyor.PhtExternal[1].Data.CNF.PhtRiseFilterThr := T#100MS;       // [default=0.04]
+            "{item_id_custom_new}".Conveyor.PhtExternal[1].Data.CNF.PhtFallFilterThr := T#100MS;       // [default=0.04]
+            "{item_id_custom_new}".Conveyor.PhtExternal[1].Data.CNF.JamTimeThr := T#6S;       // [default=T#0S]
+        
         END_REGION
-   END_REGION
- """
-                        
+'''}   END_REGION
+"""
+                            # Assembla la configurazione finale
+                            configuration = initial_config_part + drive_interface_part + final_config_part
+
                         # Aggiungi la configurazione e crea i file necessari
                         if component_type == "Datalogic":
                             output_folder = f'Configurazioni/{selected_cab_plc}/_DB User'
@@ -514,12 +566,18 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                             create_datalogic_file(item_id_custom, output_folder)
                             if configuration:
                                 configurations_by_trunk[global_trunk_counter].append(configuration)
-                        elif component_type in ["Carousel", "Conveyor"]:
+                        elif component_type == "Carousel":
                             output_folder = f'Configurazioni/{selected_cab_plc}/_DB User'
                             create_data_block_file(item_id_custom_new, component_type, output_folder, line_type_mapping)
                             if configuration:
                                 configurations_by_trunk[global_trunk_counter].append(configuration)
-                        elif component_type in ["SAFETYSHUTTER", "FIRESHUTTER", "OVERSIZE"]:
+                        elif component_type == "Conveyor": # Per i Conveyor, la logica DriveInterface.Par rimane invariata
+                            output_folder = f'Configurazioni/{selected_cab_plc}/_DB User'
+                            create_data_block_file(item_id_custom_new, component_type, output_folder, line_type_mapping)
+                            if configuration:
+                                configurations_by_trunk[global_trunk_counter].append(configuration)
+
+                        elif component_type in ["SHUTTER", "FIRESHUTTER", "OVERSIZE"]:
                             output_folder = f'Configurazioni/{selected_cab_plc}/_DB User'
                             create_data_block_file(item_id_custom_new, component_type, output_folder, line_type_mapping)
                             # Non aggiungiamo la 'configuration' qui, poiché la loro regione CONF_Tx è gestita separatamente
@@ -562,20 +620,62 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                         configurations_by_trunk[global_trunk_counter].append('')
                         oversize_conf_counter += 1
                 
-                # Aggiungi qui la logica per la regione SAFETYSHUTTER per CONF_Tx
-                safetyshutter_conf_counter = 1
-                safetyshutter_items_in_trunk = trunk_group[trunk_group['ITEM_ID_CUSTOM'].str.contains('SD', case=False, na=False)].copy()
+                # Aggiungi qui la logica per la regione SHUTTER per CONF_Tx
+                shutter_conf_counter = 1
+                shutter_items_in_trunk = trunk_group[trunk_group['ITEM_ID_CUSTOM'].str.contains('SD', case=False, na=False)].copy()
                 
-                if not safetyshutter_items_in_trunk.empty:
-                    for item_idx, _ in safetyshutter_items_in_trunk.iterrows():
-                        item_id_original = safetyshutter_items_in_trunk.loc[item_idx, 'ITEM_ID_CUSTOM'] # Ottieni l'item_id_original
-                        configurations_by_trunk[global_trunk_counter].append(f'    REGION Config SECURITY SAFETYSHUTTER ({item_id_original})')
-                        configurations_by_trunk[global_trunk_counter].append(f'        "SAFETYSHUTTER{safetyshutter_conf_counter}".Data.CNF.Timeout_opening := T#10s;')
-                        configurations_by_trunk[global_trunk_counter].append(f'        "SAFETYSHUTTER{safetyshutter_conf_counter}".Data.CNF.Timeout_closing := T#10s;')
-                        configurations_by_trunk[global_trunk_counter].append(f'        "SAFETYSHUTTER{safetyshutter_conf_counter}".Data.CNF.Command_pulse_duration := T#1000ms;')
+                if not shutter_items_in_trunk.empty:
+                    for item_idx, _ in shutter_items_in_trunk.iterrows():
+                        item_id_original = shutter_items_in_trunk.loc[item_idx, 'ITEM_ID_CUSTOM'] # Ottieni l'item_id_original
+                        configurations_by_trunk[global_trunk_counter].append(f'    REGION Config SECURITY SHUTTER ({item_id_original})')
+                        configurations_by_trunk[global_trunk_counter].append(f'        "SHUTTER{shutter_conf_counter}".Data.CNF.Timeout_opening := T#10s;')
+                        configurations_by_trunk[global_trunk_counter].append(f'        "SHUTTER{shutter_conf_counter}".Data.CNF.Timeout_closing := T#10s;')
+                        configurations_by_trunk[global_trunk_counter].append(f'        "SHUTTER{shutter_conf_counter}".Data.CNF.Command_pulse_duration := T#1000ms;')
                         configurations_by_trunk[global_trunk_counter].append('    END_REGION')
                         configurations_by_trunk[global_trunk_counter].append('')
-                        safetyshutter_conf_counter += 1
+                        shutter_conf_counter += 1
+                
+                # Identifica i caroselli nel tronco corrente per la logica SIDE_INPUT_CAROUSEL
+                carousel_items_in_trunk_for_side_input = trunk_group[trunk_group['ITEM_ID_CUSTOM'].str.upper().str.count('CA') == 2].copy()
+
+                # Aggiungi qui la logica per la regione SIDE_INPUT_CAROUSEL per CONF_Tx
+                # Genera un SIDE_INPUT_CAROUSEL per ogni CAROUSEL presente nel tronco
+                if not carousel_items_in_trunk_for_side_input.empty:
+                    for item_idx, carousel_row in carousel_items_in_trunk_for_side_input.iterrows():
+                        carousel_number = carousel_row.get('GlobalCarouselNumber')
+                        if carousel_number is not None:
+                            side_input_carousel_num = int(carousel_number)
+                            
+                            # Costruisci la configurazione SIDE_INPUT_CAROUSEL
+                            side_input_config_content = [
+                                f'    REGION Config SIDE_INPUT_CAROUSEL{side_input_carousel_num}',
+                                '',
+                                f'        "SIDE_INPUT_CAROUSEL{side_input_carousel_num}".DATA.CNF.InputAreaPosition := 5.5; //Distanza rispetto all\'inizio immaginario del nastro carosello',
+                                f'        "SIDE_INPUT_CAROUSEL{side_input_carousel_num}".DATA.CNF.InputAreaLength := 1.3; //Larghezza in metri dello spazio libero necessario per scaricare',
+                                f'        "SIDE_INPUT_CAROUSEL{side_input_carousel_num}".DATA.CNF.LoadLength := 1.2; // Quando carico scrivo negli slot di tracking del carosello questa lunghezza fissa',
+                                f'        "SIDE_INPUT_CAROUSEL{side_input_carousel_num}".DATA.CNF.StopRetainTime := T#1S; //Non utilizzato',
+                                f'        "SIDE_INPUT_CAROUSEL{side_input_carousel_num}".DATA.CNF.TransferTime := T#500ms; //',
+                                f'        "SIDE_INPUT_CAROUSEL{side_input_carousel_num}".DATA.CNF.MachineId := 0;',
+                                f'        "SIDE_INPUT_CAROUSEL{side_input_carousel_num}".DATA.CNF.UseNextObjTransferInForDelay := TRUE; // Alway true for every side input',
+                                f'        "SIDE_INPUT_CAROUSEL{side_input_carousel_num}".DATA.CNF.NextObjTransferInDelayTransfer := T#500MS; // T#8500MS; // Time needed to create the gap between the last object',
+                                f'        "SIDE_INPUT_CAROUSEL{side_input_carousel_num}".DATA.CNF.UsePrevFullStatusToReqAsr := FALSE; // TRUE only for side input on recirculation lane',
+                                f'        "SIDE_INPUT_CAROUSEL{side_input_carousel_num}".DATA.CNF.UseBufferingStatusToReqAsr := FALSE; // TRUE only for side input on accumulation lane',
+                                f'        "SIDE_INPUT_CAROUSEL{side_input_carousel_num}".DATA.CNF.InjectionCarouselManualEnable := TRUE; // [default=FALSE]',
+                                '',
+                                '    END_REGION',
+                                ''
+                            ]
+                            
+                            # Salva la configurazione per il tronco precedente
+                            prev_trunk_num = global_trunk_counter - 1
+                            if prev_trunk_num > 0: # Assicurati che esista un tronco precedente valido
+                                if prev_trunk_num not in side_input_configs_to_inject:
+                                    side_input_configs_to_inject[prev_trunk_num] = []
+                                side_input_configs_to_inject[prev_trunk_num].extend(side_input_config_content)
+                            else:
+                                print(f"DEBUG - Non è possibile generare SIDE_INPUT_CAROUSEL{side_input_carousel_num} per il tronco {global_trunk_counter} in quanto non esiste un tronco precedente.")
+                        else:
+                            print(f"DEBUG - Impossibile trovare GlobalCarouselNumber per SIDE_INPUT associato a ITEM_ID_CUSTOM: {carousel_row.get('ITEM_ID_CUSTOM', 'N/A')}")
                 
                 # Aggiunge END_FUNCTION alla fine delle configurazioni del tronco
                 configurations_by_trunk[global_trunk_counter].append("END_FUNCTION")
@@ -583,6 +683,24 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                 # Incrementa il contatore globale
                 global_trunk_counter += 1
         
+        # Inietta le configurazioni SIDE_INPUT_CAROUSEL nei tronchi precedenti
+        for trunk_num_to_inject, configs_to_add in side_input_configs_to_inject.items():
+            if trunk_num_to_inject in configurations_by_trunk:
+                # Trova la posizione di END_FUNCTION e inserisci prima
+                end_function_index = -1
+                for i, line in enumerate(configurations_by_trunk[trunk_num_to_inject]):
+                    if line == "END_FUNCTION":
+                        end_function_index = i
+                        break
+                
+                if end_function_index != -1:
+                    configurations_by_trunk[trunk_num_to_inject][end_function_index:end_function_index] = configs_to_add
+                    print(f"DEBUG - Inserita configurazione SIDE_INPUT_CAROUSEL nel tronco {trunk_num_to_inject}")
+                else:
+                    print(f"AVVISO - END_FUNCTION non trovato nel tronco {trunk_num_to_inject}, configurazione SIDE_INPUT_CAROUSEL non inserita.")
+            else:
+                print(f"AVVISO - Il tronco {trunk_num_to_inject} non esiste in configurations_by_trunk, configurazione SIDE_INPUT_CAROUSEL non inserita.")
+
         # Salva le configurazioni CONF_T in file separati per tronco
         files_created = [] 
         for trunk in sorted(configurations_by_trunk.keys(), key=int):
