@@ -1304,3 +1304,86 @@ def generate_gen_line_file(df, selected_cab_plc, line_type_mapping, ordered_pref
     with open(output_path, 'w') as f:
         f.write("\n".join(gen_line_content))
     print(f"DEBUG - File GEN_LINE.scl creato in {output_path}") 
+
+def create_dig_in_file(selected_cab_plc, output_base_folder, conveyor_data_for_dig_in=None):
+    """
+    Crea il file DIG_IN.scl nella cartella Input MNG, includendo le regioni di configurazione per i conveyor.
+    
+    Args:
+        selected_cab_plc (str): Il CAB_PLC selezionato.
+        output_base_folder (str): La cartella base dove creare Input MNG (es. 'Configurazioni').
+        conveyor_data_for_dig_in (list): Lista di dizionari con i dati dei conveyor per generare le regioni.
+    """
+    input_mng_folder = os.path.join(output_base_folder, selected_cab_plc, 'INPUT MNG')
+    os.makedirs(input_mng_folder, exist_ok=True)
+    
+    dig_in_content_lines = [
+        "FUNCTION \"DIG_IN\" : Void",
+        "{ S7_Optimized_Access := 'TRUE' }",
+        "VERSION : 0.1",
+        "",
+        "BEGIN",
+        ""
+    ]
+
+    if conveyor_data_for_dig_in:
+        for data in conveyor_data_for_dig_in:
+            item_id_custom_new = data['item_id_custom_new']
+            comment_name = data['comment_name']
+            profinet_index = data['profinet_index']
+            safety_switch_ref = data['safety_switch_ref']
+            key_switch_local_mode_ref = data['key_switch_local_mode_ref']
+            stop_head_photocell_ref = data['stop_head_photocell_ref']
+            power_supply_breaker_status_ref = data['power_supply_breaker_status_ref']
+
+            region_content = f"""
+    REGION Input CONVEYOR {item_id_custom_new} ({comment_name})
+        
+        //    Profinet
+        
+        IF "SV_DB_PROFINET_SA".FAULT_PROFINET1[{profinet_index}] THEN
+            "{item_id_custom_new}".DriveInterface.In.DataOk := FALSE;
+            "{item_id_custom_new}".Conveyor.Data.IN.BusFault := TRUE;
+            "{item_id_custom_new}".Conveyor.Pht01.Data.IN.BusFault := TRUE;
+            "{item_id_custom_new}".Encoder.Data.IN.BusFault := TRUE;
+        ELSE
+            "{item_id_custom_new}".DriveInterface.In.DataOk := TRUE;
+            "{item_id_custom_new}".Conveyor.Data.IN.BusFault := FALSE;
+            "{item_id_custom_new}".Conveyor.Pht01.Data.IN.BusFault := FALSE;
+            "{item_id_custom_new}".Encoder.Data.IN.BusFault := FALSE;
+        END_IF;
+        
+        ///
+        //    Conveyor Input
+        //   ---------------------------------------------------------------------------------
+        //
+        
+        "{item_id_custom_new}".Conveyor.Data.IN.PRS := FALSE;
+        "{item_id_custom_new}".Conveyor.Data.IN.Dir := TRUE;
+        "{item_id_custom_new}".Conveyor.Data.IN.ExternalFault := FALSE;
+        "{item_id_custom_new}".Conveyor.Data.IN.PFL := "PFL_NCE1".DATA.OUT.PFL_Req;
+        "{item_id_custom_new}".Conveyor.Data.IN.ASR := FALSE;
+        "{item_id_custom_new}".Conveyor.Data.IN.EnableBuffering := FALSE;
+        "{item_id_custom_new}".Conveyor.Data.IN.SafetyBreaker := NOT "{safety_switch_ref}";
+        "{item_id_custom_new}".Conveyor.Data.IN.KeySwitchLocalMode := "{key_switch_local_mode_ref}";
+        
+        //    Photocell Input
+        
+        "{item_id_custom_new}".Conveyor.Pht01.Data.IN.Photocell := FALSE;
+        "{item_id_custom_new}".Conveyor.Pht02.Data.IN.Photocell := NOT "{stop_head_photocell_ref}";
+        
+        //    Drive Input
+        
+        "{item_id_custom_new}".DriveInterface.In.EOk := "{power_supply_breaker_status_ref}";
+        
+    END_REGION
+"""
+            dig_in_content_lines.append(region_content)
+            dig_in_content_lines.append("") # Aggiunge una riga vuota tra le regioni
+
+    dig_in_content_lines.append("END_FUNCTION")
+    
+    dig_in_file_path = os.path.join(input_mng_folder, 'DIG_IN.scl')
+    with open(dig_in_file_path, 'w') as f:
+        f.write("\n".join(dig_in_content_lines))
+    print(f"DEBUG - File DIG_IN.scl creato in {dig_in_file_path}") 

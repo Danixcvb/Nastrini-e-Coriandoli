@@ -13,7 +13,10 @@ from funzioni_elaborazione import (
     count_ca_occurrences,
     get_value_or_default,
     extract_numeric_part,
-    _get_item_details
+    _get_item_details,
+    calculate_tracking_slot_length,
+    format_datalogic_hwid, # Added new import
+    # generate_power_supply_breaker_status_ref # Rimosso per usare un valore fisso
 )
 from creazione_file import (
     create_txt_files,
@@ -25,7 +28,8 @@ from creazione_file import (
     create_main_structure_file,
     create_conf_file,
     _is_valid_component_for_chain,
-    generate_gen_line_file
+    generate_gen_line_file,
+    create_dig_in_file # Added new import
 )
 import random
 import math
@@ -251,7 +255,9 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         main_data_by_trunk = {} 
         # Dizionario per memorizzare le configurazioni SIDE_INPUT per il tronco precedente
         side_input_configs_to_inject = {}
-        
+        # Lista per memorizzare i dati dei conveyor per la generazione del file DIG_IN.scl
+        conveyor_data_for_dig_in = []
+
         # Itera attraverso ogni prefisso nell'ordine selezionato
         for prefix in ordered_prefixes:
             prefix_data = df[df['Prefix'] == prefix]
@@ -376,8 +382,8 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             REGION PROFINET interface connection
                 
                 REGION Address Configuration
-                    "DATALOGIC_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.InputHwId := "{item_id_custom}_CD014~IM_128ByteIn_1";
-                    "DATALOGIC_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.OutputHwId := "{item_id_custom}_CD014~OM_32ByteOut_1";
+                    "DATALOGIC_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.InputHwId := "{format_datalogic_hwid(item_id_custom)}_CD009~IM_128ByteIn_1";
+                    "DATALOGIC_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.OutputHwId := "{format_datalogic_hwid(item_id_custom)}_CD009~OM_32ByteOut_1";
                     
                 END_REGION
 
@@ -447,7 +453,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         "{item_id_custom_new}".{component_type}.Data.CNF.Length := {item_l_float}; // [default=1600]   (m)
         "{item_id_custom_new}".{component_type}.Data.CNF.Gap := 0.4; // [default=0.4]
         "{item_id_custom_new}".{component_type}.Data.CNF.Step := 0.4; // [default=0.4]
-        "{item_id_custom_new}".{component_type}.Data.CNF.TrackingSlotLength := 0.04; // [default=0.04]
+        "{item_id_custom_new}".{component_type}.Data.CNF.TrackingSlotLength := {calculate_tracking_slot_length(component_type, item_l_float)}; // [default=0.04] (m)
         "{item_id_custom_new}".{component_type}.Data.CNF.StopDistance := 0.6; // [default=0.6]
         "{item_id_custom_new}".{component_type}.Data.CNF.EndZone := 0.6; // [default=0.6]
 {'' if component_type == "Carousel" else f'''        "{item_id_custom_new}".{component_type}.Data.CNF.ObjectMaxLength := 0.0; // [default=0.0]
@@ -576,6 +582,23 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                             create_data_block_file(item_id_custom_new, component_type, output_folder, line_type_mapping)
                             if configuration:
                                 configurations_by_trunk[global_trunk_counter].append(configuration)
+                            
+                            # Raccogli i dati del conveyor per il file DIG_IN.scl
+                            profinet_index = 11 # Valore fisso per ora, da definire meglio se necessario
+                            safety_switch_ref = f"{selected_cab_plc}_{item_id_custom}_T0001_SAFETY_SWITCH_POWER_SUPPLY_400V".replace("-", "_").replace(" ", "_").upper()
+                            key_switch_local_mode_ref = f"{selected_cab_plc}_{item_id_custom}_T0001_KEY_SWITCH_LOCAL_MODE".replace("-", "_").replace(" ", "_").upper()
+                            stop_head_photocell_ref = f"{selected_cab_plc}_{item_id_custom}_B1101_STOP_HEAD_PHOTOCELL".replace("-", "_").replace(" ", "_").upper()
+                            power_supply_breaker_status_ref = "MCP_130F1_400VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_INVERTER_ST001_ST007" # Valore fisso come richiesto
+
+                            conveyor_data_for_dig_in.append({
+                                'item_id_custom_new': item_id_custom_new,
+                                'comment_name': item_id_custom,
+                                'profinet_index': profinet_index,
+                                'safety_switch_ref': safety_switch_ref,
+                                'key_switch_local_mode_ref': key_switch_local_mode_ref,
+                                'stop_head_photocell_ref': stop_head_photocell_ref,
+                                'power_supply_breaker_status_ref': power_supply_breaker_status_ref
+                            })
 
                         elif component_type in ["SHUTTER", "FIRESHUTTER", "OVERSIZE"]:
                             output_folder = f'Configurazioni/{selected_cab_plc}/_DB User'
@@ -815,6 +838,9 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
 
         # Genera il file GEN_LINE.scl dopo che tutte le linee e i trunk sono stati processati
         generate_gen_line_file(df, selected_cab_plc, line_type_mapping, ordered_prefixes, trunk_to_line_mapping)
+
+        # Crea il file DIG_IN.scl nella nuova cartella Input MNG
+        create_dig_in_file(selected_cab_plc, 'Configurazioni', conveyor_data_for_dig_in)
 
         # Aggiorna lo stato
         # status_var.set(f"Completato! {len(files_created)} file CONF_T e {len(main_data_by_trunk)} file MAIN salvati.")

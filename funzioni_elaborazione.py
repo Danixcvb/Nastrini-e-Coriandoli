@@ -5,6 +5,7 @@ Include funzioni per l'estrazione di numeri, conteggio di occorrenze e gestione 
 
 import re
 import pandas as pd
+import math # Added import for math module
 
 def get_last_three_digits(s):
     """
@@ -109,3 +110,60 @@ def _get_item_details(item_data, index_fallback):
             formatted_name = f"CAROUSEL{number_int}"
 
     return formatted_name, number_int 
+
+def format_datalogic_hwid(item_id_custom):
+    """
+    Formatta l'item_id_custom per gli HWID dei Datalogic.
+    Es. "ca32sc009" -> "CA32+SC009"
+    """
+    # Estrae le parti alfabetiche e numeriche
+    matches = re.findall(r'([A-Za-z]+)(\d+)([A-Za-z]+)(\d+)', item_id_custom)
+    if matches:
+        p1_alpha, p1_num, p2_alpha, p2_num = matches[0]
+        return f"{p1_alpha.upper()}{p1_num}+{p2_alpha.upper()}{p2_num}"
+    return item_id_custom.upper() # Fallback se il formato non corrisponde
+
+# def generate_power_supply_breaker_status_ref(cab_plc, item_id_custom):
+#     """
+#     Genera la stringa per DriveInterface.In.EOk basata sul CAB_PLC e ITEM_ID_CUSTOM.
+#     Es. CAB_PLC='API004', ITEM_ID_CUSTOM='CA11ST001' -> 'MCPCA11_130F1_400VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_INVERTER_ST001_ST007'
+#     """
+#     # Estrai il prefisso dalla CAB_PLC (es. API004 -> CA)
+#     # prefix_cab = ""
+#     # if cab_plc.startswith("API"):
+#     #     prefix_cab = cab_plc[3:] # Prende solo il numero (es. "004")
+#     # elif cab_plc.startswith("APR"):
+#     #     prefix_cab = cab_plc[3:] # Prende solo il numero (es. "001")
+    
+#     # # Estrai il prefisso della linea da item_id_custom (es. CA11ST001 -> CA11)
+#     # line_prefix_match = re.match(r'([A-Z]{2}\d{2})', item_id_custom.upper())
+#     # line_prefix = line_prefix_match.group(1) if line_prefix_match else ""
+
+#     # # Estrai l'ultima parte di item_id_custom (es. CA11ST001 -> ST001)
+#     # last_part_match = re.search(r'([A-Z]{2}\d{3})', item_id_custom.upper())
+#     # last_part = last_part_match.group(1) if last_part_match else ""
+    
+#     # # Costruisci la stringa finale
+#     # # La parte 130F1 e ST007 sono assunte come fisse per ora in base all'esempio
+#     # # TODO: questi valori potrebbero dover essere derivati dinamicamente se cambiano
+#     # return f"MCP{line_prefix}_130F1_400VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_INVERTER_{last_part}_ST007"
+
+
+def calculate_tracking_slot_length(component_type, item_l_float):
+    """
+    Calcola la lunghezza dello slot di tracciamento in base al tipo di componente e alla lunghezza dell'elemento.
+    
+    Args:
+        component_type (str): Tipo di componente (es. "Carousel", "Conveyor")
+        item_l_float (float): Lunghezza dell'elemento in metri
+        
+    Returns:
+        float: La lunghezza dello slot di tracciamento calcolata
+    """
+    if component_type == "Carousel":
+        # Logica specifica per i caroselli: item_l / 400, arrotondato al multiplo più vicino di 0.02
+        calculated_value = item_l_float / 400.0
+        # Arrotonda per eccesso al multiplo successivo di 0.02
+        return round(math.ceil(calculated_value / 0.02) * 0.02, 4) # Arrotonda a 4 decimali per precisione
+    else:
+        return 0.04 # Valore di default per tutti gli altri componenti 
