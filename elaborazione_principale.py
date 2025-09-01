@@ -102,8 +102,8 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                  QMessageBox.critical(None, "Errore Colonne", "Alcune colonne richieste sono mancanti nel file Excel.")
             return False, "Colonne mancanti nel file Excel"
         
-        # Filtra le righe escludendo ITEM_ID_CUSTOM contenenti "RS", "CX", "CH", "XR", "SO", "LC", "IN",
-        df = df[~df['ITEM_ID_CUSTOM'].str.contains('RS|CX|CH|XR|SO|LC|IN', case=False, na=False)]
+        # Filtra le righe escludendo ITEM_ID_CUSTOM contenenti "RS", "CH", "XR", "SO", "LC", "IN",
+        df = df[~df['ITEM_ID_CUSTOM'].str.contains('RS|CH|XR|SO|LC|IN', case=False, na=False)]
 
         # Valori predefiniti per celle vuote
         default_speed_transport = 1.5

@@ -81,7 +81,7 @@ def _get_item_details(item_data, index_fallback):
     formatted_name = item_id # Default a ID originale
     number_int = None
 
-    if "ST" in item_id.upper() or "CN" in item_id.upper():
+    if "ST" in item_id.upper() or "CN" in item_id.upper() or "CX" in item_id.upper():
         raw_num = item_data.get('GlobalUtenzaNumber')
         if raw_num is not None:
             try:

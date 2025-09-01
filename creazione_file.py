@@ -1148,7 +1148,7 @@ def create_conf_file(selected_cab_plc, df, output_folder, order):
             total_conveyors = 0
             for _, item in trunk_items.iterrows():
                 item_id = str(item['ITEM_ID_CUSTOM']).upper()
-                if ('ST' in item_id or 'CN' in item_id) and 'SC' not in item_id and item_id.count('CA') != 2:
+                if ('ST' in item_id or 'CN' in item_id or 'CX' in item_id) and 'SC' not in item_id and item_id.count('CA') != 2:
                     total_conveyors += 1
                     print(f"DEBUG - Trovata utenza valida: {item_id}")
             
