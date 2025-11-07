@@ -30,7 +30,8 @@ from creazione_file import (
     create_conf_file,
     _is_valid_component_for_chain,
     generate_gen_line_file,
-    create_dig_in_file # Added new import
+    create_dig_in_file, # Added new import
+    generate_zones_input_scl # Added new import for zones generation
 )
 import random
 import math
@@ -1052,6 +1053,14 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                 f.write("\n")
             f.write("    END_IF;\n")
             f.write("END_REGION")
+        
+        # Genera il file Zones_Input.scl
+        print("DEBUG - Generazione file Zones_Input.scl...")
+        try:
+            generate_zones_input_scl(selected_cab_plc)
+        except Exception as e:
+            print(f"ERRORE durante la generazione del file Zones_Input.scl: {e}")
+            # Non bloccare il processo se la generazione delle zone fallisce
         
         return True, completion_message
 

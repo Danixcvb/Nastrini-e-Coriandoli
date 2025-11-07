@@ -1416,3 +1416,480 @@ def create_dig_in_file(selected_cab_plc, output_base_folder, conveyor_data_for_d
     with open(dig_in_file_path, 'w') as f:
         f.write("\n".join(dig_in_content_lines))
     print(f"DEBUG - File DIG_IN.scl creato in {dig_in_file_path}") 
+
+def generate_zones_input_scl(selected_cab_plc):
+    """
+    Genera il file Zones_Input.scl nella cartella SAFETY ZONES basandosi sul file Excel
+    Matrice_Zone_di_Emergenza_Nizza.xlsx e sui file di dettaglio linee.
+    
+    Args:
+        selected_cab_plc (str): Il CAB_PLC selezionato.
+    """
+    import re
+    
+    # Percorsi dei file
+    excel_path = os.path.join('Input', 'Matrice_Zone_di_Emergenza_Nizza.xlsx')
+    zone_def_path = os.path.join('Input', 'Definizione numero zone di emergenza.txt')
+    detail_folder = os.path.join('Configurazioni', selected_cab_plc, '_DB Line', 'Dettaglio linee')
+    output_folder = os.path.join('Configurazioni', selected_cab_plc, 'SAFETY ZONES')
+    
+    # Verifica che i file esistano
+    if not os.path.exists(excel_path):
+        print(f"ERRORE: File Excel non trovato: {excel_path}")
+        return False
+    
+    if not os.path.exists(zone_def_path):
+        print(f"ERRORE: File definizione zone non trovato: {zone_def_path}")
+        return False
+    
+    if not os.path.exists(detail_folder):
+        print(f"ERRORE: Cartella dettaglio linee non trovata: {detail_folder}")
+        return False
+    
+    # Crea la cartella di output se non esiste
+    os.makedirs(output_folder, exist_ok=True)
+    
+    # Leggi il file di definizione zone
+    zone_mapping = {}
+    try:
+        with open(zone_def_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line and '\t' in line:
+                    parts = line.split('\t')
+                    if len(parts) >= 2:
+                        zone_num = parts[0].strip()  # es. "Zone22"
+                        zone_name = parts[1].strip()  # es. "7A"
+                        # Estrai il numero dalla stringa "Zone22" -> 22
+                        zone_num_match = re.search(r'(\d+)', zone_num)
+                        if zone_num_match:
+                            zone_number = int(zone_num_match.group(1))
+                            zone_mapping[zone_name] = zone_number
+    except Exception as e:
+        print(f"ERRORE durante la lettura del file di definizione zone: {e}")
+        return False
+    
+    # Leggi i file di dettaglio linee per ottenere i codici presenti
+    available_codes = set()
+    if os.path.exists(detail_folder):
+        for filename in os.listdir(detail_folder):
+            if filename.endswith('.txt') and filename != 'selected_order.txt':
+                filepath = os.path.join(detail_folder, filename)
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        for line in f:
+                            code = line.strip()
+                            if code:
+                                available_codes.add(code.upper())
+                except Exception as e:
+                    print(f"ERRORE durante la lettura di {filename}: {e}")
+    
+    print(f"DEBUG - Codici disponibili trovati: {len(available_codes)}")
+    
+    # Leggi il file Excel
+    try:
+        xls = pd.ExcelFile(excel_path)
+    except Exception as e:
+        print(f"ERRORE durante l'apertura del file Excel: {e}")
+        return False
+    
+    # Filtra fogli senza _reset
+    sheets_to_process = [s for s in xls.sheet_names if '_reset' not in s.lower()]
+    
+    # Struttura per memorizzare le zone e i loro codici
+    zones_data = {}  # {zone_name: {'zone_number': int, 'codes': list}}
+    
+    # Struttura per memorizzare i dettagli degli intervalli trovati (per il riepilogo)
+    intervals_found = {}  # {zone_name: [{'sheet': str, 'column': int, 'interval_text': str, 'codes_extracted': list, 'codes_filtered': list}]}
+    
+    # Processa ogni foglio
+    for sheet_name in sheets_to_process:
+        try:
+            df = pd.read_excel(xls, sheet_name=sheet_name, header=None)
+            
+            # Cerca la riga con "ZONES INTERVENTION BOUTONES ARET D'URGENCE"
+            intervention_row_idx = None
+            for idx, row in df.iterrows():
+                if pd.notna(row.iloc[0]) and 'ZONES INTERVENTION' in str(row.iloc[0]).upper():
+                    intervention_row_idx = idx
+                    break
+            
+            if intervention_row_idx is None:
+                continue
+            
+            # Leggi la riga successiva per le zone
+            zone_row_idx = intervention_row_idx + 1
+            if zone_row_idx >= len(df):
+                continue
+            
+            intervention_row = df.iloc[intervention_row_idx]
+            zone_row = df.iloc[zone_row_idx]
+            
+            # Processa ogni colonna (a partire dalla colonna 2, indice 2)
+            for col_idx in range(2, len(intervention_row)):
+                interval_text = str(intervention_row.iloc[col_idx]) if pd.notna(intervention_row.iloc[col_idx]) else ""
+                zone_name = str(zone_row.iloc[col_idx]).strip() if pd.notna(zone_row.iloc[col_idx]) else ""
+                
+                if not interval_text or interval_text == 'nan' or not zone_name or zone_name == 'nan':
+                    continue
+                
+                # Pulisci il testo dell'intervallo (rimuovi \n e spazi extra)
+                interval_text = interval_text.replace('\n', ' ').strip()
+                
+                # Estrai tutti i codici dall'intervallo
+                codes_in_interval = extract_codes_from_interval(interval_text)
+                
+                # Filtra solo i codici presenti nei file di dettaglio linee
+                valid_codes = [code for code in codes_in_interval if code.upper() in available_codes]
+                
+                if valid_codes:
+                    if zone_name not in zones_data:
+                        zones_data[zone_name] = {'zone_number': None, 'codes': []}
+                        intervals_found[zone_name] = []
+                    zones_data[zone_name]['codes'].extend(valid_codes)
+                    # Rimuovi duplicati mantenendo l'ordine
+                    zones_data[zone_name]['codes'] = list(dict.fromkeys(zones_data[zone_name]['codes']))
+                    
+                    # Memorizza i dettagli dell'intervallo per il riepilogo
+                    intervals_found[zone_name].append({
+                        'sheet': sheet_name,
+                        'column': col_idx,
+                        'interval_text': interval_text,
+                        'codes_extracted': codes_in_interval,
+                        'codes_filtered': valid_codes,
+                        'codes_excluded': [c for c in codes_in_interval if c.upper() not in available_codes]
+                    })
+        
+        except Exception as e:
+            print(f"ERRORE durante l'elaborazione del foglio {sheet_name}: {e}")
+            continue
+    
+    # Mappa i numeri delle zone
+    for zone_name, data in zones_data.items():
+        if zone_name in zone_mapping:
+            data['zone_number'] = zone_mapping[zone_name]
+        else:
+            print(f"ATTENZIONE: Zona '{zone_name}' non trovata nel file di definizione zone")
+    
+    # Ordina le zone per numero
+    sorted_zones = sorted(zones_data.items(), key=lambda x: x[1]['zone_number'] if x[1]['zone_number'] is not None else 9999)
+    
+    # Genera il contenuto SCL
+    scl_content = []
+    
+    for zone_name, data in sorted_zones:
+        zone_number = data['zone_number']
+        codes = data['codes']
+        
+        if zone_number is None:
+            print(f"ATTENZIONE: Saltando zona '{zone_name}' perché numero non trovato")
+            continue
+        
+        if not codes:
+            print(f"ATTENZIONE: Saltando zona '{zone_name}' perché nessun codice valido trovato")
+            continue
+        
+        # Header della regione
+        scl_content.append(f"REGION ZONE {zone_number} - Zone {zone_name}")
+        scl_content.append("REGION Zone Sorter Safe Statuses")
+        
+        # Zone Sorter Safe Statuses
+        scl_content.append(f'    "Zones_DB".Interface[{zone_number}].In.SafeEmergency := NOT "SAFE_ZONE_DB".EmergencyOk.Zone{zone_number};')
+        scl_content.append(f'    "Zones_DB".Interface[{zone_number}].In.SafeFault := NOT "SAFE_ZONE_DB".FeedbackOk.Zone{zone_number} OR NOT "SAFE_ZONE_DB".MotorsOk.Zone{zone_number};')
+        scl_content.append(f'    "Zones_DB".Interface[{zone_number}].In.SafeFeedbackOk := "SAFE_ZONE_DB".FeedbackOk.Zone{zone_number};')
+        scl_content.append(f'    "Zones_DB".Interface[{zone_number}].In.SafeMotorsOk := "SAFE_ZONE_DB".MotorsOk.Zone{zone_number};')
+        scl_content.append(f'    "Zones_DB".Interface[{zone_number}].In.AllGatesSafe := "SAFE_ZONE{zone_name}_DB".Data.Gates.AllGatesClosedLocked;')
+        scl_content.append(f'    "Zones_DB".Interface[{zone_number}].In.AckNecessary := "SAFE_ZONE_DB".AckRequest.Zone{zone_number};')
+        scl_content.append("END_REGION ;")
+        
+        # Zone Consents
+        scl_content.append("REGION Zone Consents")
+        scl_content.append("    //Lock zone consents")
+        for i in range(8):
+            scl_content.append(f'    "Zones_DB".Interface[{zone_number}].In.LockConsents[{i}] := TRUE;')
+        scl_content.append("")
+        scl_content.append("    //Rearm zone consents")
+        for i in range(8):
+            scl_content.append(f'    "Zones_DB".Interface[{zone_number}].In.RearmConsents[{i}] := TRUE;')
+        scl_content.append("END_REGION ;")
+        
+        # Motor STO Feedback
+        scl_content.append("")
+        scl_content.append("REGION Motor STO Feedback")
+        
+        motor_fdbk_idx = 1
+        for code in codes:
+            code_upper = code.upper()  # Assicura che il codice sia in maiuscolo
+            # Determina se è un carosello (ha 2 occorrenze di 'CA')
+            if count_ca_occurrences(code_upper) == 2:
+                # Carosello: due motori M1 e M2
+                scl_content.append(f'    "Zones_DB".Interface[{zone_number}].In.Motor.ErrorFdbk{motor_fdbk_idx} := "{code_upper}_M1_STO_DB".ERROR;')
+                motor_fdbk_idx += 1
+                if motor_fdbk_idx <= 20:  # Limite massimo di feedback
+                    scl_content.append(f'    "Zones_DB".Interface[{zone_number}].In.Motor.ErrorFdbk{motor_fdbk_idx} := "{code_upper}_M2_STO_DB".ERROR;')
+                    motor_fdbk_idx += 1
+            else:
+                # Motore normale
+                if motor_fdbk_idx <= 20:  # Limite massimo di feedback
+                    scl_content.append(f'    "Zones_DB".Interface[{zone_number}].In.Motor.ErrorFdbk{motor_fdbk_idx} := "{code_upper}_STO_DB".ERROR;')
+                    motor_fdbk_idx += 1
+        
+        scl_content.append("")
+        scl_content.append("END_REGION ;")
+        
+        # Motor Fault
+        scl_content.append("")
+        scl_content.append("REGION Motor Fault")
+        
+        motor_fault_idx = 1
+        for code in codes:
+            code_upper = code.upper()  # Assicura che il codice sia in maiuscolo
+            # Determina se è un carosello
+            if count_ca_occurrences(code_upper) == 2:
+                # Carosello: due motori M1 e M2
+                scl_content.append(f'    "Zones_DB".Interface[{zone_number}].In.MotorFault.FaultFdbk{motor_fault_idx} := "{code_upper}_M1_SAFE_IN".Fault;')
+                motor_fault_idx += 1
+                if motor_fault_idx <= 20:  # Limite massimo di feedback
+                    scl_content.append(f'    "Zones_DB".Interface[{zone_number}].In.MotorFault.FaultFdbk{motor_fault_idx} := "{code_upper}_M2_SAFE_IN".Fault;')
+                    motor_fault_idx += 1
+            else:
+                # Motore normale
+                if motor_fault_idx <= 20:  # Limite massimo di feedback
+                    scl_content.append(f'    "Zones_DB".Interface[{zone_number}].In.MotorFault.FaultFdbk{motor_fault_idx} := "{code_upper}_SAFE_IN".Fault;')
+                    motor_fault_idx += 1
+        
+        scl_content.append("")
+        scl_content.append("END_REGION ;")
+        scl_content.append("END_REGION ;")
+        scl_content.append("")
+    
+    # Scrivi il file
+    output_path = os.path.join(output_folder, 'Zones_Input.scl')
+    try:
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write("\n".join(scl_content))
+        print(f"DEBUG - File Zones_Input.scl creato in {output_path}")
+        
+        # Crea anche un file di riepilogo
+        summary_path = os.path.join(output_folder, 'Zones_Input_Summary.txt')
+        with open(summary_path, 'w', encoding='utf-8') as f:
+            f.write("="*80 + "\n")
+            f.write("RIEPILOGO GENERAZIONE ZONES_INPUT.SCL\n")
+            f.write("="*80 + "\n\n")
+            
+            f.write(f"Data/Ora generazione: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"CAB_PLC: {selected_cab_plc}\n\n")
+            
+            f.write(f"File Excel processato: {excel_path}\n")
+            f.write(f"File definizione zone: {zone_def_path}\n")
+            f.write(f"Cartella dettaglio linee: {detail_folder}\n\n")
+            
+            f.write(f"Fogli Excel processati: {len(sheets_to_process)}\n")
+            for sheet in sheets_to_process:
+                f.write(f"  - {sheet}\n")
+            f.write("\n")
+            
+            f.write(f"Codici totali trovati nei file di dettaglio linee: {len(available_codes)}\n\n")
+            
+            f.write("="*80 + "\n")
+            f.write("ZONE PROCESSATE\n")
+            f.write("="*80 + "\n\n")
+            
+            total_codes_found = 0
+            total_codes_filtered = 0
+            
+            for zone_name, data in sorted_zones:
+                zone_number = data['zone_number']
+                codes = data['codes']
+                
+                if zone_number is None:
+                    f.write(f"Zona '{zone_name}': ERRORE - Numero zona non trovato nel file di definizione\n\n")
+                    continue
+                
+                if not codes:
+                    f.write(f"Zona '{zone_name}' (Zone {zone_number}): NESSUN CODICE VALIDO\n\n")
+                    continue
+                
+                f.write(f"Zona '{zone_name}' -> Zone {zone_number}\n")
+                f.write("-" * 80 + "\n")
+                
+                # Mostra gli intervalli trovati nel file Excel
+                if zone_name in intervals_found:
+                    f.write(f"\nIntervalli trovati nel file Excel:\n")
+                    for interval_info in intervals_found[zone_name]:
+                        f.write(f"  Foglio: {interval_info['sheet']}, Colonna: {chr(65 + interval_info['column'])}\n")
+                        f.write(f"  Intervallo: {interval_info['interval_text']}\n")
+                        f.write(f"  Codici estratti: {len(interval_info['codes_extracted'])}\n")
+                        f.write(f"  Codici filtrati (presenti): {len(interval_info['codes_filtered'])}\n")
+                        if interval_info['codes_excluded']:
+                            f.write(f"  Codici esclusi (non presenti nei file dettaglio): {len(interval_info['codes_excluded'])}\n")
+                            f.write(f"    {', '.join(interval_info['codes_excluded'][:10])}")
+                            if len(interval_info['codes_excluded']) > 10:
+                                f.write(f" ... (e altri {len(interval_info['codes_excluded']) - 10})")
+                            f.write("\n")
+                        f.write("\n")
+                
+                f.write(f"Codici finali associati ({len(codes)}):\n")
+                
+                # Raggruppa i codici per tipo
+                carousel_codes = []
+                motor_codes = []
+                
+                for code in codes:
+                    code_upper = code.upper()
+                    if count_ca_occurrences(code_upper) == 2:
+                        carousel_codes.append(code_upper)
+                    else:
+                        motor_codes.append(code_upper)
+                
+                if carousel_codes:
+                    f.write(f"\n  Caroselli ({len(carousel_codes)}):\n")
+                    for code in sorted(carousel_codes):
+                        f.write(f"    - {code} (M1 e M2)\n")
+                
+                if motor_codes:
+                    f.write(f"\n  Motori ({len(motor_codes)}):\n")
+                    for code in sorted(motor_codes):
+                        f.write(f"    - {code}\n")
+                
+                # Conta i feedback generati
+                motor_fdbk_count = 0
+                for code in codes:
+                    code_upper = code.upper()
+                    if count_ca_occurrences(code_upper) == 2:
+                        motor_fdbk_count += 2  # M1 e M2
+                    else:
+                        motor_fdbk_count += 1
+                
+                f.write(f"\n  Totale feedback generati: {motor_fdbk_count}\n")
+                f.write(f"    - ErrorFdbk: {motor_fdbk_count}\n")
+                f.write(f"    - FaultFdbk: {motor_fdbk_count}\n")
+                f.write("\n")
+                
+                total_codes_found += len(codes)
+            
+            f.write("="*80 + "\n")
+            f.write("STATISTICHE FINALI\n")
+            f.write("="*80 + "\n\n")
+            f.write(f"Zone processate con successo: {len([z for z, d in sorted_zones if d['zone_number'] is not None and d['codes']])}\n")
+            f.write(f"Zone senza codici validi: {len([z for z, d in sorted_zones if d['zone_number'] is not None and not d['codes']])}\n")
+            f.write(f"Zone senza numero mappato: {len([z for z, d in sorted_zones if d['zone_number'] is None])}\n")
+            f.write(f"Totale codici utilizzati: {total_codes_found}\n")
+            f.write(f"Codici disponibili nei file di dettaglio: {len(available_codes)}\n\n")
+            
+            f.write("="*80 + "\n")
+            f.write("MAPPATURA ZONE\n")
+            f.write("="*80 + "\n\n")
+            f.write("Nome Zona -> Numero Zona\n")
+            f.write("-" * 80 + "\n")
+            for zone_name, zone_num in sorted(zone_mapping.items(), key=lambda x: x[1]):
+                f.write(f"  {zone_name:10} -> Zone {zone_num:3}\n")
+        
+        print(f"DEBUG - File di riepilogo Zones_Input_Summary.txt creato in {summary_path}")
+        return True
+    except Exception as e:
+        print(f"ERRORE durante la scrittura del file Zones_Input.scl: {e}")
+        return False
+
+
+def extract_codes_from_interval(interval_text):
+    """
+    Estrae tutti i codici da una stringa di intervallo.
+    Gestisce intervalli come "CA12ST001 - CA12ST007", "CA12CA023", 
+    "CA12ST015 - CA12ST019\nHF12ST005", "CA22ST001 - CA22ST015\nCA32ST007 - CA32CN013", ecc.
+    
+    Args:
+        interval_text (str): Testo contenente gli intervalli
+        
+    Returns:
+        list: Lista di codici estratti
+    """
+    import re
+    
+    codes = []
+    
+    # Sostituisci \n con spazio per gestire righe multiple
+    text = interval_text.replace('\n', ' ').replace('\r', ' ').strip()
+    
+    if not text or text == 'nan':
+        return codes
+    
+    # Pattern per trovare intervalli tipo "CA12ST001 - CA12ST007"
+    # Cerca pattern tipo: LETTERE NUMERI LETTERE NUMERI - LETTERE NUMERI LETTERE NUMERI
+    range_pattern = r'([A-Z]{2}\d{2}[A-Z]{2}\d+)\s*-\s*([A-Z]{2}\d{2}[A-Z]{2}\d+)'
+    
+    # Pattern più generico per trovare codici tipo "CA12CA023", "HF12ST005", "CA12ST001", ecc.
+    # Pattern: 2 lettere, 2 numeri, 2 lettere, 3+ numeri
+    single_pattern = r'\b([A-Z]{2}\d{2}[A-Z]{2}\d{3,})\b'
+    
+    # Pattern alternativo per codici tipo "HF12XR003" (3 lettere dopo i numeri)
+    single_pattern_alt = r'\b([A-Z]{2}\d{2}[A-Z]{3}\d{3,})\b'
+    
+    # Trova tutti gli intervalli
+    ranges = re.findall(range_pattern, text)
+    processed_ranges = set()  # Per evitare di processare lo stesso range due volte
+    
+    for start_code, end_code in ranges:
+        range_key = (start_code, end_code)
+        if range_key in processed_ranges:
+            continue
+        processed_ranges.add(range_key)
+        
+        # Estrai il prefisso comune (es. "CA12ST" da "CA12ST001")
+        prefix_match = re.match(r'([A-Z]{2}\d{2}[A-Z]{2,3})', start_code)
+        if prefix_match:
+            prefix = prefix_match.group(1)
+            # Verifica che anche end_code abbia lo stesso prefisso
+            if end_code.startswith(prefix):
+                # Estrai i numeri finali
+                start_num_match = re.search(r'(\d+)$', start_code)
+                end_num_match = re.search(r'(\d+)$', end_code)
+                
+                if start_num_match and end_num_match:
+                    start_num = int(start_num_match.group(1))
+                    end_num = int(end_num_match.group(1))
+                    
+                    # Genera tutti i codici nell'intervallo
+                    for num in range(start_num, end_num + 1):
+                        # Determina la lunghezza del numero finale in base al codice di partenza
+                        num_str = str(num)
+                        if len(start_num_match.group(1)) == 3:
+                            code = f"{prefix}{num:03d}"
+                        else:
+                            code = f"{prefix}{num_str}"
+                        codes.append(code)
+            else:
+                # Prefissi diversi, aggiungi i codici così come sono
+                codes.append(start_code)
+                codes.append(end_code)
+        else:
+            # Se non riesci a estrarre il prefisso, aggiungi i codici così come sono
+            codes.append(start_code)
+            codes.append(end_code)
+    
+    # Rimuovi i codici che sono già stati inclusi negli intervalli dal testo
+    # per evitare di cercarli di nuovo come codici singoli
+    text_without_ranges = text
+    for start_code, end_code in ranges:
+        text_without_ranges = text_without_ranges.replace(f"{start_code} - {end_code}", "")
+    
+    # Trova codici singoli che non sono già stati inclusi negli intervalli
+    single_codes = re.findall(single_pattern, text_without_ranges)
+    single_codes_alt = re.findall(single_pattern_alt, text_without_ranges)
+    
+    all_single_codes = single_codes + single_codes_alt
+    
+    for code in all_single_codes:
+        # Verifica che non sia già stato incluso
+        if code not in codes:
+            codes.append(code)
+    
+    # Rimuovi duplicati mantenendo l'ordine
+    seen = set()
+    unique_codes = []
+    for code in codes:
+        if code not in seen:
+            seen.add(code)
+            unique_codes.append(code)
+    
+    return unique_codes
