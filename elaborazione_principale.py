@@ -6,6 +6,7 @@ e la creazione dei file di configurazione.
 
 import os
 import pandas as pd
+import re
 from PyQt6.QtWidgets import QMessageBox, QApplication
 import sys
 from funzioni_elaborazione import (
@@ -206,16 +207,15 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         global_shutter_counter = 1 # Added global counter for SHUTTER
 
         
-        # Crea un dizionario per mappare i prefissi all'ordine di selezione
+        # Estrai i prefissi ordinati direttamente dall'ordine selezionato
+        ordered_prefixes = []
         prefix_order = {}
         if order:
             for i, item in enumerate(order):
                 prefix = item.split('. ')[1] if '. ' in item else item
-                prefix_order[prefix[:4].lower()] = i
-        
-        # Ordina i prefissi in base all'ordine di selezione
-        ordered_prefixes = sorted(df['Prefix'].unique(), 
-                                key=lambda x: prefix_order.get(x, 999))
+                prefix = prefix[:4].lower()  # Prendi solo i primi 4 caratteri
+                ordered_prefixes.append(prefix)
+                prefix_order[prefix] = i
         
         # Per ogni prefisso nell'ordine selezionato
         for prefix in ordered_prefixes:
@@ -232,7 +232,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                     df.at[index, 'GlobalCarouselNumber'] = global_carousel_counter
                     global_carousel_counter += 1
                     df.at[index, 'GlobalUtenzaNumber'] = None
-                elif "ST" in item_id.upper() or "CN" in item_id.upper():
+                elif "ST" in item_id.upper() or "CN" in item_id.upper() or "CX" in item_id.upper():
                     df.at[index, 'GlobalUtenzaNumber'] = global_utenza_counter
                     global_utenza_counter += 1
                     df.at[index, 'GlobalCarouselNumber'] = None
@@ -314,20 +314,11 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                             except (ValueError, TypeError):
                                 print(f"Attenzione: Impossibile convertire GlobalCarouselNumber '{carousel_number}' in intero per ITEM_ID_CUSTOM '{item_id_custom}'. Uso l'ID originale.")
                                 item_id_custom_new = item_id_custom
-                        elif "ST" in item_id_custom.upper() and utenza_number is not None:
+                        elif ("ST" in item_id_custom.upper() or "CN" in item_id_custom.upper() or "CX" in item_id_custom.upper()) and utenza_number is not None:
                             try:
-                                item_id_custom_new = f"UTENZA{int(utenza_number)}"
+                                item_id_custom_new = f"UTENZA{int(utenza_number)}_{item_id_custom}"
                             except (ValueError, TypeError):
                                 print(f"Attenzione: Impossibile convertire GlobalUtenzaNumber '{utenza_number}' in intero per ITEM_ID_CUSTOM '{item_id_custom}'. Uso l'ID originale.")
-                                item_id_custom_new = item_id_custom
-                        elif "CN" in item_id_custom.upper():
-                            if utenza_number is not None:
-                                try:
-                                    item_id_custom_new = f"UTENZA{int(utenza_number)}"
-                                except (ValueError, TypeError):
-                                    print(f"Attenzione: Impossibile convertire GlobalUtenzaNumber '{utenza_number}' in intero per ITEM_ID_CUSTOM '{item_id_custom}'. Uso l'ID originale.")
-                                    item_id_custom_new = item_id_custom
-                            else:
                                 item_id_custom_new = item_id_custom
                         else:
                             item_id_custom_new = item_id_custom
@@ -616,6 +607,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                 # Filtra e Memorizza dati per MAIN
                 condition_st = trunk_group['ITEM_ID_CUSTOM'].str.contains('ST', case=False, na=False)
                 condition_cn = trunk_group['ITEM_ID_CUSTOM'].str.contains('CN', case=False, na=False)
+                condition_cx = trunk_group['ITEM_ID_CUSTOM'].str.contains('CX', case=False, na=False)
                 condition_ca2 = trunk_group['ITEM_ID_CUSTOM'].apply(lambda x: count_ca_occurrences(str(x)) == 2)
                 condition_sc = trunk_group['ITEM_ID_CUSTOM'].str.contains('SC', case=False, na=False)
                 condition_fd = trunk_group['ITEM_ID_CUSTOM'].str.contains('FD', case=False, na=False)
@@ -623,7 +615,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                 condition_og = trunk_group['ITEM_ID_CUSTOM'].str.contains('OG', case=False, na=False)
 
                 # Includi anche i Datalogic (SC), FIRESHUTTER (FD) e SHUTTER (SD) nella lista degli elementi validi
-                valid_items_for_main = trunk_group[condition_st | condition_cn | condition_ca2 | condition_sc | condition_fd | condition_sd | condition_og]
+                valid_items_for_main = trunk_group[condition_st | condition_cn | condition_cx | condition_ca2 | condition_sc | condition_fd | condition_sd | condition_og]
 
                 if not valid_items_for_main.empty:
                     items_ordered_dict = valid_items_for_main.sort_values(by='LastThreeDigits').to_dict('records')
@@ -743,8 +735,15 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                      QMessageBox.critical(None, "Errore Salvataggio", f"Errore nel salvataggio del file {output_filename}:\n{e}")
                 continue
         
-        # Crea i file LINEA
-        create_linea_files(df, selected_cab_plc, line_type_mapping)
+        # Crea i file LINEA per ogni prefisso selezionato e raccogli mappa prefisso->linee
+        print(f"DEBUG - ordered_prefixes passato a create_linea_files: {ordered_prefixes}")
+        print(f"DEBUG - df shape prima di create_linea_files: {df.shape}, colonne: {df.columns.tolist()}")
+        # Verifica che df abbia tutti gli item necessari per il CAB_PLC
+        cab_plc_check = df[df['CAB_PLC'] == selected_cab_plc]
+        print(f"DEBUG - Items nel df per CAB_PLC {selected_cab_plc}: {len(cab_plc_check)}")
+        prefix_to_line_numbers = create_linea_files(df, selected_cab_plc, line_type_mapping, ordered_prefixes)
+        print(f"DEBUG - prefix_to_line_numbers restituito: {prefix_to_line_numbers}")
+        print(f"DEBUG - line_type_mapping finale: {line_type_mapping}")
         
         # Gestione dei file MAIN
         main_output_folder = os.path.join('Configurazioni', selected_cab_plc, 'MAIN')
@@ -803,12 +802,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         os.makedirs(conf_output_folder, exist_ok=True)  # Crea la cartella se non esiste
         create_conf_file(selected_cab_plc, df, conf_output_folder, order)
 
-        # Calcola il numero di linee basato sui prefissi unici
-        ordered_prefixes = []
-        for item in order:
-            prefix = item.split('. ')[1].lower() if '. ' in item else item.lower()
-            ordered_prefixes.append(prefix)
-
+        # Usa ordered_prefixes già creato all'inizio (dal parametro order)
         num_lines = len(ordered_prefixes)
 
         # Calcola il numero di tronchi per ogni linea
@@ -825,16 +819,44 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
 
         create_main_structure_file(main_output_folder, num_lines, selected_cab_plc, trunks_per_line, ordered_prefixes)
 
-        # Popola trunk_to_line_mapping in base alla nuova logica di creazione delle linee
-        # Itera su tutti gli elementi del cab_plc_data per associare i trunk alle linee (1 o 2)
-        for _, row in cab_plc_data.iterrows():
+        # Popola trunk_to_line_mapping usando la mappa prefisso->linee creata sopra
+        # Associa ogni tronco alla linea corretta (normale o carousel) per il proprio prefisso
+        # Prima identifica quali trunk contengono carousel e mappa ogni trunk al suo prefisso
+        trunks_with_carousel = set()
+        trunk_prefix_map = {}  # Mappa trunk_id -> prefix
+        
+        # Usa df invece di cab_plc_data per essere sicuri di avere tutti i dati
+        for _, row in df.iterrows():
             trunk_id = row['ITEM_TRUNK']
             item_id_custom = str(row['ITEM_ID_CUSTOM'])
+            prefix = item_id_custom[:4].lower()
+            # Usa il primo prefisso trovato per questo trunk (dovrebbero essere tutti uguali)
+            if trunk_id not in trunk_prefix_map:
+                trunk_prefix_map[trunk_id] = prefix
             
-            if count_ca_occurrences(item_id_custom) == 2: # Se è un Carousel, associamo a LINEA2
-                trunk_to_line_mapping[trunk_id] = 2
-            elif trunk_id not in trunk_to_line_mapping: # Se non è un carousel e non è già stato mappato, associamo a LINEA1
-                trunk_to_line_mapping[trunk_id] = 1
+            if count_ca_occurrences(item_id_custom) == 2:
+                trunks_with_carousel.add(trunk_id)
+        
+        # Ora associa ogni trunk alla linea corretta
+        # IMPORTANTE: Se un prefisso ha una linea carousel, i trunk con carousel vanno lì
+        # I trunk senza carousel di quel prefisso vanno alla linea normale del prefisso
+        for trunk_id, prefix in trunk_prefix_map.items():
+            line_nums = prefix_to_line_numbers.get(prefix)
+            if not line_nums:
+                print(f"DEBUG - ATTENZIONE: Prefisso {prefix} non trovato in prefix_to_line_numbers per trunk {trunk_id}")
+                print(f"DEBUG - prefix_to_line_numbers disponibili: {list(prefix_to_line_numbers.keys())}")
+                continue
+            
+            if trunk_id in trunks_with_carousel and line_nums.get('carousel'):
+                trunk_to_line_mapping[trunk_id] = line_nums['carousel']
+                print(f"DEBUG - Trunk {trunk_id} (prefisso {prefix}) -> LINE {line_nums['carousel']} (carousel)")
+            else:
+                trunk_to_line_mapping[trunk_id] = line_nums['normal']
+                print(f"DEBUG - Trunk {trunk_id} (prefisso {prefix}) -> LINE {line_nums['normal']} (normale)")
+        
+        print(f"DEBUG - trunk_to_line_mapping finale: {trunk_to_line_mapping}")
+        print(f"DEBUG - trunks_with_carousel: {trunks_with_carousel}")
+        print(f"DEBUG - trunk_prefix_map: {trunk_prefix_map}")
 
         # Genera il file GEN_LINE.scl dopo che tutte le linee e i trunk sono stati processati
         generate_gen_line_file(df, selected_cab_plc, line_type_mapping, ordered_prefixes, trunk_to_line_mapping)
@@ -912,6 +934,16 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         print(f"DEBUG - Utenze ordinate: {ordered_utenze}")
         print(f"DEBUG - Caroselli ordinati: {ordered_caroselli}")
         
+        # Crea una mappatura ITEM_ID_CUSTOM -> GlobalUtenzaNumber per costruire i nomi completi
+        utenza_name_mapping = {}
+        for _, row in df.iterrows():
+            item_id = str(row['ITEM_ID_CUSTOM'])
+            utenza_num = row.get('GlobalUtenzaNumber')
+            if pd.notna(utenza_num) and ("ST" in item_id.upper() or "CN" in item_id.upper() or "CX" in item_id.upper()):
+                utenza_name_mapping[item_id] = f"UTENZA{int(utenza_num)}_{item_id}"
+        
+        print(f"DEBUG - Utenza name mapping: {utenza_name_mapping}")
+        
         with open(log_enable_path, 'w') as f:
             # Sezione per l'abilitazione del debug
             f.write("REGION Enabling debug\n")
@@ -926,7 +958,9 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                     if current_prefix is not None:
                         f.write("\n")
                     current_prefix = prefix
-                f.write(f'        "UTENZA{i}".Conveyor.PhtTracking02.Debug.DebugEn := TRUE;\n')
+                # Usa il nome completo formattato dalla mappatura
+                utenza_name = utenza_name_mapping.get(utenza, f"UTENZA{i}_{utenza}")
+                f.write(f'        "{utenza_name}".Conveyor.PhtTracking02.Debug.DebugEn := TRUE;\n')
             
             f.write("\n")
             
@@ -945,7 +979,9 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                     if current_prefix is not None:
                         f.write("\n")
                     current_prefix = prefix
-                f.write(f'        "UTENZA{i}".Conveyor.PhtTracking02.Debug.DebugEn := FALSE;\n')
+                # Usa il nome completo formattato dalla mappatura
+                utenza_name = utenza_name_mapping.get(utenza, f"UTENZA{i}_{utenza}")
+                f.write(f'        "{utenza_name}".Conveyor.PhtTracking02.Debug.DebugEn := FALSE;\n')
             
             f.write("\n")
             
@@ -960,10 +996,21 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             f.write("REGION Enabling log\n")
             f.write("    IF #EnableLog THEN\n")
             
-            # Raggruppa le utenze per numero
+            # Raggruppa le utenze per numero usando la mappatura
             utenze_by_number = {}
-            for i, utenza in enumerate(ordered_utenze, 1):
-                number = i
+            for utenza in ordered_utenze:
+                utenza_name = utenza_name_mapping.get(utenza)
+                if utenza_name:
+                    # Estrai il numero dal nome completo (es. "UTENZA11_CA31ST009" -> 11)
+                    match = re.search(r'UTENZA(\d+)_', utenza_name)
+                    if match:
+                        number = int(match.group(1))
+                    else:
+                        # Fallback: usa l'indice
+                        number = ordered_utenze.index(utenza) + 1
+                else:
+                    # Fallback: usa l'indice se non trovato nella mappatura
+                    number = ordered_utenze.index(utenza) + 1
                 if number not in utenze_by_number:
                     utenze_by_number[number] = []
                 utenze_by_number[number].append(utenza)
@@ -971,8 +1018,10 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             # Scrivi le configurazioni raggruppate per numero
             for number, utenze in sorted(utenze_by_number.items()):
                 for utenza in utenze:
-                    f.write(f'        "UTENZA{number}".Conveyor.PhtTracking02.Data.CNF.HsitoryEventEn := TRUE;\n')
-                    f.write(f'        "UTENZA{number}".Conveyor.PhtTracking02.Data.CNF.LogEventEn := TRUE;\n')
+                    # Usa il nome completo formattato dalla mappatura
+                    utenza_name = utenza_name_mapping.get(utenza, f"UTENZA{number}_{utenza}")
+                    f.write(f'        "{utenza_name}".Conveyor.PhtTracking02.Data.CNF.HsitoryEventEn := TRUE;\n')
+                    f.write(f'        "{utenza_name}".Conveyor.PhtTracking02.Data.CNF.LogEventEn := TRUE;\n')
                 f.write("\n")
             
             # Scrivi le configurazioni per i caroselli
@@ -988,8 +1037,10 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             # Ripeti lo stesso processo per la parte ELSE
             for number, utenze in sorted(utenze_by_number.items()):
                 for utenza in utenze:
-                    f.write(f'        "UTENZA{number}".Conveyor.PhtTracking02.Data.CNF.HsitoryEventEn := FALSE;\n')
-                    f.write(f'        "UTENZA{number}".Conveyor.PhtTracking02.Data.CNF.LogEventEn := FALSE;\n')
+                    # Usa il nome completo formattato dalla mappatura
+                    utenza_name = utenza_name_mapping.get(utenza, f"UTENZA{number}_{utenza}")
+                    f.write(f'        "{utenza_name}".Conveyor.PhtTracking02.Data.CNF.HsitoryEventEn := FALSE;\n')
+                    f.write(f'        "{utenza_name}".Conveyor.PhtTracking02.Data.CNF.LogEventEn := FALSE;\n')
                 f.write("\n")
             
             for i, carosello in enumerate(ordered_caroselli, 1):

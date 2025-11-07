@@ -305,7 +305,7 @@ class NastriApp(QMainWindow):
                 raise ValueError(f"Nessun dato trovato per il CAB_PLC {selected_cab_plc} nel file Excel.")
 
             # Filtra righe non desiderate (come nella versione Tkinter)
-            cab_plc_data = cab_plc_data[~cab_plc_data['ITEM_ID_CUSTOM'].str.contains('OG|SD|RS|CN|CH|XR|SO|LC|IN', case=False, na=False)]
+            cab_plc_data = cab_plc_data[~cab_plc_data['ITEM_ID_CUSTOM'].str.contains('OG|SD|RS|CH|XR|SO|LC|IN', case=False, na=False)]
             if cab_plc_data.empty:
                  raise ValueError(f"Nessun dato valido trovato per {selected_cab_plc} dopo il filtraggio iniziale.")
 

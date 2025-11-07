@@ -325,63 +325,89 @@ END_DATA_BLOCK
     with open(os.path.join(output_folder, data_block_filename), 'w') as db_file:
         db_file.write(data_block_content)
 
-def create_linea_files(df, selected_cab_plc, line_type_mapping):
+def create_linea_files(df, selected_cab_plc, line_type_mapping, ordered_prefixes):
     """
-    Crea i file LINEA per le configurazioni delle linee (LINEA1 per normale, LINEA2 per Carousel se presente).
+    Crea i file LINEA per le configurazioni delle linee.
+    Crea 1 LINE per ciascun prefisso selezionato, più 1 extra per ciascun prefisso che ha caroselli.
     
     Args:
         df: DataFrame con i dati
         selected_cab_plc: CAB_PLC selezionato
         line_type_mapping (dict): Dizionario per mappare i numeri di linea ai loro tipi (es. 'Carousel').
+        ordered_prefixes (list): Lista ordinata dei prefissi selezionati.
     """
     linee_folder = f'Configurazioni/{selected_cab_plc}/_DB Line'
     os.makedirs(linee_folder, exist_ok=True)
     
     # Pulisci il mapping esistente per evitare residui da precedenti esecuzioni
     line_type_mapping.clear()
-
-    # 1. Crea sempre LINEA1.scl (linea normale)
-    line_num_normal = 1
-    filename_normal = f"LINE_{line_num_normal}.scl"
-    with open(os.path.join(linee_folder, filename_normal), 'w') as f:
-        f.write(f"""DATA_BLOCK \"LINE_{line_num_normal}\"
-{{ S7_Optimized_Access := 'TRUE' }}
-AUTHOR : RP
-VERSION : 0.1
-NON_RETAIN
-\"LINE\"
-
-BEGIN
-
-END_DATA_BLOCK
-""")
-    print(f"DEBUG - File LINEA{line_num_normal}.scl creato: {os.path.join(linee_folder, filename_normal)}")
-    line_type_mapping[line_num_normal] = 'Normale'
-
-    # 2. Controlla se esistono elementi Carousel nel DataFrame
-    #    Per fare questo, dobbiamo usare il df completo (non solo cab_plc_data filtrato, ma l'originale df se la logica carousel è globale)
-    #    Assumiamo che la logica di consolidamento dei carousel sia già stata applicata a df a monte in process_excel
-    carousel_exists = (df['ITEM_ID_CUSTOM'].str.upper().str.count('CA') == 2).any()
-
-    if carousel_exists:
-        line_num_carousel = 2
-        filename_carousel = f"LINE_{line_num_carousel}.scl"
-        with open(os.path.join(linee_folder, filename_carousel), 'w') as f:
-            f.write(f"""DATA_BLOCK \"LINE_{line_num_carousel}\"
-{{ S7_Optimized_Access := 'TRUE' }}
-AUTHOR : RP
-VERSION : 0.1
-NON_RETAIN
-\"LINE\"
-
-BEGIN
-
-END_DATA_BLOCK
-""")
-        print(f"DEBUG - File LINEA{line_num_carousel}.scl creato: {os.path.join(linee_folder, filename_carousel)}")
-        line_type_mapping[line_num_carousel] = 'Carousel'
     
+    # Assicurati che df sia filtrato per il CAB_PLC selezionato
+    df_filtered = df[df['CAB_PLC'] == selected_cab_plc].copy() if 'CAB_PLC' in df.columns else df.copy()
+    print(f"DEBUG - create_linea_files: df_filtered shape: {df_filtered.shape}, ordered_prefixes: {ordered_prefixes}")
+    
+    # Mappa prefisso -> { 'normal': line_num, 'carousel': line_num_or_None }
+    prefix_to_line_numbers = {}
+    next_line_number = 1
+
+    for prefix in ordered_prefixes:
+        # Crea LINE per linea normale
+        filename_normal = f"LINE_{next_line_number}.scl"
+        with open(os.path.join(linee_folder, filename_normal), 'w') as f:
+            f.write(f"""DATA_BLOCK \"LINE_{next_line_number}\"
+{{ S7_Optimized_Access := 'TRUE' }}
+AUTHOR : RP
+VERSION : 0.1
+NON_RETAIN
+\"LINE\"
+
+BEGIN
+
+END_DATA_BLOCK
+""")
+        print(f"DEBUG - File LINEA{next_line_number}.scl creato: {os.path.join(linee_folder, filename_normal)}")
+        line_type_mapping[next_line_number] = 'Normale'
+        prefix_to_line_numbers[prefix] = {'normal': next_line_number, 'carousel': None}
+        normal_line_num = next_line_number
+        next_line_number += 1
+
+        # Verifica caroselli per questo prefisso con subset robusto
+        prefix_subset = df_filtered[df_filtered['ITEM_ID_CUSTOM'].str.lower().str.startswith(prefix.lower())]
+        has_carousel_for_prefix = False
+        if not prefix_subset.empty:
+            # Conta occorrenze di 'CA' (case insensitive) nella stringa
+            carousel_mask = prefix_subset['ITEM_ID_CUSTOM'].str.upper().str.count('CA') == 2
+            has_carousel_for_prefix = carousel_mask.any()
+            if has_carousel_for_prefix:
+                carousel_items = prefix_subset[carousel_mask]['ITEM_ID_CUSTOM'].tolist()
+                print(f"DEBUG - Prefix {prefix}: normal LINE {normal_line_num}, has_carousel={has_carousel_for_prefix}, carousel_items={carousel_items}")
+            else:
+                print(f"DEBUG - Prefix {prefix}: normal LINE {normal_line_num}, has_carousel={has_carousel_for_prefix}, NO carousels found (total items: {len(prefix_subset)})")
+                print(f"DEBUG - Prefix {prefix}: sample items: {prefix_subset['ITEM_ID_CUSTOM'].head(5).tolist()}")
+        else:
+            print(f"DEBUG - Prefix {prefix}: normal LINE {normal_line_num}, has_carousel={has_carousel_for_prefix}, NO ITEMS FOUND for prefix")
+
+        if has_carousel_for_prefix:
+            filename_carousel = f"LINE_{next_line_number}.scl"
+            with open(os.path.join(linee_folder, filename_carousel), 'w') as f:
+                f.write(f"""DATA_BLOCK \"LINE_{next_line_number}\"
+{{ S7_Optimized_Access := 'TRUE' }}
+AUTHOR : RP
+VERSION : 0.1
+NON_RETAIN
+\"LINE\"
+
+BEGIN
+
+END_DATA_BLOCK
+""")
+            print(f"DEBUG - File LINEA{next_line_number}.scl creato: {os.path.join(linee_folder, filename_carousel)}")
+            line_type_mapping[next_line_number] = 'Carousel'
+            prefix_to_line_numbers[prefix]['carousel'] = next_line_number
+            next_line_number += 1
+
     print(f"DEBUG - line_type_mapping finale: {line_type_mapping}")
+    return prefix_to_line_numbers
 
 def get_next_line_number(linee_folder):
     """
@@ -409,12 +435,12 @@ def _get_item_details(item_data, index_fallback):
     formatted_name = item_id # Default a ID originale
     number_int = None
 
-    if "ST" in item_id.upper() or "CN" in item_id.upper():
+    if "ST" in item_id.upper() or "CN" in item_id.upper() or "CX" in item_id.upper():
         raw_num = item_data.get('GlobalUtenzaNumber')
         if raw_num is not None:
             try:
                 number_int = int(raw_num)
-                formatted_name = f"UTENZA{number_int}"
+                formatted_name = f"UTENZA{number_int}_{item_id}"
             except (ValueError, TypeError):
                 print(f"Attenzione (_get_item_details): Impossibile convertire utenza_number '{raw_num}' in int per {item_id}. Uso fallback nome.")
                 formatted_name = f"UTENZA_ERR_{index_fallback}"
@@ -422,7 +448,7 @@ def _get_item_details(item_data, index_fallback):
         else:
             # Fallback se GlobalUtenzaNumber non trovato
             number_int = index_fallback 
-            formatted_name = f"UTENZA{number_int}"
+            formatted_name = f"UTENZA{number_int}_{item_id}"
     elif count_ca_occurrences(item_id) == 2:
         raw_num = item_data.get('GlobalCarouselNumber')
         if raw_num is not None:
@@ -457,7 +483,7 @@ def _is_valid_component_for_chain(item_data):
     Verifica se un componente è valido per la catena (ST, CN o doppio CA)
     """
     item_id = item_data.get('ITEM_ID_CUSTOM', '')
-    return ("ST" in item_id.upper() or "CN" in item_id.upper() or count_ca_occurrences(item_id) == 2)
+    return ("ST" in item_id.upper() or "CN" in item_id.upper() or "CX" in item_id.upper() or count_ca_occurrences(item_id) == 2)
 
 def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_item_data=None, first_valid_next_item_data=None, trunk_to_line_mapping=None):
     """
@@ -536,7 +562,7 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
             component_type = "FIRESHUTTER"
         elif count_ca_occurrences(item_id_original) == 2:
             component_type = "Carousel"
-        elif "ST" in item_id_upper or "CN" in item_id_upper:
+        elif "ST" in item_id_upper or "CN" in item_id_upper or "CX" in item_id_upper:
             component_type = "Conveyor"
         elif "OG" in item_id_upper:
             component_type = "OVERSIZE"
@@ -585,22 +611,19 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
             for j in range(i-1, -1, -1):
                 prev_item = valid_items[j]
                 prev_id = prev_item.get('ITEM_ID_CUSTOM', '')
-                if 'ST' in prev_id.upper() or 'CN' in prev_id.upper():
+                if 'ST' in prev_id.upper() or 'CN' in prev_id.upper() or 'CX' in prev_id.upper():
                     prev_utenza = prev_item
                     break
             
             if prev_utenza:
-                try:
-                    prev_utenza_num = int(prev_utenza.get('GlobalUtenzaNumber', 0))
-                except (ValueError, TypeError):
-                    print(f"Attenzione: Impossibile convertire GlobalUtenzaNumber in intero per {item_id_original}. Uso 0.")
-                    prev_utenza_num = 0
+                # Usa _get_item_details per ottenere il nome completo formattato
+                prev_utenza_name_formatted, _ = _get_item_details(prev_utenza, i)
                     
                 content.append(f'	REGION Call Datalogic ATR 360 ({item_id_original})')
                 content.append('	    ')
                 content.append(f'	    "DATALOGIC_{item_id_original}"(')
                 content.append('	                          TimeData := "UpstreamDB-Globale".Global_Data.TimeData,')
-                content.append(f'	                          Trk := "UTENZA{prev_utenza_num}".Conveyor.Trk,')
+                content.append(f'	                          Trk := "{prev_utenza_name_formatted}".Conveyor.Trk,')
                 content.append(f'	                          PANYTO_SA := "SV_DB_DATALOGIC_SA".DATALOGIC[{datalogic_counter}],')
                 content.append(f'	                          PANYTO_CMD := "SV_DB_DATALOGIC_CMD".DATALOGIC[{datalogic_counter}],')
                 content.append('	                          DB_OBJ := "DBsObject".DbObj[1],')
@@ -777,6 +800,8 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
                  formatted_item_id_for_ftu = item_id_original.replace("ST", "_ST", 1)
              elif "CN" in item_id_original:
                  formatted_item_id_for_ftu = item_id_original.replace("CN", "_CN", 1)
+             elif "CX" in item_id_original:
+                 formatted_item_id_for_ftu = item_id_original.replace("CX", "_CX", 1)
 
              
              
@@ -1258,7 +1283,7 @@ def generate_gen_line_file(df, selected_cab_plc, line_type_mapping, ordered_pref
         
         gen_line_content.append(f"\tREGION {region_comment}")
         gen_line_content.append("\t    ")
-        gen_line_content.append(f"\t    \"LINEA{line_num}\"(")
+        gen_line_content.append(f"\t    \"LINE_{line_num}\"(")
         gen_line_content.append("\t             TimeData := \"UpstreamDB-Globale\".Global_Data.TimeData,")
         gen_line_content.append("\t             LMP_RUN => #tempBool,")
         gen_line_content.append("\t             LMP_AVR => #tempBool,")
@@ -1280,7 +1305,11 @@ def generate_gen_line_file(df, selected_cab_plc, line_type_mapping, ordered_pref
     # Per ogni trunk, genera le chiamate TRUNK
     for trunk_num in trunk_numbers:
         # Usa la mappatura trunk_to_line_mapping per associare il trunk alla linea corretta
-        associated_line_num = trunk_to_line_mapping.get(trunk_num, 1)  # Default a 1 se non trovato
+        associated_line_num = trunk_to_line_mapping.get(trunk_num)
+        if associated_line_num is None:
+            print(f"DEBUG - ATTENZIONE: Trunk {trunk_num} non trovato in trunk_to_line_mapping, uso default LINE_1")
+            print(f"DEBUG - trunk_to_line_mapping disponibile: {trunk_to_line_mapping}")
+            associated_line_num = 1  # Default a 1 se non trovato
         
         gen_line_content.append(f"\tREGION Call TRUNK {trunk_num} LINE {associated_line_num}")
         gen_line_content.append("\t")
@@ -1294,7 +1323,7 @@ def generate_gen_line_file(df, selected_cab_plc, line_type_mapping, ordered_pref
         gen_line_content.append(f"\t             PANYTOTRUNK_CMD := \"SV_DB_TRUNK_CMD\".TRUNK[{trunk_num}],")
         gen_line_content.append(f"\t             PANYTOPCT_SA := \"SV_DB_PCT_SA\".PCT[{trunk_num}],")
         gen_line_content.append(f"\t             PANYTOPCT_CMD := \"SV_DB_PCT_CMD\".PCT[{trunk_num}],")
-        gen_line_content.append(f"\t             InterfaceLineTrunk := \"LINEA{associated_line_num}\".ComLineTrunk);")
+        gen_line_content.append(f"\t             InterfaceLineTrunk := \"LINE_{associated_line_num}\".ComLineTrunk);")
         gen_line_content.append("\tEND_REGION")
         gen_line_content.append("\t")
     

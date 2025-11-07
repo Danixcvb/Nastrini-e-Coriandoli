@@ -86,7 +86,7 @@ def _get_item_details(item_data, index_fallback):
         if raw_num is not None:
             try:
                 number_int = int(raw_num)
-                formatted_name = f"UTENZA{number_int}"
+                formatted_name = f"UTENZA{number_int}_{item_id}"
             except (ValueError, TypeError):
                 print(f"Attenzione (_get_item_details): Impossibile convertire utenza_number '{raw_num}' in int per {item_id}. Uso fallback nome.")
                 formatted_name = f"UTENZA_ERR_{index_fallback}"
@@ -94,7 +94,7 @@ def _get_item_details(item_data, index_fallback):
         else:
             # Fallback se GlobalUtenzaNumber non trovato
             number_int = index_fallback 
-            formatted_name = f"UTENZA{number_int}"
+            formatted_name = f"UTENZA{number_int}_{item_id}"
     elif count_ca_occurrences(item_id) == 2:
         raw_num = item_data.get('GlobalCarouselNumber')
         if raw_num is not None:

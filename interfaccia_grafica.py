@@ -434,8 +434,8 @@ def create_gui():
                 messagebox.showerror("Errore", "Alcune colonne richieste sono mancanti nel file Excel.")
                 return
             
-            # Filtra le righe escludendo ITEM_ID_CUSTOM contenenti "OG", "SD", "RS", "CN", "CH", "XR", "SO", "LC", "IN"
-            df = df[~df['ITEM_ID_CUSTOM'].str.contains('OG|SD|RS|CN|CH|XR|SO|LC|IN', case=False, na=False)]
+            # Filtra le righe escludendo ITEM_ID_CUSTOM contenenti "OG", "SD", "RS", "CH", "XR", "SO", "LC", "IN"
+            df = df[~df['ITEM_ID_CUSTOM'].str.contains('OG|SD|RS|CH|XR|SO|LC|IN', case=False, na=False)]
             
             # Filtra il DataFrame per il CAB_PLC selezionato
             cab_plc_data = df[df['CAB_PLC'] == selected_cab_plc]
