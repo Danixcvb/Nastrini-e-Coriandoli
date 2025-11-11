@@ -1733,23 +1733,47 @@ def generate_zones_input_scl(selected_cab_plc):
                 
                 # Raggruppa i codici per tipo
                 carousel_codes = []
-                motor_codes = []
+                st_codes = []
+                cn_codes = []
+                cx_codes = []
+                other_motor_codes = []
                 
                 for code in codes:
                     code_upper = code.upper()
                     if count_ca_occurrences(code_upper) == 2:
                         carousel_codes.append(code_upper)
+                    elif 'ST' in code_upper:
+                        st_codes.append(code_upper)
+                    elif 'CN' in code_upper:
+                        cn_codes.append(code_upper)
+                    elif 'CX' in code_upper:
+                        cx_codes.append(code_upper)
                     else:
-                        motor_codes.append(code_upper)
+                        other_motor_codes.append(code_upper)
                 
                 if carousel_codes:
                     f.write(f"\n  Caroselli ({len(carousel_codes)}):\n")
                     for code in sorted(carousel_codes):
                         f.write(f"    - {code} (M1 e M2)\n")
                 
-                if motor_codes:
-                    f.write(f"\n  Motori ({len(motor_codes)}):\n")
-                    for code in sorted(motor_codes):
+                if st_codes:
+                    f.write(f"\n  Motori ST ({len(st_codes)}):\n")
+                    for code in sorted(st_codes):
+                        f.write(f"    - {code}\n")
+                
+                if cn_codes:
+                    f.write(f"\n  Motori CN ({len(cn_codes)}):\n")
+                    for code in sorted(cn_codes):
+                        f.write(f"    - {code}\n")
+                
+                if cx_codes:
+                    f.write(f"\n  Motori CX ({len(cx_codes)}):\n")
+                    for code in sorted(cx_codes):
+                        f.write(f"    - {code}\n")
+                
+                if other_motor_codes:
+                    f.write(f"\n  Altri motori ({len(other_motor_codes)}):\n")
+                    for code in sorted(other_motor_codes):
                         f.write(f"    - {code}\n")
                 
                 # Conta i feedback generati
@@ -1792,6 +1816,542 @@ def generate_zones_input_scl(selected_cab_plc):
         return False
 
 
+def generate_pce_input_scl(selected_cab_plc):
+    """
+    Genera il file PCE_Input.scl nella cartella EMERGENCY basandosi sul file Excel
+    Matrice_Zone_di_Emergenza_Nizza.xlsx e sul file IO_LIST corrispondente.
+    
+    Args:
+        selected_cab_plc (str): Il CAB_PLC selezionato.
+    """
+    import re
+
+    # Helper per convertire indice colonna (0-based) in lettera Excel (A, B, ..., AA)
+    def _col_idx_to_letter(idx_zero_based: int) -> str:
+        idx = idx_zero_based
+        letters = []
+        while idx >= 0:
+            letters.append(chr((idx % 26) + ord('A')))
+            idx = (idx // 26) - 1
+        return ''.join(reversed(letters))
+    
+    # Percorsi dei file
+    excel_path = os.path.join('Input', 'Matrice_Zone_di_Emergenza_Nizza.xlsx')
+    zone_def_path = os.path.join('Input', 'Definizione numero zone di emergenza.txt')
+    output_folder = os.path.join('Configurazioni', selected_cab_plc, 'EMERGENCY')
+    
+    # Trova il file IO_LIST corrispondente
+    io_list_folder = os.path.join('Input', 'IO_LIST')
+    io_list_file = None
+    if os.path.exists(io_list_folder):
+        # Cerca file che contiene il CAB_PLC nel nome
+        cab_plc_upper = selected_cab_plc.upper()
+        for filename in os.listdir(io_list_folder):
+            if filename.endswith('.xlsx') and cab_plc_upper in filename.upper():
+                io_list_file = os.path.join(io_list_folder, filename)
+                break
+    
+    if not io_list_file:
+        print(f"ERRORE: File IO_LIST non trovato per CAB_PLC {selected_cab_plc}")
+        return False
+    
+    # Verifica che i file esistano
+    if not os.path.exists(excel_path):
+        print(f"ERRORE: File Excel non trovato: {excel_path}")
+        return False
+    
+    if not os.path.exists(zone_def_path):
+        print(f"ERRORE: File definizione zone non trovato: {zone_def_path}")
+        return False
+    
+    # Crea la cartella di output se non esiste
+    os.makedirs(output_folder, exist_ok=True)
+    
+    # Leggi il file di definizione zone
+    zone_mapping = {}
+    try:
+        with open(zone_def_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line and '\t' in line:
+                    parts = line.split('\t')
+                    if len(parts) >= 2:
+                        zone_num = parts[0].strip()  # es. "Zone22"
+                        zone_name = parts[1].strip()  # es. "7A"
+                        # Estrai il numero dalla stringa "Zone22" -> 22
+                        zone_num_match = re.search(r'(\d+)', zone_num)
+                        if zone_num_match:
+                            zone_number = int(zone_num_match.group(1))
+                            zone_mapping[zone_name] = zone_number
+    except Exception as e:
+        print(f"ERRORE durante la lettura del file di definizione zone: {e}")
+        return False
+    
+    # Leggi il file IO_LIST per ottenere i SW TAG
+    sw_tag_mapping = {}  # {pulsante_name: {'pb_pressed': str, 'safe_channels_error': str}}
+    rack_faults = {}  # {rack_name: variable_name}
+    
+    try:
+        xls_io = pd.ExcelFile(io_list_file)
+        df_io = pd.read_excel(xls_io, sheet_name='IO List', header=None)
+        
+        # Trova le colonne: ID LINE COMPONENT è nella colonna 4 (indice 4), SW TAG è nella colonna 6 (indice 6)
+        # I/O address è nella colonna T (indice 19). Header è nella riga 2 (indice 2)
+        id_col_idx = 4
+        sw_tag_col_idx = 6
+        io_addr_col_idx = 19
+        
+        # Cerca rack fault (formule tipo =NT23++AE00+MCPCP21)
+        current_rack_fault = None
+        for idx in range(len(df_io)):
+            val = str(df_io.iloc[idx, 0]) if pd.notna(df_io.iloc[idx, 0]) else ""
+            if val.startswith('=') and '++' in val:
+                # Estrai il rack fault: =NT23++AE00+MCPCP21 -> AE00+MCPCP21+340K1RackFault
+                # Cerca il pattern dopo ++
+                match = re.search(r'\+\+([A-Z0-9+\-]+)', val)
+                if match:
+                    rack_part = match.group(1)
+                    # Normalizza eventuali duplicati (AE00+AE00+ -> AE00+)
+                    rack_part = re.sub(r'^(AE00\+)+', lambda m: 'AE00+' if m.group(0) else '', rack_part)
+                    # Non forzare AE00: usa esattamente ciò che è scritto dopo ++
+                    rack_var_name = f"{rack_part}+340K1RackFault"
+                    current_rack_fault = rack_var_name
+                    rack_faults[rack_var_name] = rack_var_name
+                    print(f"DEBUG - Trovato rack fault: {rack_var_name}")
+            
+            # Cerca pulsanti nella colonna ID LINE COMPONENT
+            if idx >= 4:  # Dati iniziano dalla riga 4
+                pulsante_raw = str(df_io.iloc[idx, id_col_idx]) if pd.notna(df_io.iloc[idx, id_col_idx]) else ""
+                sw_tag = str(df_io.iloc[idx, sw_tag_col_idx]) if pd.notna(df_io.iloc[idx, sw_tag_col_idx]) else ""
+                io_addr_val = str(df_io.iloc[idx, io_addr_col_idx]) if (io_addr_col_idx < len(df_io.columns) and pd.notna(df_io.iloc[idx, io_addr_col_idx])) else ""
+                io_addr_val_norm = io_addr_val.strip().upper()
+
+                # Filtro: prendi solo le righe Input (I/O address col. T deve iniziare con 'I')
+                if io_addr_val_norm and not io_addr_val_norm.startswith('I'):
+                    continue
+
+                # Filtro: usa sempre e solo tag con CH1
+                sw_tag_norm = sw_tag.strip().upper()
+                if 'CH1' not in sw_tag_norm:
+                    continue
+                
+                # Estrai il nome del pulsante dal formato =NT23++CA11+EB001-100S1 -> CA11EB001
+                # Oppure potrebbe essere già nel formato corretto CA12EB00107A
+                pulsante_name = None
+                pulsante_base_pattern = None  # Pattern tipo CA##EB### per matching flessibile
+                
+                if pulsante_raw and 'EB' in pulsante_raw:
+                    if pulsante_raw.startswith('=') and '++' in pulsante_raw:
+                        # Estrai: =NT23++CA11+EB001-100S1 -> CA11EB001
+                        # Cerca pattern tipo ++CA11+EB001 o ++CA12+EB002
+                        match = re.search(r'\+\+([A-Z]{2}\d{2})\+EB(\d+)', pulsante_raw)
+                        if match:
+                            prefix = match.group(1)  # CA11
+                            eb_num = match.group(2)  # 001
+                            pulsante_name = f"{prefix}EB{eb_num}"
+                            pulsante_base_pattern = pulsante_name  # Pattern per matching
+                    else:
+                        # Formato diretto tipo CA12EB00107A o CA11EB001
+                        pulsante_name = pulsante_raw.strip()
+                        # Estrai pattern base CA##EB###
+                        base_match = re.match(r'(CA\d{2})EB(\d+)', pulsante_name)
+                        if base_match:
+                            pulsante_base_pattern = f"{base_match.group(1)}EB{base_match.group(2)}"
+                            # Se il nome completo ha un suffisso (es. CA12EB00107A), usa solo il pattern base per matching
+                            if len(pulsante_name) > len(pulsante_base_pattern):
+                                pulsante_name = pulsante_base_pattern
+                
+                if pulsante_name and sw_tag and sw_tag != 'nan' and sw_tag.strip():
+                    # Ricava il rack fault specifico per questa riga cercando la prima riga unita precedente in colonna A
+                    row_rack_fault = None
+                    for up_idx in range(idx, -1, -1):
+                        up_val = str(df_io.iloc[up_idx, 0]) if pd.notna(df_io.iloc[up_idx, 0]) else ""
+                        if up_val.startswith('=') and '++' in up_val:
+                            up_match = re.search(r'\+\+([A-Z0-9+\-]+)', up_val)
+                            if up_match:
+                                up_rack_part = up_match.group(1)
+                                up_rack_part = re.sub(r'^(AE00\+)+', lambda m: 'AE00+' if m.group(0) else '', up_rack_part)
+                                row_rack_fault = f"{up_rack_part}+340K1RackFault"
+                                rack_faults[row_rack_fault] = row_rack_fault
+                            break
+                    if row_rack_fault is None:
+                        row_rack_fault = current_rack_fault
+                    io_sw_tag_cell = f"g{idx + 1}"  # Colonna G per SW TAG
+                    io_id_cell = f"e{idx + 1}"      # Colonna E per ID LINE COMPONENT
+                    io_addr_cell = f"t{idx + 1}"    # Colonna T per I/O address
+                    # Cerca anche il tag VS1 (SafeChannelsError)
+                    vs1_tag = None
+                    # Cerca nella stessa riga o righe vicine (max 5 righe di distanza)
+                    for check_idx in range(max(0, idx-5), min(len(df_io), idx+6)):
+                        check_sw_tag = str(df_io.iloc[check_idx, sw_tag_col_idx]) if pd.notna(df_io.iloc[check_idx, sw_tag_col_idx]) else ""
+                        check_pulsante = str(df_io.iloc[check_idx, id_col_idx]) if pd.notna(df_io.iloc[check_idx, id_col_idx]) else ""
+                        # Verifica che sia lo stesso pulsante, contenga VS1 e CH1
+                        if pulsante_name and pulsante_name in check_pulsante and ('_VS1' in check_sw_tag) and ('CH1' in check_sw_tag.upper()):
+                            vs1_tag = check_sw_tag
+                            break
+                    
+                    if not vs1_tag:
+                        # Costruisci VS1 mantenendo CH1: se possibile sostituisci _CH1 con _CH1_VS1
+                        if '_CH1' in sw_tag:
+                            vs1_tag = sw_tag.replace('_CH1', '_CH1_VS1')
+                        else:
+                            vs1_tag = sw_tag + '_VS1'
+                    
+                    # Memorizza con il nome completo
+                    sw_tag_mapping[pulsante_name] = {
+                        'pb_pressed': sw_tag,
+                        'safe_channels_error': vs1_tag,
+                        'rack_fault': row_rack_fault,
+                        'io_sw_tag_cell': io_sw_tag_cell,
+                        'io_id_cell': io_id_cell,
+                        'io_addr': io_addr_val_norm,
+                        'io_addr_cell': io_addr_cell
+                    }
+                    
+                    # Memorizza anche con il pattern base per matching flessibile
+                    if pulsante_base_pattern and pulsante_base_pattern != pulsante_name:
+                        sw_tag_mapping[pulsante_base_pattern] = {
+                            'pb_pressed': sw_tag,
+                            'safe_channels_error': vs1_tag,
+                            'rack_fault': row_rack_fault,
+                            'io_sw_tag_cell': io_sw_tag_cell,
+                            'io_id_cell': io_id_cell,
+                            'io_addr': io_addr_val_norm,
+                            'io_addr_cell': io_addr_cell
+                        }
+                    
+                    print(f"DEBUG - Trovato pulsante: {pulsante_name} (pattern: {pulsante_base_pattern}) -> {sw_tag}")
+    
+    except Exception as e:
+        print(f"ERRORE durante la lettura del file IO_LIST: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+    
+    # Leggi il file Excel Matrice
+    try:
+        xls = pd.ExcelFile(excel_path)
+    except Exception as e:
+        print(f"ERRORE durante l'apertura del file Excel: {e}")
+        return False
+    
+    # Filtra fogli senza _reset
+    sheets_to_process = [s for s in xls.sheet_names if '_reset' not in s.lower()]
+    
+    # Struttura per memorizzare i pulsanti per zona
+    zone_buttons = {}  # {zone_name: [{'button_name': str, 'rack_fault': str}]}
+    
+    # Processa ogni foglio
+    for sheet_name in sheets_to_process:
+        try:
+            df = pd.read_excel(xls, sheet_name=sheet_name, header=None)
+            
+            # Cerca la riga con "ZONES INTERVENTION BOUTONES ARET D'URGENCE"
+            intervention_row_idx = None
+            for idx, row in df.iterrows():
+                if pd.notna(row.iloc[0]) and 'ZONES INTERVENTION' in str(row.iloc[0]).upper():
+                    intervention_row_idx = idx
+                    break
+            
+            if intervention_row_idx is None:
+                continue
+            
+            # Leggi la riga successiva per le zone
+            zone_row_idx = intervention_row_idx + 1
+            if zone_row_idx >= len(df):
+                continue
+            
+            zone_row = df.iloc[zone_row_idx]
+            
+            # Cerca rack fault nel foglio (formule tipo =NT23++AE00+...)
+            current_rack_fault = None
+            for idx in range(len(df)):
+                val = str(df.iloc[idx, 0]) if pd.notna(df.iloc[idx, 0]) else ""
+                if val.startswith('=') and '++' in val:
+                    match = re.search(r'\+\+([A-Z0-9+]+)', val)
+                    if match:
+                        rack_part = match.group(1)
+                        # Normalizza eventuali duplicati (AE00+AE00+ -> AE00+)
+                        rack_part = re.sub(r'^(AE00\+)+', lambda m: 'AE00+' if m.group(0) else '', rack_part)
+                        # Non forzare AE00: usa esattamente ciò che è scritto dopo ++
+                        rack_var_name = f"{rack_part}+340K1RackFault"
+                        current_rack_fault = rack_var_name
+                        if rack_var_name not in rack_faults:
+                            rack_faults[rack_var_name] = rack_var_name
+            
+            # Cerca pulsanti nella colonna A e le loro X nelle colonne delle zone
+            for row_idx in range(intervention_row_idx + 2, len(df)):  # Inizia dopo la riga delle zone
+                button_name_raw = str(df.iloc[row_idx, 0]) if pd.notna(df.iloc[row_idx, 0]) else ""
+                
+                # Verifica se è un pulsante (contiene EB o MCP e ha lunghezza > 5)
+                if button_name_raw and len(button_name_raw) > 5 and ('EB' in button_name_raw or 'MCP' in button_name_raw):
+                    button_name = button_name_raw.strip()
+                    
+                    # Cerca X nelle colonne delle zone (a partire dalla colonna 2, indice 2)
+                    for col_idx in range(2, len(zone_row)):
+                        zone_name = str(zone_row.iloc[col_idx]).strip() if pd.notna(zone_row.iloc[col_idx]) else ""
+                        
+                        if not zone_name or zone_name == 'nan':
+                            continue
+                        
+                        # Verifica se c'è una X in questa cella
+                        cell_val = df.iloc[row_idx, col_idx]
+                        # Gestisci diversi tipi di valori (stringa, float, ecc.)
+                        if pd.notna(cell_val):
+                            cell_str = str(cell_val).strip().upper()
+                            if cell_str == 'X':
+                                if zone_name not in zone_buttons:
+                                    zone_buttons[zone_name] = []
+                                
+                                # Determina la cella di associazione (colonna zona) e del nome (colonna A)
+                                assoc_cell_col_letter = _col_idx_to_letter(col_idx)
+                                button_cell_col_letter = _col_idx_to_letter(0)  # Colonna A
+
+                                zone_buttons[zone_name].append({
+                                    'button_name': button_name,
+                                    'rack_fault': current_rack_fault,
+                                    # Cella origine nome (solo cella, es. a10)
+                                    'button_cell': f"{button_cell_col_letter}{row_idx + 1}".lower(),
+                                    # Cella dell'associazione X (es. c10)
+                                    'assignment_cell': f"{assoc_cell_col_letter}{row_idx + 1}".lower(),
+                                    'sheet_name': sheet_name
+                                })
+                                print(f"DEBUG - Pulsante {button_name} assegnato alla zona {zone_name}")
+        
+        except Exception as e:
+            print(f"ERRORE durante l'elaborazione del foglio {sheet_name}: {e}")
+            import traceback
+            traceback.print_exc()
+            continue
+    
+    # Filtra solo le zone che hanno pulsanti
+    zone_buttons_filtered = {k: v for k, v in zone_buttons.items() if v}
+    
+    if not zone_buttons_filtered:
+        print("ATTENZIONE: Nessuna zona con pulsanti trovata")
+        return False
+    
+    # Ordina le zone per numero
+    sorted_zones = sorted(zone_buttons_filtered.items(), key=lambda x: zone_mapping.get(x[0], 9999))
+    
+    # Genera il contenuto SCL
+    scl_content = []
+    
+    # Header
+    scl_content.append('FUNCTION "PCE_Input" : Void')
+    scl_content.append('{ S7_Optimized_Access := \'TRUE\' }')
+    scl_content.append('VERSION : 0.1')
+    scl_content.append('   VAR_TEMP')
+    
+    # Aggiungi variabili rack fault
+    if not rack_faults:
+        # Default se non trovato
+        default_rack = "AE00+MCPCA12-340K1RackFault"
+        rack_faults[default_rack] = default_rack
+    
+    for rack_var in sorted(rack_faults.keys()):
+        scl_content.append(f'      "{rack_var}" : Bool;   // Profinet rack fault')
+    
+    scl_content.append('      i : Int;')
+    scl_content.append('   END_VAR')
+    scl_content.append('')
+    scl_content.append('BEGIN')
+    scl_content.append('')
+    
+    # Rack profinet fault temporary variable set
+    for rack_var in sorted(rack_faults.keys()):
+        scl_content.append('REGION Rack profinet fault temporary variable set')
+        scl_content.append(f'    #"{rack_var}" := "SV_DB_PROFINET_SA".FAULT_PROFINET1[2];')
+        scl_content.append('END_REGION ;')
+        scl_content.append('')
+    
+    # Genera regioni per ogni zona
+    pce_counter = 0
+    
+    # Raccogli informazioni per il riepilogo
+    summary_data = []  # Lista di dict con info sui pulsanti
+    
+    for zone_name, buttons in sorted_zones:
+        zone_number = zone_mapping.get(zone_name)
+        
+        if zone_number is None:
+            print(f"ATTENZIONE: Zona '{zone_name}' non trovata nel file di definizione zone")
+            continue
+        
+        if not buttons:
+            continue
+        
+        scl_content.append(f'REGION ZONE {zone_name}')
+        scl_content.append('')
+        
+        buttons_added = False
+        for button_info in buttons:
+            button_name = button_info['button_name']
+            rack_fault = button_info.get('rack_fault')
+            
+            # Trova i SW TAG dal file IO_LIST - prova matching flessibile
+            sw_tags = None
+            
+            # Prova prima con il nome esatto
+            if button_name in sw_tag_mapping:
+                sw_tags = sw_tag_mapping[button_name]
+            else:
+                # Estrai pattern base CA##EB### dal nome del pulsante
+                base_match = re.match(r'(CA\d{2})EB(\d+)', button_name)
+                if base_match:
+                    base_pattern = f"{base_match.group(1)}EB{base_match.group(2)}"
+                    
+                    # Prova con il pattern base
+                    if base_pattern in sw_tag_mapping:
+                        sw_tags = sw_tag_mapping[base_pattern]
+                    else:
+                        # Cerca tutte le varianti che contengono il pattern
+                        for key in sw_tag_mapping.keys():
+                            if base_pattern in key or key in base_pattern:
+                                sw_tags = sw_tag_mapping[key]
+                                print(f"DEBUG - Match trovato: {button_name} -> {key}")
+                                break
+            
+            if not sw_tags:
+                print(f"ATTENZIONE: Pulsante '{button_name}' non trovato nel file IO_LIST")
+                continue
+            
+            pb_pressed_tag = sw_tags['pb_pressed']
+            safe_channels_error_tag = sw_tags['safe_channels_error']
+            
+            # Se disponibile, usa il rack fault associato al SW TAG (da IO_LIST);
+            # in alternativa usa quello letto dalla Matrice per il pulsante; altrimenti il primo disponibile
+            rack_fault_var = sw_tags.get('rack_fault') or rack_fault or (list(rack_faults.keys())[0] if rack_faults else "AE00+MCPCA12-340K1RackFault")
+            
+            scl_content.append(f'    REGION PCE {pce_counter} Input management - {button_name}')
+            scl_content.append(f'        "PCE_DB".Interface[{pce_counter}].In.PbPressed := NOT "{pb_pressed_tag}";')
+            scl_content.append(f'        "PCE_DB".Interface[{pce_counter}].In.SafeChannelsError := NOT "{safe_channels_error_tag}";')
+            scl_content.append(f'        "PCE_DB".Interface[{pce_counter}].In.CommunicationFault := #"{rack_fault_var}";')
+            scl_content.append(f'        "PCE_DB".Interface[{pce_counter}].In.AcknowledgeCmd := "SAFE_ZONE_DB".ResetAll.Zone{zone_number};')
+            scl_content.append(f'        "PCE_DB".Interface[{pce_counter}].In.EmergencyActive := NOT "ESTOP_Z{zone_number}".Q;')
+            scl_content.append(f'        "PCE_DB".Interface[{pce_counter}].In.ResetAlarms := false;')
+            scl_content.append('    END_REGION ;')
+            scl_content.append('')
+            
+            # Aggiungi informazioni al riepilogo
+            summary_data.append({
+                'pce_counter': pce_counter,
+                'button_name': button_name,
+                'zone_name': zone_name,
+                'zone_number': zone_number,
+                'pb_pressed_tag': pb_pressed_tag,
+                'safe_channels_error_tag': safe_channels_error_tag,
+                'rack_fault_var': rack_fault_var,
+                'button_cell': button_info.get('button_cell'),
+                'assignment_cell': button_info.get('assignment_cell'),
+                'sheet_name': button_info.get('sheet_name'),
+                'io_sw_tag_cell': sw_tags.get('io_sw_tag_cell'),
+                'io_id_cell': sw_tags.get('io_id_cell'),
+                'io_addr': sw_tags.get('io_addr'),
+                'io_addr_cell': sw_tags.get('io_addr_cell')
+            })
+            
+            pce_counter += 1
+            buttons_added = True
+        
+        # Se non sono stati aggiunti pulsanti, non aggiungere la regione della zona
+        if not buttons_added:
+            # Rimuovi le righe della regione della zona che abbiamo appena aggiunto
+            # Rimuovi: REGION ZONE {zone_name} e la riga vuota
+            scl_content = scl_content[:-2]
+            continue
+        
+        scl_content.append('END_REGION')
+        scl_content.append('')
+    
+    scl_content.append('END_FUNCTION')
+    
+    # Scrivi il file SCL
+    output_path = os.path.join(output_folder, 'PCE_Input.scl')
+    try:
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write("\n".join(scl_content))
+        print(f"DEBUG - File PCE_Input.scl creato in {output_path}")
+    except Exception as e:
+        print(f"ERRORE durante la scrittura del file PCE_Input.scl: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+    
+    # Genera il file di riepilogo
+    summary_path = os.path.join(output_folder, 'PCE_Input_Summary.txt')
+    try:
+        with open(summary_path, 'w', encoding='utf-8') as f:
+            f.write("=" * 80 + "\n")
+            f.write("RIEPILOGO GENERAZIONE PCE_Input.scl\n")
+            f.write(f"CAB_PLC: {selected_cab_plc}\n")
+            f.write("=" * 80 + "\n\n")
+            
+            f.write("FILE DI INPUT UTILIZZATI:\n")
+            f.write(f"  - Excel Matrice Zone: {excel_path}\n")
+            f.write(f"  - Definizione Zone: {zone_def_path}\n")
+            f.write(f"  - IO_LIST: {io_list_file}\n\n")
+            
+            f.write("RACK FAULT TROVATI:\n")
+            if rack_faults:
+                for rack_var in sorted(rack_faults.keys()):
+                    f.write(f"  - {rack_var}\n")
+            else:
+                f.write("  - Nessun rack fault trovato, utilizzato default: AE00+MCPCA12-340K1RackFault\n")
+            f.write("\n")
+            
+            f.write("PULSANTI INSERITI NEL FILE PCE_Input.scl:\n")
+            f.write("=" * 80 + "\n\n")
+            
+            # Raggruppa per zona
+            current_zone = None
+            for data in summary_data:
+                if current_zone != data['zone_name']:
+                    if current_zone is not None:
+                        f.write("\n")
+                    current_zone = data['zone_name']
+                    f.write(f"ZONA: {data['zone_name']} (Zone{data['zone_number']})\n")
+                    f.write("-" * 80 + "\n")
+                
+                f.write(f"\n  PCE Counter: {data['pce_counter']}\n")
+                f.write(f"  Nome Pulsante: {data['button_name']}\n")
+                f.write(f"  Zona: {data['zone_name']} (Zone{data['zone_number']})\n")
+                # Celle di origine
+                if data.get('button_cell'):
+                    f.write(f"  Matrice - Cella Nome: {data['button_cell']}\n")
+                if data.get('assignment_cell'):
+                    f.write(f"  Matrice - Cella Associazione: {data['assignment_cell']}\n")
+                f.write(f"  SW TAG (PbPressed): {data['pb_pressed_tag']}\n")
+                f.write(f"  SW TAG (SafeChannelsError): {data['safe_channels_error_tag']}\n")
+                if data.get('io_addr'):
+                    f.write(f"  IO_LIST - I/O address: {data['io_addr']}\n")
+                if data.get('io_addr_cell'):
+                    f.write(f"  IO_LIST - Cella I/O address: {data['io_addr_cell']}\n")
+                if data.get('io_sw_tag_cell'):
+                    f.write(f"  IO_LIST - Cella SW TAG: {data['io_sw_tag_cell']}\n")
+                if data.get('io_id_cell'):
+                    f.write(f"  IO_LIST - Cella ID LINE COMPONENT: {data['io_id_cell']}\n")
+                f.write(f"  Rack Fault: {data['rack_fault_var']}\n")
+                # Cella di origine del nome pulsante nella Matrice
+                if data.get('button_cell'):
+                    f.write(f"  Origine Nome (Matrice): {data['button_cell']}\n")
+                f.write(f"  AcknowledgeCmd: SAFE_ZONE_DB.ResetAll.Zone{data['zone_number']}\n")
+                f.write(f"  EmergencyActive: ESTOP_Z{data['zone_number']}.Q\n")
+            
+            f.write("\n" + "=" * 80 + "\n")
+            f.write(f"TOTALE PULSANTI INSERITI: {len(summary_data)}\n")
+            f.write(f"TOTALE ZONE: {len(set(d['zone_name'] for d in summary_data))}\n")
+            f.write("=" * 80 + "\n")
+        
+        print(f"DEBUG - File PCE_Input_Summary.txt creato in {summary_path}")
+        return True
+    except Exception as e:
+        print(f"ERRORE durante la scrittura del file di riepilogo: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 def extract_codes_from_interval(interval_text):
     """
     Estrae tutti i codici da una stringa di intervallo.
@@ -1814,16 +2374,14 @@ def extract_codes_from_interval(interval_text):
     if not text or text == 'nan':
         return codes
     
-    # Pattern per trovare intervalli tipo "CA12ST001 - CA12ST007"
+    # Pattern per trovare intervalli tipo "CA12ST001 - CA12ST007" o "CA32ST007 - CA32CN013"
     # Cerca pattern tipo: LETTERE NUMERI LETTERE NUMERI - LETTERE NUMERI LETTERE NUMERI
-    range_pattern = r'([A-Z]{2}\d{2}[A-Z]{2}\d+)\s*-\s*([A-Z]{2}\d{2}[A-Z]{2}\d+)'
+    # Supporta anche CN, CX, ST, CA, ecc.
+    range_pattern = r'([A-Z]{2}\d{2}[A-Z]{2,3}\d+)\s*-\s*([A-Z]{2}\d{2}[A-Z]{2,3}\d+)'
     
-    # Pattern più generico per trovare codici tipo "CA12CA023", "HF12ST005", "CA12ST001", ecc.
-    # Pattern: 2 lettere, 2 numeri, 2 lettere, 3+ numeri
-    single_pattern = r'\b([A-Z]{2}\d{2}[A-Z]{2}\d{3,})\b'
-    
-    # Pattern alternativo per codici tipo "HF12XR003" (3 lettere dopo i numeri)
-    single_pattern_alt = r'\b([A-Z]{2}\d{2}[A-Z]{3}\d{3,})\b'
+    # Pattern più generico per trovare codici tipo "CA12CA023", "HF12ST005", "CA12ST001", "CA32CN013", ecc.
+    # Pattern: 2 lettere, 2 numeri, 2-3 lettere (ST, CN, CX, CA, XR, ecc.), 3+ numeri
+    single_pattern = r'\b([A-Z]{2}\d{2}[A-Z]{2,3}\d{3,})\b'
     
     # Trova tutti gli intervalli
     ranges = re.findall(range_pattern, text)
@@ -1835,7 +2393,8 @@ def extract_codes_from_interval(interval_text):
             continue
         processed_ranges.add(range_key)
         
-        # Estrai il prefisso comune (es. "CA12ST" da "CA12ST001")
+        # Estrai il prefisso comune (es. "CA12ST" da "CA12ST001" o "CA32CN" da "CA32CN013")
+        # Il prefisso può essere di lunghezza variabile: CA12ST, CA32CN, CA12CA, ecc.
         prefix_match = re.match(r'([A-Z]{2}\d{2}[A-Z]{2,3})', start_code)
         if prefix_match:
             prefix = prefix_match.group(1)
@@ -1859,7 +2418,7 @@ def extract_codes_from_interval(interval_text):
                             code = f"{prefix}{num_str}"
                         codes.append(code)
             else:
-                # Prefissi diversi, aggiungi i codici così come sono
+                # Prefissi diversi (es. CA32ST007 - CA32CN013), aggiungi i codici così come sono
                 codes.append(start_code)
                 codes.append(end_code)
         else:
@@ -1875,11 +2434,8 @@ def extract_codes_from_interval(interval_text):
     
     # Trova codici singoli che non sono già stati inclusi negli intervalli
     single_codes = re.findall(single_pattern, text_without_ranges)
-    single_codes_alt = re.findall(single_pattern_alt, text_without_ranges)
     
-    all_single_codes = single_codes + single_codes_alt
-    
-    for code in all_single_codes:
+    for code in single_codes:
         # Verifica che non sia già stato incluso
         if code not in codes:
             codes.append(code)

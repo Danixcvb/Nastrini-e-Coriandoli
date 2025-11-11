@@ -31,7 +31,8 @@ from creazione_file import (
     _is_valid_component_for_chain,
     generate_gen_line_file,
     create_dig_in_file, # Added new import
-    generate_zones_input_scl # Added new import for zones generation
+    generate_zones_input_scl, # Added new import for zones generation
+    generate_pce_input_scl # Added new import for PCE generation
 )
 import random
 import math
@@ -1061,6 +1062,14 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         except Exception as e:
             print(f"ERRORE durante la generazione del file Zones_Input.scl: {e}")
             # Non bloccare il processo se la generazione delle zone fallisce
+        
+        # Genera il file PCE_Input.scl
+        print("DEBUG - Generazione file PCE_Input.scl...")
+        try:
+            generate_pce_input_scl(selected_cab_plc)
+        except Exception as e:
+            print(f"ERRORE durante la generazione del file PCE_Input.scl: {e}")
+            # Non bloccare il processo se la generazione del PCE fallisce
         
         return True, completion_message
 
