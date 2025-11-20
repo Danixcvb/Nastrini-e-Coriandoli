@@ -1,0 +1,147 @@
+Confronto in corso...
+Cartella 1: Configurazioni\API004
+Cartella 2: Configurazioni\API004_NEW
+
+================================================================================
+REPORT CONFRONTO: API004 vs API004_NEW
+================================================================================
+
+File identici: 0
+File diversi: 10
+File solo in API004: 50
+File solo in API004_NEW: 5
+Errori: 0
+
+
+File presenti solo in API004:
+  - CONF_T10.scl
+  - CONF_T11.scl
+  - CONF_T12.scl
+  - CONF_T13.scl
+  - CONF_T14.scl
+  - CONF_T15.scl
+  - CONF_T16.scl
+  - CONF_T3.scl
+  - CONF_T4.scl
+  - CONF_T5.scl
+  - CONF_T6.scl
+  - CONF_T7.scl
+  - CONF_T8.scl
+  - CONF_T9.scl
+  - DbiLine1.scl
+  - DbiLine2.scl
+  - DbiLine3.scl
+  - DbiLine4.scl
+  - DbiLine5.scl
+  - DbiTrunkLN01.scl
+  ... e altri 30 file
+
+File presenti solo in API004_NEW:
+  - ConfLogger1.scl
+  - ConfLogger2.scl
+  - LoggerConf.scl
+  - PCE_Output.scl
+  - PulsLine.scl
+
+File con differenze (10):
+
+  CONF.scl:
+    Righe totali: 287
+    Differenze trovate: 50
+    Prime differenze:
+      + 
+      -     REGION Initialization
+      -         #ZeroWord := W#16#0;
+      -     END_REGION
+      - 
+
+  CONF_T1.scl:
+    Righe totali: 374
+    Differenze trovate: 50
+    Prime differenze:
+      -  { S7_Optimized_Access := 'TRUE' }
+      -  VERSION : 0.1
+      - 
+      -  BEGIN
+      - 
+
+  CONF_T2.scl:
+    Righe totali: 231
+    Differenze trovate: 50
+    Prime differenze:
+      -  { S7_Optimized_Access := 'TRUE' }
+      -  VERSION : 0.1
+      - 
+      -  BEGIN
+      - 
+
+  DigIn.scl:
+    Righe totali: 1684
+    Differenze trovate: 50
+    Prime differenze:
+      - 
+      -     REGION Input CONVEYOR Utenza1_CP21ST001 (CP21ST001)
+      - 
+      -         //    Profinet
+      - 
+
+  DigOut.scl:
+    Righe totali: 7
+    Differenze trovate: 2
+    Prime differenze:
+      + END_FUNCTION
+      - END_FUNCTION
+
+  GenLine.scl:
+    Righe totali: 313
+    Differenze trovate: 50
+    Prime differenze:
+      - 	             ID := 1,
+      - 	             Start_Tronco := #StartTronco,
+      - 	             TimeData := "DbGlobale".TimeData,
+      + 	                   ID := 1,
+      + 	                   Start_Tronco := #StartTronco,
+
+  MAIN1.scl:
+    Righe totali: 49
+    Differenze trovate: 5
+    Prime differenze:
+      + 
+      + 
+      - 	              NEXT := "Utenza2_CP21ST003".Conveyor.Data.OUT...
+      + 	              NEXT := "Utenza2_CP21ST003" ."Conveyor".Data....
+      + 
+
+  Main.scl:
+    Righe totali: 280
+    Differenze trovate: 50
+    Prime differenze:
+      -         (*==================================================...
+      -          Leonardo Company S.p.A
+      -          (c)Copyright 2024 All Rights Reserved
+      -         ----------------------------------------------------...
+      -          Library: Master-Nastri
+
+  PCE_Input.scl:
+    Righe totali: 245
+    Differenze trovate: 50
+    Prime differenze:
+      + 
+      - REGION Rack profinet fault temporary variable set
+      -     #"AE00+MCPCP21+340K1RackFault" := "SV_DB_PROFINET_SA".FA...
+      - END_REGION ;
+      - 
+
+  Zones_Input.scl:
+    Righe totali: 267
+    Differenze trovate: 50
+    Prime differenze:
+      - REGION ZONE 14 - Zone 4B
+      - REGION Zone Sorter Safe Statuses
+      -     "Zones_DB".Interface[14].In.SafeEmergency := NOT "SAFE_Z...
+      -     "Zones_DB".Interface[14].In.SafeFault := NOT "SAFE_ZONE_...
+      -     "Zones_DB".Interface[14].In.SafeFeedbackOk := "SAFE_ZONE...
+
+================================================================================
+
+Report salvato in: comparison_report.txt
