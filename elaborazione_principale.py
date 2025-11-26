@@ -278,6 +278,8 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         side_input_configs_to_inject = {}
         # Lista per memorizzare i dati dei conveyor per la generazione del file DigIn.scl
         conveyor_data_for_dig_in = []
+        # Lista per memorizzare i dati dei carousel per la generazione del file DigIn.scl
+        carousel_data_for_dig_in = []
 
         # Itera attraverso ogni prefisso nell'ordine selezionato
         for prefix in ordered_prefixes:
@@ -660,7 +662,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         "{item_id_custom_new}".{component_type}.Data.CNF.Speed1 :=  "DB_TEST_HMI".BONUS_SPEED +{item_speed_transport}; // [default=1.5] (m/s)
         "{item_id_custom_new}".{component_type}.Data.CNF.Speed2 := {item_speed_launch}; // [default=0.0] (m/s)
         "{item_id_custom_new}".{component_type}.Data.CNF.SpeedLow := 0.0; // [default=0.0]
-        "{item_id_custom_new}".{component_type}.Data.CNF.DriveMaxSpeed := "{item_id_custom_new}".DriveInterface.Par.MaxSpeed;        // [default=2.0] da machine table = {item_speed_max}
+        "{item_id_custom_new}".{component_type}.Data.CNF.DriveMaxSpeed := "{item_id_custom_new}".Drive_1.Data.Par.MaxSpeed;        // [default=2.0] da machine table = {item_speed_max}
         "{item_id_custom_new}".{component_type}.Data.CNF.Acceleration := {item_acceleration}; // [default=2.5]
         "{item_id_custom_new}".{component_type}.Data.CNF.Length := {item_l_float}; // [default=1600]   (m)
         "{item_id_custom_new}".{component_type}.Data.CNF.Gap := 0.4; // [default=0.4]
@@ -720,21 +722,36 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             "{item_id_custom_new}".Encoder.Data.CNF.SpeedTollerance := 0.0; // [default=0.0]
         END_REGION
 
-        REGION DriveInterface_1.Par 
-            "{item_id_custom_new}".DriveInterface_1.Par.Direction := TRUE; // [default=FALSE]
-            "{item_id_custom_new}".DriveInterface_1.Par.UseDriveSpeedYs := TRUE; // [default=TRUE]
-            "{item_id_custom_new}".DriveInterface_1.Par.HwAddr := 0; // [default=0]
-            "{item_id_custom_new}".DriveInterface_1.Par.MaxSpeed := 0.91; // [default=2.0]
-            "{item_id_custom_new}".DriveInterface_1.Par.FeedbackTime := T#500MS; // [default=T#500MS]
+        REGION Drive_1.Data.Par 
+            "{item_id_custom_new}".Drive_1.Data.Par.Direction := TRUE; // [default=FALSE]
+            "{item_id_custom_new}".Drive_1.Data.Par.UseDriveSpeedYs := TRUE; // [default=TRUE]
+            "{item_id_custom_new}".Drive_1.Data.Par.HwAddr := 0; // [default=0]
+            "{item_id_custom_new}".Drive_1.Data.Par.MaxSpeed := 0.91; // [default=2.0]
+            "{item_id_custom_new}".Drive_1.Data.Par.FeedbackTime := T#500MS; // [default=T#500MS]
         END_REGION
         
-        REGION DriveInterface_2.Par 
-            "{item_id_custom_new}".DriveInterface_2.Par.Direction := TRUE; // [default=FALSE]
-            "{item_id_custom_new}".DriveInterface_2.Par.UseDriveSpeedYs := TRUE; // [default=TRUE]
-            "{item_id_custom_new}".DriveInterface_2.Par.HwAddr := 0; // [default=0]
-            "{item_id_custom_new}".DriveInterface_2.Par.MaxSpeed := 0.91; // [default=2.0]
-            "{item_id_custom_new}".DriveInterface_2.Par.FeedbackTime := T#500MS; // [default=T#500MS]
+        REGION Drive_2.Data.Par 
+            "{item_id_custom_new}".Drive_2.Data.Par.Direction := TRUE; // [default=FALSE]
+            "{item_id_custom_new}".Drive_2.Data.Par.UseDriveSpeedYs := TRUE; // [default=TRUE]
+            "{item_id_custom_new}".Drive_2.Data.Par.HwAddr := 0; // [default=0]
+            "{item_id_custom_new}".Drive_2.Data.Par.MaxSpeed := 0.91; // [default=2.0]
+            "{item_id_custom_new}".Drive_2.Data.Par.FeedbackTime := T#500MS; // [default=T#500MS]
+        END_REGION"""
+                                # Se ci sono 3 occorrenze di CA, aggiungi anche il motore 3
+                                ca_count = count_ca_occurrences(original_comment_name)
+                                if ca_count >= 3:
+                                    initial_config_part += f"""
+        REGION Drive_3.Data.Par 
+            "{item_id_custom_new}".Drive_3.Data.Par.Direction := TRUE; // [default=FALSE]
+            "{item_id_custom_new}".Drive_3.Data.Par.UseDriveSpeedYs := TRUE; // [default=TRUE]
+            "{item_id_custom_new}".Drive_3.Data.Par.HwAddr := 0; // [default=0]
+            "{item_id_custom_new}".Drive_3.Data.Par.MaxSpeed := 0.91; // [default=2.0]
+            "{item_id_custom_new}".Drive_3.Data.Par.FeedbackTime := T#500MS; // [default=T#500MS]
         END_REGION
+        END_REGION
+"""
+                                else:
+                                    initial_config_part += """
         END_REGION
 """
                             
@@ -753,6 +770,155 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                             create_data_block_file(item_id_custom_new, component_type, output_folder, line_type_mapping)
                             if configuration:
                                 configurations_by_trunk[trunk_key].append(configuration)
+                            
+                            print(f"DEBUG - Trovato Carousel: {item_id_custom_new} (originale: {item_id_custom})")
+                            print(f"DEBUG - trunk_group size: {len(trunk_group)}")
+                            
+                            # Raccogli i dati del carousel per il file DigIn.scl
+                            # Trova tutti i motori CA nello stesso tronco E con lo stesso prefisso (escludendo il carousel principale che ha 2 occorrenze di CA)
+                            # Estrai il prefisso dal carousel (primi 4 caratteri, es. "CA11" da "CA11CA023")
+                            carousel_prefix = item_id_custom[:4].upper() if len(item_id_custom) >= 4 else ""
+                            print(f"DEBUG - Prefisso carousel: {carousel_prefix}")
+                            
+                            ca_motors = []
+                            # Cerca prima nello stesso tronco
+                            # I motori del carousel possono avere formato diverso:
+                            # - "CA030", "CA045" (1 occorrenza di CA) 
+                            # - "CA11CA030", "CA11CA045" (2 occorrenze di CA, ma diversi dal carousel principale)
+                            for idx, motor_row in trunk_group.iterrows():
+                                motor_id = str(motor_row['ITEM_ID_CUSTOM']).upper()
+                                ca_count = count_ca_occurrences(motor_id)
+                                motor_prefix = motor_id[:4] if len(motor_id) >= 4 else ""
+                                print(f"DEBUG - Motor check (stesso tronco): {motor_id}, CA count: {ca_count}, prefix: {motor_prefix}, carousel_id: {item_id_custom.upper()}")
+                                # I motori del carousel sono elementi CA che:
+                                # 1. Hanno lo stesso prefisso del carousel (primi 4 caratteri)
+                                # 2. NON sono il carousel principale stesso
+                                # 3. Contengono "CA" nel nome
+                                if 'CA' in motor_id and motor_prefix == carousel_prefix:
+                                    # Escludi il carousel principale stesso
+                                    if motor_id != item_id_custom.upper():
+                                        # Accetta qualsiasi elemento CA con lo stesso prefisso (sia 1 che 2 occorrenze di CA)
+                                        ca_motors.append({
+                                            'item_id': motor_row['ITEM_ID_CUSTOM'],
+                                            'item_id_upper': motor_id,
+                                            'index': idx,
+                                            'trunk': trunk_key
+                                        })
+                                        print(f"DEBUG - Motore CA trovato nello stesso tronco: {motor_id} (CA count: {ca_count})")
+                            
+                            # Se non trovati nello stesso tronco, cerca in tutti i dati del prefisso corrente con lo stesso prefisso
+                            if len(ca_motors) == 0:
+                                print(f"DEBUG - Nessun motore trovato nello stesso tronco, cerco in tutti i dati del prefisso {carousel_prefix}")
+                                # Cerca SEMPRE in cab_plc_data per trovare tutti gli elementi CA con lo stesso prefisso
+                                # Questo garantisce di trovare i motori anche se sono in tronchi diversi
+                                print(f"DEBUG - Cerco in cab_plc_data (totale righe: {len(cab_plc_data)})")
+                                for idx, motor_row in cab_plc_data.iterrows():
+                                    motor_id = str(motor_row['ITEM_ID_CUSTOM']).upper()
+                                    motor_prefix = motor_id[:4] if len(motor_id) >= 4 else ""
+                                    if motor_prefix == carousel_prefix:
+                                        ca_count = count_ca_occurrences(motor_id)
+                                        motor_trunk = motor_row.get('ITEM_TRUNK')
+                                        # I motori del carousel sono elementi CA con stesso prefisso ma diversi dal carousel principale
+                                        if 'CA' in motor_id and motor_prefix == carousel_prefix:
+                                            # Escludi il carousel principale stesso
+                                            if motor_id != item_id_custom.upper():
+                                                # Accetta qualsiasi elemento CA con lo stesso prefisso (sia 1 che 2 occorrenze di CA)
+                                                # Evita duplicati
+                                                if not any(m['item_id'] == motor_row['ITEM_ID_CUSTOM'] for m in ca_motors):
+                                                    ca_motors.append({
+                                                        'item_id': motor_row['ITEM_ID_CUSTOM'],
+                                                        'item_id_upper': motor_id,
+                                                        'index': idx,
+                                                        'trunk': motor_trunk
+                                                    })
+                                                    print(f"DEBUG - Motore trovato in cab_plc_data: {motor_id} (tronco: {motor_trunk}, CA count: {ca_count})")
+                            
+                            print(f"DEBUG - ca_motors trovati: {len(ca_motors)}")
+                            
+                            # Ordina i motori per ordine di apparizione nel tronco (usando l'indice originale)
+                            ca_motors_sorted = sorted(ca_motors, key=lambda x: x['index'])
+                            
+                            # LIMITAZIONE: Prendi solo i primi 3 motori CA trovati (per ora, come richiesto)
+                            ca_motors_sorted = ca_motors_sorted[:3]
+                            print(f"DEBUG - ca_motors dopo limitazione a 3: {len(ca_motors_sorted)}")
+                            
+                            # Prepara i dati per ogni motore
+                            motor_data_list = []
+                            for i, motor in enumerate(ca_motors_sorted, start=1):
+                                motor_item_id = motor['item_id']
+                                motor_item_id_upper = motor['item_id_upper']
+                                
+                                # Aggiungi underscore dopo il prefisso se necessario
+                                motor_item_id_with_underscore = motor_item_id
+                                if len(motor_item_id) >= 4:
+                                    prefix = motor_item_id[:4]
+                                    rest = motor_item_id[4:]
+                                    if rest and rest.startswith('CA'):
+                                        motor_item_id_with_underscore = f"{prefix}_{rest}"
+                                
+                                motor_data_list.append({
+                                    'motor_number': i,
+                                    'item_id': motor_item_id,
+                                    'item_id_with_underscore': motor_item_id_with_underscore,
+                                    'safety_switch_ref': f"{motor_item_id_with_underscore}_T0001_SAFETY_SWITCH_POWER_SUPPLY_400V".replace("-", "_").replace(" ", "_").upper(),
+                                    'key_switch_ref': f"{motor_item_id_with_underscore}_T0001_KEY_SWITCH_LOCAL_MODE".replace("-", "_").replace(" ", "_").upper(),
+                                    'motor_group_inserted_ref': f"{motor_item_id_with_underscore}_B2002_GROUP_INSERTERD".replace("-", "_").replace(" ", "_").upper(),
+                                    'pitch_control_ref': f"{motor_item_id_with_underscore}_B2001_CAROUSEL_PITCH_CONTROL_SENSOR".replace("-", "_").replace(" ", "_").upper(),
+                                    'telegram_ref': f"{motor_item_id.upper()}_IN",
+                                    'profinet_index': None  # Sarà calcolato dopo
+                                })
+                            
+                            # Calcola i profinet_index (partono da un valore base, es. 18 per il primo motore)
+                            base_profinet_index = 18  # Valore di esempio, potrebbe essere calcolato dinamicamente
+                            for i, motor_data in enumerate(motor_data_list):
+                                motor_data['profinet_index'] = base_profinet_index + i
+                            
+                            # Se non ci sono motori, salta l'aggiunta del carousel (o aggiungi comunque con lista vuota?)
+                            if len(motor_data_list) == 0:
+                                print(f"DEBUG - ATTENZIONE: Carousel {item_id_custom_new} trovato ma nessun motore CA con 1 occorrenza nello stesso tronco!")
+                                print(f"DEBUG - Elementi nel tronco:")
+                                for idx, motor_row in trunk_group.iterrows():
+                                    motor_id = str(motor_row['ITEM_ID_CUSTOM']).upper()
+                                    ca_count = count_ca_occurrences(motor_id)
+                                    print(f"  - {motor_row['ITEM_ID_CUSTOM']}: CA count = {ca_count}")
+                            
+                            # Trova le booking photocells (Pht01 e Pht02) - potrebbero essere nel tronco o nel tronco successivo
+                            # Per ora usiamo valori di esempio basati sul primo e ultimo motore
+                            booking_pht01_ref = None
+                            booking_pht02_ref = None
+                            if len(motor_data_list) > 0:
+                                first_motor = motor_data_list[0]
+                                last_motor = motor_data_list[-1]
+                                prefix = first_motor['item_id'][:4] if len(first_motor['item_id']) >= 4 else ""
+                                # Booking photocell 1 potrebbe essere vicino al primo motore
+                                booking_pht01_ref = f"{prefix}_CA023_B6901_BOOKING_PHOTOCELL".replace("-", "_").replace(" ", "_").upper()
+                                # Booking photocell 2 potrebbe essere vicino all'ultimo motore
+                                booking_pht02_ref = f"{prefix}_CA065_B6901_BOOKING_PHOTOCELL".replace("-", "_").replace(" ", "_").upper()
+                            
+                            # Power supply breaker status (comune per tutti i motori)
+                            power_supply_breaker_status_ref = ""
+                            if len(motor_data_list) > 0:
+                                power_supply_breaker_status_ref = f"MCP{selected_cab_plc[-2:]}_130F3_400VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_INVERTER_{motor_data_list[0]['item_id_upper']}_{motor_data_list[-1]['item_id_upper'] if len(motor_data_list) > 1 else motor_data_list[0]['item_id_upper']}".replace("-", "_").replace(" ", "_").upper()
+                            
+                            # Motor group rotating (solo per il primo motore)
+                            motor_group_rotating_ref = motor_data_list[0]['motor_group_inserted_ref'].replace("GROUP_INSERTERD", "GROUP_ROTATING") if len(motor_data_list) > 0 else ""
+                            
+                            # Aggiungi il carousel solo se ci sono motori
+                            if len(motor_data_list) > 0:
+                                carousel_entry = {
+                                    'carousel_id': item_id_custom_new,  # es. "Carousel1"
+                                    'comment_name': item_id_custom,  # es. "CA11CA023"
+                                    'motors': motor_data_list,
+                                    'booking_pht01_ref': booking_pht01_ref,
+                                    'booking_pht02_ref': booking_pht02_ref,
+                                    'power_supply_breaker_status_ref': power_supply_breaker_status_ref,
+                                    'motor_group_rotating_ref': motor_group_rotating_ref,
+                                    'selected_cab_plc': selected_cab_plc
+                                }
+                                print(f"DEBUG - Aggiungo carousel_data: {carousel_entry['carousel_id']}, motors: {len(motor_data_list)}")
+                                carousel_data_for_dig_in.append(carousel_entry)
+                            else:
+                                print(f"DEBUG - Carousel {item_id_custom_new} saltato perché non ci sono motori")
                         elif component_type == "Conveyor": # Per i Conveyor, la logica DriveInterface.Par rimane invariata
                             output_folder = f'Configurazioni/{selected_cab_plc}/API0{selected_cab_plc[-2:]}'
                             create_data_block_file(item_id_custom_new, component_type, output_folder, line_type_mapping)
@@ -1073,7 +1239,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                     # Crea i file correlati
                     create_trunk_file(trunk_num_for_file, db_trunk_output_folder)
                 except Exception as e:
-                    print(f"Errore durante la creazione dei file per il tronco {trunk_num}: {e}")
+                    print(f"Errore durante la creazione dei file per il tronco {trunk_num_for_file}: {e}")
                     continue
 
         # Crea il file CONF.scl nella cartella API0## dopo che tutti i trunk sono stati processati
@@ -1141,7 +1307,11 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         generate_gen_line_file(df, selected_cab_plc, line_type_mapping, ordered_prefixes, trunk_to_line_mapping, carousel_trunk_position)
 
         # Crea il file DigIn.scl nella cartella API0##
-        create_dig_in_file(selected_cab_plc, 'Configurazioni', conveyor_data_for_dig_in)
+        print(f"DEBUG - carousel_data_for_dig_in prima di create_dig_in_file: {len(carousel_data_for_dig_in) if carousel_data_for_dig_in else 0} elementi")
+        if carousel_data_for_dig_in:
+            for idx, car_data in enumerate(carousel_data_for_dig_in):
+                print(f"DEBUG - carousel_data_for_dig_in[{idx}]: carousel_id={car_data.get('carousel_id')}, motors={len(car_data.get('motors', []))}")
+        create_dig_in_file(selected_cab_plc, 'Configurazioni', conveyor_data_for_dig_in, carousel_data_for_dig_in, ordered_prefixes, trunk_to_line_mapping, prefix_to_line_numbers, carousel_trunk_position)
 
         # Aggiorna lo stato
         # status_var.set(f"Completato! {len(files_created)} file CONF_T e {len(main_data_by_trunk)} file MAIN salvati.")
@@ -1169,7 +1339,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         # Genera DigOut.scl
         print("DEBUG - Generazione file DigOut.scl...")
         try:
-            create_dig_out_file(selected_cab_plc, 'Configurazioni')
+            create_dig_out_file(selected_cab_plc, 'Configurazioni', ordered_prefixes, trunk_to_line_mapping, carousel_trunk_position, df, conveyor_data_for_dig_in)
         except Exception as e:
             print(f"ERRORE durante la generazione del file DigOut.scl: {e}")
 

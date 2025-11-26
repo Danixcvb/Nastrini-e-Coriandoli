@@ -1,0 +1,209 @@
+Script di test per generazione API004
+Questo script testerÓ la generazione automatica dei file SCL
+
+================================================================================
+TEST GENERAZIONE API004
+================================================================================
+CAB_PLC: API004
+Ordine linee: ['CP21', 'DC11', 'CA11', 'CA31']
+File Excel: Input/Matrice_Zone_di_Emergenza_Nizza.xlsx
+================================================================================
+
+Avvio generazione...
+process_excel: Elaborazione in corso...
+DataFrame caricato con 60 righe
+Errore: colonne mancanti nel file Excel
+
+Risultato: ERRORE
+Messaggio: Colonne mancanti nel file Excel
+
+================================================================================
+VERIFICA FILE GENERATI
+================================================================================
+Cartella di output: Configurazioni\API004\API004
+
+File trovati (116):
+  - CA11.txt
+  - CA31.txt
+  - CONF.scl
+  - CONF_T1.scl
+  - CONF_T10.scl
+  - CONF_T11.scl
+  - CONF_T12.scl
+  - CONF_T13.scl
+  - CONF_T14.scl
+  - CONF_T15.scl
+  - CONF_T2.scl
+  - CONF_T3.scl
+  - CONF_T4.scl
+  - CONF_T5.scl
+  - CONF_T6.scl
+  - CONF_T7.scl
+  - CONF_T8.scl
+  - CONF_T9.scl
+  - CONF_TCarousel.scl
+  - CP21.txt
+  - Carousel1.db
+  - DC11.txt
+  - Datalogic_CA11SC013.db
+  - Datalogic_CA31SC011.db
+  - Datalogic_CP21LC043.db
+  - Datalogic_CP21SC005.db
+  - Datalogic_DC11SC011.db
+  - DbiLine1.scl
+  - DbiLine2.scl
+  - DbiLine3.scl
+  - DbiLine4.scl
+  - DbiLineCarousel.scl
+  - DbiTrunkLN01.scl
+  - DbiTrunkLN02.scl
+  - DbiTrunkLN03.scl
+  - DbiTrunkLN04.scl
+  - DbiTrunkLN05.scl
+  - DbiTrunkLN06.scl
+  - DbiTrunkLN07.scl
+  - DbiTrunkLN08.scl
+  - DbiTrunkLN09.scl
+  - DbiTrunkLN10.scl
+  - DbiTrunkLN11.scl
+  - DbiTrunkLN12.scl
+  - DbiTrunkLN13.scl
+  - DbiTrunkLN14.scl
+  - DbiTrunkLN15.scl
+  - DbiTrunkLNCarousel.scl
+  - DigIn.scl
+  - DigOut.scl
+  - GenLine.scl
+  - MAIN1.scl
+  - MAIN10.scl
+  - MAIN11.scl
+  - MAIN12.scl
+  - MAIN13.scl
+  - MAIN14.scl
+  - MAIN15.scl
+  - MAIN2.scl
+  - MAIN3.scl
+  - MAIN4.scl
+  - MAIN5.scl
+  - MAIN6.scl
+  - MAIN7.scl
+  - MAIN8.scl
+  - MAIN9.scl
+  - MAINCarousel.scl
+  - Main.scl
+  - Oversize1.db
+  - Oversize2.db
+  - PCE_Input.scl
+  - PCE_Input_Summary.txt
+  - PCE_Output.scl
+  - Side_Input_Carousel1.db
+  - Utenza10_CP21ST023.db
+  - Utenza11_CP21ST025.db
+  - Utenza12_CP21CX027.db
+  - Utenza13_CP21CX029.db
+  - Utenza14_CP21ST031.db
+  - Utenza15_CP21CN033.db
+  - Utenza16_CP21ST035.db
+  - Utenza17_CP21ST037.db
+  - Utenza18_CP21ST039.db
+  - Utenza19_CP21ST041.db
+  - Utenza1_CP21ST001.db
+  - Utenza20_CP21ST045.db
+  - Utenza21_CP21CN047.db
+  - Utenza22_DC11ST001.db
+  - Utenza23_DC11ST003.db
+  - Utenza24_DC11ST005.db
+  - Utenza25_DC11ST007.db
+  - Utenza26_DC11ST009.db
+  - Utenza27_CA11ST003.db
+  - Utenza28_CA11CX005.db
+  - Utenza29_CA11ST007.db
+  - Utenza2_CP21ST003.db
+  - Utenza30_CA11ST009.db
+  - Utenza31_CA11ST011.db
+  - Utenza32_CA11ST015.db
+  - Utenza33_CA11ST017.db
+  - Utenza34_CA31ST003.db
+  - Utenza35_CA31CX005.db
+  - Utenza36_CA31ST007.db
+  - Utenza37_CA31ST009.db
+  - Utenza38_CA31ST013.db
+  - Utenza39_CA31ST015.db
+  - Utenza3_CP21ST007.db
+  - Utenza4_CP21ST009.db
+  - Utenza5_CP21ST011.db
+  - Utenza6_CP21ST015.db
+  - Utenza7_CP21ST017.db
+  - Utenza8_CP21ST019.db
+  - Utenza9_CP21ST021.db
+  - Zones_Input.scl
+  - Zones_Input_Summary.txt
+  - selected_order.txt
+
+================================================================================
+VERIFICA FILE CHIAVE
+================================================================================
+[OK] DigIn.scl
+[OK] GenLine.scl
+[OK] Main.scl
+[OK] PCE_Input.scl
+[OK] PCE_Output.scl
+
+================================================================================
+RIEPILOGO FILE GENERATI
+================================================================================
+File CONF_T: 16
+  - CONF_T1.scl
+  - CONF_T10.scl
+  - CONF_T11.scl
+  - CONF_T12.scl
+  - CONF_T13.scl
+  - CONF_T14.scl
+  - CONF_T15.scl
+  - CONF_T2.scl
+  - CONF_T3.scl
+  - CONF_T4.scl
+  - CONF_T5.scl
+  - CONF_T6.scl
+  - CONF_T7.scl
+  - CONF_T8.scl
+  - CONF_T9.scl
+  - CONF_TCarousel.scl
+
+File MAIN: 16
+  - MAIN1.scl
+  - MAIN10.scl
+  - MAIN11.scl
+  - MAIN12.scl
+  - MAIN13.scl
+  - MAIN14.scl
+  - MAIN15.scl
+  - MAIN2.scl
+  - MAIN3.scl
+  - MAIN4.scl
+  - MAIN5.scl
+  - MAIN6.scl
+  - MAIN7.scl
+  - MAIN8.scl
+  - MAIN9.scl
+  - MAINCarousel.scl
+
+File Carousel trovati: 6
+  - CONF_TCarousel.scl
+  - Carousel1.db
+  - DbiLineCarousel.scl
+  - DbiTrunkLNCarousel.scl
+  - MAINCarousel.scl
+  - Side_Input_Carousel1.db
+
+[ERRORE] DigIn.scl NON contiene sezione CAROUSEL
+[OK] DigIn.scl contiene 5 sezione/i LINE
+[INFO] DigIn.scl NON contiene sezione Badge Reader (normale se non CA12/CA22/CA32)
+[ERRORE] DigIn.scl NON contiene sezione SIDEINPUT Carousel
+[OK] DigIn.scl contiene 39 sezione/i CONVEYOR
+
+================================================================================
+TEST COMPLETATO
+================================================================================
+
+[ERRORE] Test fallito!
