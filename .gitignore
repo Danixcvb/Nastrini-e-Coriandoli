@@ -1,8 +1,71 @@
-
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
 
+# Output generati
 Configurazioni/
+*.db
+*.scl
+*.txt
+!requirements.txt
+!Input/**/*.txt
 
+# File temporanei e debug
+debug_output.txt
+test_output*.txt
+test_debug.txt
+test_full_output.txt
+comparison_output.txt
+comparison_report.txt
+*.log
+*.sqlite
+
+# Configurazioni locali
 app_config.json
+last_file.cfg
+last_file.json
+
+# Database e cache
+*.sqlite
+*.db-journal
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# OS
+Thumbs.db
+.DS_Store
