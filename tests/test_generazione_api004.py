@@ -7,6 +7,10 @@ Questo script simula la chiamata a process_excel senza utilizzare l'interfaccia 
 
 import os
 import sys
+
+# Aggiungi la directory root al path per gli import
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from elaborazione_principale import process_excel
 from PyQt6.QtCore import QThread
 
