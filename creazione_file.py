@@ -209,9 +209,10 @@ def create_data_block_file(item_id_custom, component_type, output_folder, line_t
         print(f"DEBUG - Creazione file FIRESHUTTER per {item_id_custom}")
         # Estrai il numero progressivo dal nome del file esistente o usa 1 come default
         fire_shutter_number = 1
-        existing_files = [f for f in os.listdir(output_folder) if f.startswith("FIRESHUTTER") and f.endswith(".scl")]
+        # Cerca file FIRESHUTTER già creati (.db) per assegnare il numero successivo
+        existing_files = [f for f in os.listdir(output_folder) if f.startswith("FIRESHUTTER") and f.endswith(".db")]
         if existing_files:
-            numbers = [int(f.replace("FIRESHUTTER", "").replace(".scl", "")) for f in existing_files]
+            numbers = [int(f.replace("FIRESHUTTER", "").replace(".db", "")) for f in existing_files]
             fire_shutter_number = max(numbers) + 1 if numbers else 1
         print(f"DEBUG - Numero FIRESHUTTER assegnato: {fire_shutter_number}")
         create_fire_shutter_file(fire_shutter_number, output_folder)
@@ -2896,7 +2897,8 @@ def generate_zones_input_scl(selected_cab_plc):
         scl_content.append(f'	        "Zones_DB".Interface[{zone_number}].In.SafeFault := NOT "SAFE_ZONE_DB".FeedbackOk.Zone{zone_number} OR NOT "SAFE_ZONE_DB".MotorsOk.Zone{zone_number};')
         scl_content.append(f'	        "Zones_DB".Interface[{zone_number}].In.SafeFeedbackOk := "SAFE_ZONE_DB".FeedbackOk.Zone{zone_number};')
         scl_content.append(f'	        "Zones_DB".Interface[{zone_number}].In.SafeMotorsOk := "SAFE_ZONE_DB".MotorsOk.Zone{zone_number};')
-        scl_content.append(f'	        "Zones_DB".Interface[{zone_number}].In.AllGatesSafe := "SAFE_ZONE1_DB".Data.Gates.AllGatesClosedLocked;')
+        # Usa il DB SAFE relativo alla zona corrente (non hardcodare Zona1)
+        scl_content.append(f'	        "Zones_DB".Interface[{zone_number}].In.AllGatesSafe := "SAFE_ZONE{zone_number}_DB".Data.Gates.AllGatesClosedLocked;')
         scl_content.append(f'	        "Zones_DB".Interface[{zone_number}].In.AckNecessary := "SAFE_ZONE_DB".AckRequest.Zone{zone_number};')
         scl_content.append("	    END_REGION ;")
         
