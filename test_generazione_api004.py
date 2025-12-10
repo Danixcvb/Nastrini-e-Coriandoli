@@ -13,7 +13,7 @@ from PyQt6.QtCore import QThread
 # Configurazione di test
 TEST_CAB_PLC = "API004"
 TEST_ORDER = ["CP21", "DC11", "CA11", "CA31"]
-TEST_EXCEL_FILE = "Input/Matrice_Zone_di_Emergenza_Nizza.xlsx"  # Modifica se necessario
+TEST_EXCEL_FILE = "Input/Machine_Table_per_tool_AI.xlsx"  # File Excel corretto con tutte le colonne
 
 # Classe dummy per simulare status_var
 class DummyStatusVar:
@@ -49,6 +49,18 @@ def test_generazione_api004():
     # Crea gli oggetti dummy necessari
     status_var = DummyStatusVar()
     root = DummyRoot()
+    
+    # Elimina la cartella di output esistente per test pulito
+    api_folder = f'API0{TEST_CAB_PLC[-2:]}'
+    output_folder = os.path.join('Configurazioni', TEST_CAB_PLC, api_folder)
+    if os.path.exists(output_folder):
+        import shutil
+        print(f"\nEliminazione cartella esistente per test pulito: {output_folder}")
+        try:
+            shutil.rmtree(output_folder)
+            print("Cartella eliminata con successo")
+        except Exception as e:
+            print(f"Errore durante eliminazione cartella: {e}")
     
     try:
         # Chiama process_excel con i parametri di test

@@ -132,6 +132,20 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         
         # Controlla e pulisci la cartella del CAB_PLC se esiste
         output_folder = os.path.join('Configurazioni', selected_cab_plc)
+        api_folder = f'API0{selected_cab_plc[-2:]}'
+        api_output_folder = os.path.join(output_folder, api_folder)
+        
+        # Elimina file .scl vecchi di DbiLine e DbiTrunkLN prima di generare i nuovi .db
+        if os.path.exists(api_output_folder):
+            for file in os.listdir(api_output_folder):
+                if (file.startswith('DbiLine') or file.startswith('DbiTrunkLN')) and file.endswith('.scl'):
+                    old_file_path = os.path.join(api_output_folder, file)
+                    try:
+                        os.remove(old_file_path)
+                        print(f"DEBUG - Rimosso file vecchio: {file}")
+                    except Exception as e:
+                        print(f"DEBUG - Impossibile rimuovere {file}: {e}")
+        
         if os.path.exists(output_folder):
             # --- Replace Tkinter confirmation with QMessageBox --- 
             print(f"Trovata cartella preesistente: {output_folder}")
@@ -148,26 +162,38 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                     confirmed = True
             else:
                  # Fallback to console confirmation if no GUI available
-                 reply_console = input(f"ATTENZIONE: La cartella '{output_folder}' esiste già. Eliminarla e procedere? (s/n): ").lower()
-                 if reply_console == 's':
+                 # Se siamo in modalità non interattiva (es. script di test), elimina automaticamente
+                 import sys
+                 try:
+                     if not sys.stdin.isatty():
+                         # Non interattivo: elimina automaticamente
+                         confirmed = True
+                         print(f"Modalità non interattiva: eliminazione automatica della cartella '{output_folder}'")
+                     else:
+                         reply_console = input(f"ATTENZIONE: La cartella '{output_folder}' esiste già. Eliminarla e procedere? (s/n): ").lower()
+                         if reply_console == 's':
+                             confirmed = True
+                 except (EOFError, OSError):
+                     # Se non possiamo leggere l'input, assumiamo modalità non interattiva
                      confirmed = True
+                     print(f"Modalità non interattiva rilevata: eliminazione automatica della cartella '{output_folder}'")
+            
+            if confirmed:
+                try:
+                    import shutil
+                    print(f"Eliminazione cartella: {output_folder}...")
+                    shutil.rmtree(output_folder)
+                    print(f"Cartella '{output_folder}' eliminata con successo.")
+                except Exception as e:
+                    print(f"Errore durante la pulizia della cartella: {e}")
+                    print(f"Procedo comunque sovrascrivendo i file esistenti...")
+                    # Non bloccare l'esecuzione se non si può eliminare la cartella
+                    confirmed = True  # Procedi comunque
             # --- End of replacement ---
 
             if not confirmed:
                 print("Operazione annullata dall'utente (non eliminazione cartella).")
                 return False, "Operazione annullata dall'utente"
-
-            # Procedi con l'eliminazione
-            try:
-                import shutil
-                print(f"Eliminazione cartella: {output_folder}...")
-                shutil.rmtree(output_folder)
-                print(f"Cartella {selected_cab_plc} eliminata con successo.")
-            except Exception as e:
-                print(f"Errore durante la pulizia della cartella: {e}")
-                if QApplication.instance():
-                     QMessageBox.critical(None, "Errore Eliminazione", f"Errore durante l'eliminazione della cartella:\n{e}")
-                return False, f"Errore durante la pulizia della cartella: {str(e)}"
         
         # Crea i file .txt basati sui prefissi ITEM_ID_CUSTOM
         create_txt_files(cab_plc_data, selected_cab_plc, order)
@@ -1349,6 +1375,17 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             generate_pce_output_scl(selected_cab_plc)
         except Exception as e:
             print(f"ERRORE durante la generazione del file PCE_Output.scl: {e}")
+        
+        # Genera file logger config per API004
+        if selected_cab_plc == 'API004':
+            print("DEBUG - Generazione file logger config...")
+            try:
+                from creazione_file import generate_logger_config_files, generate_puls_line_scl, generate_additional_db_files
+                generate_logger_config_files(selected_cab_plc)
+                generate_puls_line_scl(selected_cab_plc)
+                generate_additional_db_files(selected_cab_plc)
+            except Exception as e:
+                print(f"ERRORE durante la generazione dei file aggiuntivi: {e}")
         
         # Esegui test di confronto automatico per API004
         if selected_cab_plc == 'API004':

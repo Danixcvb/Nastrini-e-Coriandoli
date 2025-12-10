@@ -229,7 +229,7 @@ def create_data_block_file(item_id_custom, component_type, output_folder, line_t
         if not os.path.exists(db_line_folder):
             os.makedirs(db_line_folder)
         next_line_number = get_next_line_number(db_line_folder)
-        line_filename = f"DbiLine{next_line_number}.scl"
+        line_filename = f"DbiLine{next_line_number}.db"
         line_file_path = os.path.join(db_line_folder, line_filename)
         with open(line_file_path, 'w') as line_file:
             line_file.write(f'''DATA_BLOCK "DbiLine{next_line_number}"
@@ -333,6 +333,17 @@ def create_linea_files(df, selected_cab_plc, line_type_mapping, ordered_prefixes
     linee_folder = f'Configurazioni/{selected_cab_plc}/{api_folder}'
     os.makedirs(linee_folder, exist_ok=True)
     
+    # Elimina file .scl vecchi di DbiLine e DbiTrunkLN prima di generare i nuovi .db
+    if os.path.exists(linee_folder):
+        for file in os.listdir(linee_folder):
+            if (file.startswith('DbiLine') or file.startswith('DbiTrunkLN')) and file.endswith('.scl'):
+                old_file_path = os.path.join(linee_folder, file)
+                try:
+                    os.remove(old_file_path)
+                    print(f"DEBUG - Rimosso file vecchio: {file}")
+                except Exception as e:
+                    print(f"DEBUG - Impossibile rimuovere {file}: {e}")
+    
     # Pulisci il mapping esistente per evitare residui da precedenti esecuzioni
     line_type_mapping.clear()
     
@@ -347,7 +358,7 @@ def create_linea_files(df, selected_cab_plc, line_type_mapping, ordered_prefixes
 
     for prefix in ordered_prefixes:
         # Crea DbiLine per linea normale
-        filename_normal = f"DbiLine{next_line_number}.scl"
+        filename_normal = f"DbiLine{next_line_number}.db"
         with open(os.path.join(linee_folder, filename_normal), 'w') as f:
             f.write(f"""DATA_BLOCK \"DbiLine{next_line_number}\"
 {{ S7_Optimized_Access := 'TRUE' }}
@@ -360,7 +371,7 @@ BEGIN
 
 END_DATA_BLOCK
 """)
-        print(f"DEBUG - File DbiLine{next_line_number}.scl creato: {os.path.join(linee_folder, filename_normal)}")
+        print(f"DEBUG - File DbiLine{next_line_number}.db creato: {os.path.join(linee_folder, filename_normal)}")
         line_type_mapping[next_line_number] = 'Normale'
         prefix_to_line_numbers[prefix] = {'normal': next_line_number}
         normal_line_num = next_line_number
@@ -384,7 +395,7 @@ END_DATA_BLOCK
 
         # Crea DbiLineCarousel una sola volta se ci sono caroselli in qualsiasi prefisso
         if has_carousel_for_prefix and not carousel_line_created:
-            filename_carousel = "DbiLineCarousel.scl"
+            filename_carousel = "DbiLineCarousel.db"
             with open(os.path.join(linee_folder, filename_carousel), 'w') as f:
                 f.write(f"""DATA_BLOCK \"DbiLineCarousel\"
 {{ S7_Optimized_Access := 'TRUE' }}
@@ -397,7 +408,7 @@ BEGIN
 
 END_DATA_BLOCK
 """)
-            print(f"DEBUG - File DbiLineCarousel.scl creato: {os.path.join(linee_folder, filename_carousel)}")
+            print(f"DEBUG - File DbiLineCarousel.db creato: {os.path.join(linee_folder, filename_carousel)}")
             line_type_mapping['Carousel'] = 'Carousel'
             carousel_line_created = True
 
@@ -408,11 +419,11 @@ def get_next_line_number(linee_folder):
     """
     Restituisce il primo numero libero per un nuovo file DbiLine# nella cartella specificata.
     """
-    existing_line_files = [f for f in os.listdir(linee_folder) if f.startswith("DbiLine") and f.endswith(".scl")]
+    existing_line_files = [f for f in os.listdir(linee_folder) if f.startswith("DbiLine") and f.endswith(".db")]
     used_numbers = set()
     for f in existing_line_files:
         try:
-            n = int(f.replace("DbiLine", "").replace(".scl", ""))
+            n = int(f.replace("DbiLine", "").replace(".db", ""))
             used_numbers.add(n)
         except Exception:
             continue
@@ -599,7 +610,10 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
         # Se il nome formattato inizia con "Carousel", usa sempre ".Carousel" invece di ".Conveyor"
         if prev_name_formatted and prev_name_formatted.startswith("Carousel"):
             prev_component_type = "Carousel"
-        prev_name_ref = (f'"{prev_name_formatted}".{prev_component_type}.Data.OUT' if prev_item_data_to_use else '#GlobalData.EmptyUser')
+        if prev_component_type == "Conveyor":
+            prev_name_ref = (f'"{prev_name_formatted}"."{prev_component_type}".Data.OUT' if prev_item_data_to_use else '#GlobalData.EmptyUser')
+        else:
+            prev_name_ref = (f'"{prev_name_formatted}".{prev_component_type}.Data.OUT' if prev_item_data_to_use else '#GlobalData.EmptyUser')
 
         # Gestione del riferimento all'item successivo (valido per tutti i tipi di catena)
         next_item_data_to_use = None
@@ -621,7 +635,10 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
             next_carousel_num_for_side = next_number if next_number is not None else 0
             next_name_ref = f'"SIDE_INPUT_CAROUSEL{next_carousel_num_for_side}".DATA.OUT'
         else:
-            next_name_ref = f'"{next_name_formatted}".{next_component_type}.Data.OUT' if next_item_data_to_use else "NULL"
+            if next_component_type == "Conveyor":
+                next_name_ref = f'"{next_name_formatted}"."{next_component_type}".Data.OUT' if next_item_data_to_use else "NULL"
+            else:
+                next_name_ref = f'"{next_name_formatted}".{next_component_type}.Data.OUT' if next_item_data_to_use else "NULL"
         
         # Se è un Datalogic (contiene SC), aggiungi la configurazione specifica
         if component_type == "Datalogic":
@@ -771,14 +788,14 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
             # NEXT: riferimento a item successivo effettivo (USA LA next_name_ref CALCOLATA SOPRA)
             content.append(f'	              NEXT := {next_name_ref},')
 
-            content.append('	              TimeData := #TimeData,')
-            content.append('	              Constants := #Constants,')
-            content.append('	              TrunkInterface := #TrunkInterface,') 
+            content.append('	                        TimeData := #TimeData,')
+            content.append('	                        Constants := #Constants,')
+            content.append('	                        TrunkInterface := #TrunkInterface,') 
             
             panytocnv_num_to_use = current_number if current_number is not None else 0
-            content.append(f'	              SupervisionSa := "DbSvConveyorSa".CONVEYOR_{panytocnv_num_to_use},')
-            content.append(f'	              SupervisionCmd := "DbSvConveyorCmd".CONVEYOR_{panytocnv_num_to_use},')
-            content.append('	              ObjectsTable := "DbsObject".DbObj);')
+            content.append(f'	                        SupervisionSa := "SV_DB_CONVEYOR_SA".CONVEYOR[{panytocnv_num_to_use}],')
+            content.append(f'	                        SupervisionCmd := "SV_DB_CONVEYOR_CMD".CONVEYOR[{panytocnv_num_to_use}],')
+            content.append('	                        ObjectsTable := "DbsObject".DbObj);')
             content.append('	    ')
             content.append("	END_REGION")
             content.append('	')
@@ -859,17 +876,17 @@ def create_trunk_file(trunk_number, output_folder):
     if isinstance(trunk_number, str) and trunk_number == "Carousel":
         safe_trunk_number = 0
         trunk_num_formatted = "Carousel"
-        trunk_filename = "DbiTrunkLNCarousel.scl"
+        trunk_filename = "DbiTrunkLNCarousel.db"
     else:
         try:
             safe_trunk_number = int(trunk_number)
             trunk_num_formatted = f"{safe_trunk_number:02d}"
-            trunk_filename = f"DbiTrunkLN{trunk_num_formatted}.scl"
+            trunk_filename = f"DbiTrunkLN{trunk_num_formatted}.db"
         except (ValueError, TypeError):
             print(f"Attenzione create_trunk_file: trunk_number '{trunk_number}' non è un intero valido. Uso 0.")
             safe_trunk_number = 0
             trunk_num_formatted = "00"
-            trunk_filename = "DbiTrunkLN00.scl"
+            trunk_filename = "DbiTrunkLN00.db"
     
     # Contenuto del file TRUNK
     trunk_content = f"""DATA_BLOCK "DbiTrunkLN{trunk_num_formatted}"
@@ -887,6 +904,16 @@ END_DATA_BLOCK
     # Crea la directory se non esiste
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
+    
+    # Elimina file .scl vecchio se esiste
+    old_scl_filename = trunk_filename.replace('.db', '.scl')
+    old_scl_path = os.path.join(output_folder, old_scl_filename)
+    if os.path.exists(old_scl_path):
+        try:
+            os.remove(old_scl_path)
+            print(f"DEBUG - Rimosso file vecchio: {old_scl_filename}")
+        except Exception as e:
+            print(f"DEBUG - Impossibile rimuovere {old_scl_filename}: {e}")
     
     # Scrivi il file
     with open(os.path.join(output_folder, trunk_filename), 'w') as trunk_file:
@@ -1027,13 +1054,13 @@ def create_main_structure_file(output_folder, num_lines, selected_cab_plc, trunk
         '',
         'REGION Profibus/Profinet nodes faults managment',
         '    // Abilitazione area di diagnostica per supervisione',
-        '    "DbSvProfinetSa".Profinet1On := TRUE;',
-        '    "DbSvProfinetSa".Profibus1On := FALSE;',
-        '    "DbSvProfinetSa".Profibus2On := FALSE;',
+        '    "SV_DB_PROFINET_SA".Profinet1On := TRUE;',
+        '    "SV_DB_PROFINET_SA".Profibus1On := FALSE;',
+        '    "SV_DB_PROFINET_SA".Profibus2On := FALSE;',
         '',
         '    "DbiNetAlm1"(LADDR := 257,',
-        '               ERROR =>"DbSvProfinetSa".FaultProfinet1,',
-        '               FAULT =>"DbSvProfinetSa".StAvr1PN);',
+        '               ERROR =>"SV_DB_PROFINET_SA".FaultProfinet1,',
+        '               FAULT =>"SV_DB_PROFINET_SA".StAvr1PN);',
         '    "DbiNetAlm2"();',
         '    "DbiNetAlm3"();',
         'END_REGION',
@@ -1222,7 +1249,28 @@ def create_conf_file(selected_cab_plc, df, output_folder, order, prefix_to_line_
     content.append('	        "DbiPanel1".Data.CNF.BLOCK_ALL9 := FALSE;      // FALSE;')
     content.append('	        "DbiPanel1".Data.CNF.BLOCK_ALL10 := FALSE;      // FALSE;')
     content.append('	        ')
-    content.append('	')
+    content.append('	        //Profinet alarms CNF')
+    content.append('	        "DbiPanel1".Data.CNF.PROFINET_NODE_BY_SIGNALS[1] := 250; //  Main Ring Manager')
+    content.append('	        "DbiPanel1".Data.CNF.PROFINET_NODE_BY_SIGNALS[2] := 3; //    HMI Panel')
+    content.append('	        "DbiPanel1".Data.CNF.PROFINET_NODE_BY_SIGNALS[3] := 2; //    I/O Interface Module')
+    content.append('	        "DbiPanel1".Data.CNF.PROFINET_NODE_BY_SIGNALS[4] := 11; //   Straight Conveyor')
+    content.append('	        "DbiPanel1".Data.CNF.PROFINET_NODE_BY_SIGNALS[5] := 12; //   Straight Conveyor')
+    content.append('	        "DbiPanel1".Data.CNF.PROFINET_NODE_BY_SIGNALS[6] := 13; //   Straight Conveyor')
+    content.append('	        "DbiPanel1".Data.CNF.PROFINET_NODE_BY_SIGNALS[7] := 14; //   Straight Conveyor')
+    content.append('	        "DbiPanel1".Data.CNF.PROFINET_NODE_BY_SIGNALS[8] := 15; //   Straight Conveyor')
+    content.append('	        "DbiPanel1".Data.CNF.PROFINET_NODE_BY_SIGNALS[9] := 16; //   Straight Conveyor')
+    content.append('	        "DbiPanel1".Data.CNF.PROFINET_NODE_BY_SIGNALS[10] := 17; //  Straight Conveyor')
+    content.append('	        "DbiPanel1".Data.CNF.PROFINET_NODE_BY_SIGNALS[11] := 18; //  Carousel')
+    content.append('	        "DbiPanel1".Data.CNF.PROFINET_NODE_BY_SIGNALS[12] := 19; //  Carousel')
+    content.append('	        "DbiPanel1".Data.CNF.PROFINET_NODE_BY_SIGNALS[13] := 20; //  ATR Datalogic')
+    content.append('	        //Essendo che gli allarmi sono a gruppi di 20, devono essere valorizzati tutti e 20, per questo si mette lo stesso nodo del controller per evitare indice 0')
+    content.append('	        "DbiPanel1".Data.CNF.PROFINET_NODE_BY_SIGNALS[14] := 1; //  Controller')
+    content.append('	        "DbiPanel1".Data.CNF.PROFINET_NODE_BY_SIGNALS[15] := 1; //  Controller')
+    content.append('	        "DbiPanel1".Data.CNF.PROFINET_NODE_BY_SIGNALS[16] := 1; //  Controller')
+    content.append('	        "DbiPanel1".Data.CNF.PROFINET_NODE_BY_SIGNALS[17] := 1; //  Controller')
+    content.append('	        "DbiPanel1".Data.CNF.PROFINET_NODE_BY_SIGNALS[18] := 1; //  Controller')
+    content.append('	        "DbiPanel1".Data.CNF.PROFINET_NODE_BY_SIGNALS[19] := 1; //  Controller')
+    content.append('	        "DbiPanel1".Data.CNF.PROFINET_NODE_BY_SIGNALS[20] := 1; //  Controller')
     content.append('	        ')
     content.append('	    END_REGION')
     content.append('')
@@ -1441,13 +1489,13 @@ def generate_gen_line_file(df, selected_cab_plc, line_type_mapping, ordered_pref
         if line_num == 'Carousel':
             line_ref = "DbiLineCarousel"
             region_comment = "Call LINE Carousel"
-            panyto_sa_ref = '"DbSvLineSa".LINE_Carousel'
-            panyto_cmd_ref = '"DbSvLineCmd".LINE_Carousel'
+            panyto_sa_ref = '"SV_DB_LINE_SA".LINE[Carousel]'
+            panyto_cmd_ref = '"SV_DB_LINE_CMD".LINE[Carousel]'
         else:
             line_ref = f"DbiLine{line_num}"
-        region_comment = f"Call LINE {line_num}"
-        panyto_sa_ref = f'"DbSvLineSa".LINE_{line_num}'
-        panyto_cmd_ref = f'"DbSvLineCmd".LINE_{line_num}'
+            region_comment = f"Call LINE {line_num}"
+            panyto_sa_ref = f'"SV_DB_LINE_SA".LINE[{line_num}]'
+            panyto_cmd_ref = f'"SV_DB_LINE_CMD".LINE[{line_num}]'
         
         gen_line_content.append(f"\tREGION {region_comment}")
         gen_line_content.append("\t    ")
@@ -1467,12 +1515,12 @@ def generate_gen_line_file(df, selected_cab_plc, line_type_mapping, ordered_pref
     api_folder = f'API0{selected_cab_plc[-2:]}'
     trunk_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
     if os.path.exists(trunk_folder):
-        trunk_files = [f for f in os.listdir(trunk_folder) if f.startswith("DbiTrunkLN") and f.endswith(".scl")]
+        trunk_files = [f for f in os.listdir(trunk_folder) if f.startswith("DbiTrunkLN") and f.endswith(".db")]
     
     # Gestisci sia numeri che "Carousel"
     trunk_numbers = []
     for f in trunk_files:
-        trunk_name = f.replace("DbiTrunkLN", "").replace(".scl", "")
+        trunk_name = f.replace("DbiTrunkLN", "").replace(".db", "")
         if trunk_name == "Carousel":
             trunk_numbers.append("Carousel")
         else:
@@ -1792,7 +1840,7 @@ REGION Input LINE {normal_line_num}
     // BADGE LINE STARTING AND STOPPING
             "{line_ref}".Data.IN.START := "DB_TEST_HMI".BADGE_START;
             "{line_ref}".Data.CMD.CMD_START := "DB_TEST_HMI".BADGE_START;
-            "DbGlobale".GlobalData.Start_All := "DB_TEST_HMI".BADGE_START;
+	
     "{line_ref}".Data.IN.STOP := "DB_TEST_HMI".STOP_LINE OR "{line_ref}".Data.SA.ST_EMG;
     
     "{line_ref}".Data.CMD.CMD_STOP := "DB_TEST_HMI".STOP_LINE OR "{line_ref}".Data.SA.ST_EMG;
@@ -1918,7 +1966,7 @@ END_REGION
         
         //    Profinet
         
-        IF "DbSvProfinetSa".FaultProfinet1[{profinet_index}] THEN
+        IF "SV_DB_PROFINET_SA".FaultProfinet1[{profinet_index}] THEN
             "{item_id_custom_new}".Drive.Data.In.DataOk := FALSE;
             "{item_id_custom_new}".Conveyor.Data.IN.BusFault := TRUE;
             "{item_id_custom_new}".Conveyor.Pht01.Data.IN.BusFault := TRUE;
@@ -1975,7 +2023,7 @@ END_REGION
             selected_cab_plc_val = carousel_data['selected_cab_plc']
             
             # Costruisci la condizione IF per Profinet (OR per tutti i motori)
-            profinet_conditions = " OR ".join([f'"DbSvProfinetSa".FaultProfinet1[{motor["profinet_index"]}]' for motor in motors])
+            profinet_conditions = " OR ".join([f'"SV_DB_PROFINET_SA".FaultProfinet1[{motor["profinet_index"]}]' for motor in motors])
             
             # Costruisci le assegnazioni per ogni motore
             drive_dataok_assignments_if = []
@@ -1991,7 +2039,7 @@ END_REGION
             
             for motor in motors:
                 motor_num = motor['motor_number']
-                drive_dataok_assignments_if.append(f'        "{carousel_id}".Drive_{motor_num}.Data.In.DataOk := NOT "DbSvProfinetSa".FaultProfinet1[{motor["profinet_index"]}];')
+                drive_dataok_assignments_if.append(f'        "{carousel_id}".Drive_{motor_num}.Data.In.DataOk := NOT "SV_DB_PROFINET_SA".FaultProfinet1[{motor["profinet_index"]}];')
                 drive_dataok_assignments_else.append(f'        "{carousel_id}".Drive_{motor_num}.Data.In.DataOk := TRUE;')
                 busfault_assignments_if.append(f'        "{carousel_id}".Carousel.Data.IN.BusFault{motor_num} := TRUE;')
                 busfault_assignments_else.append(f'        "{carousel_id}".Carousel.Data.IN.BusFault{motor_num} := FALSE;')
@@ -2337,11 +2385,15 @@ def create_dig_out_file(selected_cab_plc, output_base_folder, ordered_prefixes=N
         dig_out_lines.append('    ')
         dig_out_lines.append('    //External emergency RED LED')
         
-        # External emergency: OR di tutti i tronchi ST_EMG (da 1 a 16)
+        # External emergency: OR di tutti i tronchi ST_EMG (da 1 a 15 + Carousel se presente)
         emergency_lines = []
-        for trunk_display_num in range(1, max_trunk_display + 1):
+        # Include tutti i tronchi da 1 a 15 (incluso 03 anche se non ha TowerManager)
+        for trunk_display_num in range(1, 16):
             trunk_ref = f"DbiTrunkLN{trunk_display_num:02d}"
-            emergency_lines.append(f'    "{trunk_ref}".Data.SA.ST_EMG')
+            emergency_lines.append(f'            "{trunk_ref}".Data.SA.ST_EMG')
+        # Aggiungi Carousel se presente
+        if carousel_trunk_position is not None:
+            emergency_lines.append('            "DbiTrunkLNCarousel".Data.SA.ST_EMG')
         
         external_emergency_tag = external_emergency_signal or f"MCP{first_prefix}_500P1_ACTIVE_EMERGENCY_STOP"
         dig_out_lines.append(f'    "{external_emergency_tag}" :=')
@@ -2391,141 +2443,145 @@ def create_dig_out_file(selected_cab_plc, output_base_folder, ordered_prefixes=N
                 dig_out_lines.append('END_REGION')
                 dig_out_lines.append('')
         
-        # REGION Output TRUNK per ogni tronco (da 1 a 16)
-        # Genera per tutti i tronchi fino a 16, anche se non presenti nei dati
-        max_trunk_display = 16
-        for trunk_display_num in range(1, max_trunk_display + 1):
-            # Trova il trunk_id originale corrispondente a questo numero di display
-            # (considerando la scalatura)
-            trunk_id_found = None
-            for orig_trunk_id in all_trunks:
-                scaled = trunk_scaling_mapping.get(orig_trunk_id, orig_trunk_id)
-                if scaled == trunk_display_num:
-                    trunk_id_found = orig_trunk_id
-                    break
+        # REGION Output Trunk Towers con TowerManager
+        dig_out_lines.append('REGION Output Trunk Towers')
+        dig_out_lines.append('    ')
+        
+        # Crea mappatura trunk -> tower number sequenziale
+        # Pattern: DbiTrunkLN01->LB001, DbiTrunkLN02->LB002, DbiTrunkLN04->LB003 (salta 03), etc.
+        # La sequenza tower è continua ma il prefisso cambia in base alla linea del trunk
+        # NOTA: DbiTrunkLN03 NON ha TowerManager ma è presente nella lista emergency
+        tower_counter = 1
+        trunk_to_tower_map = {}
+        
+        # Ordina i tronchi per numero (escludendo carousel e 03 che non ha TowerManager)
+        sorted_trunk_ids = sorted([t for t in all_trunks if isinstance(t, (int, float)) and t != carousel_trunk_position and t != 3])
+        
+        # Crea mappatura sequenziale per i trunk normali (escludendo 03)
+        for trunk_id in sorted_trunk_ids:
+            trunk_to_tower_map[trunk_id] = tower_counter
+            tower_counter += 1
+        
+        # Genera TowerManager per ogni tronco nell'ordine corretto (escludendo 03)
+        for trunk_id in sorted_trunk_ids:
+            trunk_ref = f"DbiTrunkLN{int(trunk_id):02d}"
+            trunk_prefix = trunk_to_prefix_mapping.get(trunk_id, first_prefix)
             
-            # Se non trovato, usa il numero di display direttamente
-            if trunk_id_found is None:
-                trunk_id_found = trunk_display_num
+            # Determina il numero tower (LB###) basato sulla sequenza
+            tower_num = trunk_to_tower_map.get(trunk_id, tower_counter)
             
-            scaled_trunk = trunk_display_num
-            trunk_ref = f"DbiTrunkLN{scaled_trunk:02d}"
+            # Usa segnali trovati o pattern fisso con prefisso corretto
+            running_tag = stack_light_signals.get(trunk_id, {}).get('running', f"{trunk_prefix}_LB{tower_num:03d}_100P1_RUNNING_LIGHT_TOWER")
+            fault_tag = stack_light_signals.get(trunk_id, {}).get('fault', f"{trunk_prefix}_LB{tower_num:03d}_100P2_FAULT_LIGHT_TOWER")
+            emergency_tag = stack_light_signals.get(trunk_id, {}).get('emergency', f"{trunk_prefix}_LB{tower_num:03d}_100P3_EMERGENCY_LIGHT_TOWER")
+            buzzer_tag = stack_light_signals.get(trunk_id, {}).get('buzzer', f"{trunk_prefix}_LB{tower_num:03d}_100P4_BUZZER_TOWER")
             
-            # Determina il prefisso per questo tronco (della sua linea)
-            # Se il tronco non è presente, usa il prefisso della prima linea
-            trunk_prefix = trunk_to_prefix_mapping.get(trunk_id_found, first_prefix)
+            dig_out_lines.append(f'    "TowerManager"(DBTrunk := "{trunk_ref}".Data,')
+            dig_out_lines.append(f'                   Emergency => "{emergency_tag}",')
+            dig_out_lines.append(f'                   Fault => "{fault_tag}",')
+            dig_out_lines.append(f'                   Running => "{running_tag}",')
+            dig_out_lines.append(f'                   Buzzer => "{buzzer_tag}",')
+            dig_out_lines.append(f'                   Timedata := "DbGlobale".TimeData);')
+            dig_out_lines.append('    ')
+        
+        # Aggiungi Carousel (due chiamate TowerManager se presente)
+        if carousel_trunk_position is not None:
+            carousel_prefix = None
+            # Trova il prefisso del carousel
+            if df is not None:
+                carousel_items = df[df['ITEM_ID_CUSTOM'].str.contains('CA', case=False, na=False)]
+                for item in carousel_items['ITEM_ID_CUSTOM']:
+                    item_str = str(item)
+                    if len(item_str) >= 8 and item_str[:2].upper() == 'CA':
+                        carousel_prefix = item_str[:4].upper()
+                        break
             
-            # Usa segnali trovati o pattern fisso con il prefisso corretto
-            running_tag = stack_light_signals.get(trunk_id_found, {}).get('running', f"{trunk_prefix}_LB{scaled_trunk:03d}_100P1_RUNNING_LIGHT_TOWER")
-            fault_tag = stack_light_signals.get(trunk_id_found, {}).get('fault', f"{trunk_prefix}_LB{scaled_trunk:03d}_100P2_FAULT_LIGHT_TOWER")
-            emergency_tag = stack_light_signals.get(trunk_id_found, {}).get('emergency', f"{trunk_prefix}_LB{scaled_trunk:03d}_100P3_EMERGENCY_LIGHT_TOWER")
-            buzzer_tag = stack_light_signals.get(trunk_id_found, {}).get('buzzer', f"{trunk_prefix}_LB{scaled_trunk:03d}_100P4_BUZZER_TOWER")
+            if not carousel_prefix:
+                carousel_prefix = first_prefix if 'CA' in first_prefix else 'CA11'
             
-            dig_out_lines.append(f'REGION Output TRUNK {scaled_trunk}')
-            dig_out_lines.append('')
-            dig_out_lines.append('    // STACK LIGHT GREEN --> RUN')
-            dig_out_lines.append(f'    "{running_tag}" := "{trunk_ref}".Data.OUT.LMP_RUN AND NOT "{trunk_ref}".Data.SA.ST_STOP;')
-            dig_out_lines.append('')
-            dig_out_lines.append('    // STACK LIGHT YELLOW --> FAULT')
+            # Prima chiamata Carousel -> CA11_LB003
+            dig_out_lines.append('    "TowerManager"(DBTrunk := "DbiTrunkLNCarousel".Data,')
+            dig_out_lines.append(f'                   Emergency => "{carousel_prefix}_LB003_100P3_EMERGENCY_LIGHT_TOWER",')
+            dig_out_lines.append(f'                   Fault => "{carousel_prefix}_LB003_100P2_FAULT_LIGHT_TOWER",')
+            dig_out_lines.append(f'                   Running => "{carousel_prefix}_LB003_100P1_RUNNING_LIGHT_TOWER",')
+            dig_out_lines.append(f'                   Buzzer => "{carousel_prefix}_LB003_100P4_BUZZER_TOWER",')
+            dig_out_lines.append('                   Timedata := "DbGlobale".TimeData);')
+            dig_out_lines.append('    ')
             
-            # Per il tronco prima del carousel, aggiungi la condizione ALL_COMPLETELY_FULL
-            fault_condition = f'("{trunk_ref}".Data.OUT.LMP_AVR AND NOT "{trunk_ref}".Data.SA.ST_EMG AND "DbGlobale".TimeData.ClkLampeggioVeloce) OR "{trunk_ref}".ComTrunkUse.U_ST_JAM_Active'
-            # Se questo tronco è quello immediatamente prima del carousel, aggiungi la condizione carousel full
-            if carousel_trunk_position and trunk_id_found == carousel_trunk_position - 1:
-                fault_condition += ' OR "Carousel1".Carousel.Data.SA.ALL_COMPLETELY_FULL'
-            
-            dig_out_lines.append(f'    "{fault_tag}" := {fault_condition};')
+            # Seconda chiamata Carousel -> CA11_LB004
+            dig_out_lines.append('    "TowerManager"(DBTrunk := "DbiTrunkLNCarousel".Data,')
+            dig_out_lines.append(f'                   Emergency => "{carousel_prefix}_LB004_100P3_EMERGENCY_LIGHT_TOWER",')
+            dig_out_lines.append(f'                   Fault => "{carousel_prefix}_LB004_100P2_FAULT_LIGHT_TOWER",')
+            dig_out_lines.append(f'                   Running => "{carousel_prefix}_LB004_100P1_RUNNING_LIGHT_TOWER",')
+            dig_out_lines.append(f'                   Buzzer => "{carousel_prefix}_LB004_100P4_BUZZER_TOWER",')
+            dig_out_lines.append('                   Timedata := "DbGlobale".TimeData);')
             dig_out_lines.append('')
-            dig_out_lines.append('    // STACK LIGHT RED --> STOP/EMERGENCY')
-            dig_out_lines.append(f'    "{emergency_tag}" := "{trunk_ref}".Data.SA.ST_EMG AND "DbGlobale".TimeData.ClkLampeggioVeloce;')
-            dig_out_lines.append('')
-            dig_out_lines.append('    // STACK LIGHT BUZZER --> RUN SIREN')
-            buzzer_condition = f'"{trunk_ref}".Data.OUT.SRN_RUN OR ("{trunk_ref}".Data.OUT.SRN_AVR AND "DbGlobale".TimeData.ClkLampeggioVeloce)'
-            dig_out_lines.append(f'    "{buzzer_tag}" := {buzzer_condition};')
-            dig_out_lines.append('')
-            dig_out_lines.append('')
-            dig_out_lines.append('END_REGION')
-            dig_out_lines.append('')
+        
+        dig_out_lines.append('END_REGION')
+        dig_out_lines.append('')
+        dig_out_lines.append('')
         
         # REGION Output Panel Tower
         dig_out_lines.append('REGION Output Panel Tower')
         dig_out_lines.append('    ')
         
-        # OR di tutti i buzzer (per tutti i tronchi da 1 a 16)
+        # Raccogli tutti i tag tower basati sulla mappatura trunk_to_tower_map
         buzzer_tags = []
-        for trunk_display_num in range(1, max_trunk_display + 1):
-            # Trova il trunk_id originale corrispondente
-            trunk_id_found = None
-            for orig_trunk_id in all_trunks:
-                scaled = trunk_scaling_mapping.get(orig_trunk_id, orig_trunk_id)
-                if scaled == trunk_display_num:
-                    trunk_id_found = orig_trunk_id
-                    break
-            if trunk_id_found is None:
-                trunk_id_found = trunk_display_num
+        emergency_tags = []
+        fault_tags = []
+        running_tags = []
+        
+        # Aggiungi tag per ogni trunk normale
+        for trunk_id in sorted_trunk_ids:
+            trunk_prefix = trunk_to_prefix_mapping.get(trunk_id, first_prefix)
+            tower_num = trunk_to_tower_map.get(trunk_id)
+            if tower_num:
+                buzzer_tags.append(f"{trunk_prefix}_LB{tower_num:03d}_100P4_BUZZER_TOWER")
+                emergency_tags.append(f"{trunk_prefix}_LB{tower_num:03d}_100P3_EMERGENCY_LIGHT_TOWER")
+                fault_tags.append(f"{trunk_prefix}_LB{tower_num:03d}_100P2_FAULT_LIGHT_TOWER")
+                running_tags.append(f"{trunk_prefix}_LB{tower_num:03d}_100P1_RUNNING_LIGHT_TOWER")
+        
+        # Aggiungi tag per Carousel (LB003 e LB004)
+        if carousel_trunk_position is not None:
+            carousel_prefix = None
+            if df is not None:
+                carousel_items = df[df['ITEM_ID_CUSTOM'].str.contains('CA', case=False, na=False)]
+                for item in carousel_items['ITEM_ID_CUSTOM']:
+                    item_str = str(item)
+                    if len(item_str) >= 8 and item_str[:2].upper() == 'CA':
+                        carousel_prefix = item_str[:4].upper()
+                        break
+            if not carousel_prefix:
+                carousel_prefix = first_prefix if 'CA' in first_prefix else 'CA11'
             
-            t_prefix = trunk_to_prefix_mapping.get(trunk_id_found, first_prefix)
-            buzzer_tag = stack_light_signals.get(trunk_id_found, {}).get('buzzer', f"{t_prefix}_LB{trunk_display_num:03d}_100P4_BUZZER_TOWER")
-            buzzer_tags.append(buzzer_tag)
+            buzzer_tags.append(f"{carousel_prefix}_LB003_100P4_BUZZER_TOWER")
+            buzzer_tags.append(f"{carousel_prefix}_LB004_100P4_BUZZER_TOWER")
+            emergency_tags.append(f"{carousel_prefix}_LB003_100P3_EMERGENCY_LIGHT_TOWER")
+            emergency_tags.append(f"{carousel_prefix}_LB004_100P3_EMERGENCY_LIGHT_TOWER")
+            fault_tags.append(f"{carousel_prefix}_LB003_100P2_FAULT_LIGHT_TOWER")
+            fault_tags.append(f"{carousel_prefix}_LB004_100P2_FAULT_LIGHT_TOWER")
+            running_tags.append(f"{carousel_prefix}_LB003_100P1_RUNNING_LIGHT_TOWER")
+            running_tags.append(f"{carousel_prefix}_LB004_100P1_RUNNING_LIGHT_TOWER")
+        
         panel_buzzer = panel_tower_signals.get('buzzer', f"MCP{first_prefix}_501P1_BUZZER_TOWER")
         dig_out_lines.append(f'    "{panel_buzzer}" := ' + ' OR\n    '.join([f'"{tag}"' for tag in buzzer_tags]) + ';')
         dig_out_lines.append('')
+        dig_out_lines.append('')
         
-        # OR di tutte le emergency lights
-        emergency_tags = []
-        for trunk_display_num in range(1, max_trunk_display + 1):
-            trunk_id_found = None
-            for orig_trunk_id in all_trunks:
-                scaled = trunk_scaling_mapping.get(orig_trunk_id, orig_trunk_id)
-                if scaled == trunk_display_num:
-                    trunk_id_found = orig_trunk_id
-                    break
-            if trunk_id_found is None:
-                trunk_id_found = trunk_display_num
-            
-            t_prefix = trunk_to_prefix_mapping.get(trunk_id_found, first_prefix)
-            emergency_tag = stack_light_signals.get(trunk_id_found, {}).get('emergency', f"{t_prefix}_LB{trunk_display_num:03d}_100P3_EMERGENCY_LIGHT_TOWER")
-            emergency_tags.append(emergency_tag)
         panel_emergency = panel_tower_signals.get('emergency', f"MCP{first_prefix}_501P1_EMERGENCY_LIGHT_TOWER")
         dig_out_lines.append(f'    "{panel_emergency}" := ' + ' OR\n    '.join([f'"{tag}"' for tag in emergency_tags]) + ';')
         dig_out_lines.append('')
+        dig_out_lines.append('')
         
-        # OR di tutte le fault lights
-        fault_tags = []
-        for trunk_display_num in range(1, max_trunk_display + 1):
-            trunk_id_found = None
-            for orig_trunk_id in all_trunks:
-                scaled = trunk_scaling_mapping.get(orig_trunk_id, orig_trunk_id)
-                if scaled == trunk_display_num:
-                    trunk_id_found = orig_trunk_id
-                    break
-            if trunk_id_found is None:
-                trunk_id_found = trunk_display_num
-            
-            t_prefix = trunk_to_prefix_mapping.get(trunk_id_found, first_prefix)
-            fault_tag = stack_light_signals.get(trunk_id_found, {}).get('fault', f"{t_prefix}_LB{trunk_display_num:03d}_100P2_FAULT_LIGHT_TOWER")
-            fault_tags.append(fault_tag)
         panel_fault = panel_tower_signals.get('fault', f"MCP{first_prefix}_501P1_FAULT_LIGHT_TOWER")
         dig_out_lines.append(f'    "{panel_fault}" := ' + ' OR\n    '.join([f'"{tag}"' for tag in fault_tags]) + ';')
         dig_out_lines.append('')
+        dig_out_lines.append('')
+        dig_out_lines.append('')
         
-        # OR di tutte le running lights
-        running_tags = []
-        for trunk_display_num in range(1, max_trunk_display + 1):
-            trunk_id_found = None
-            for orig_trunk_id in all_trunks:
-                scaled = trunk_scaling_mapping.get(orig_trunk_id, orig_trunk_id)
-                if scaled == trunk_display_num:
-                    trunk_id_found = orig_trunk_id
-                    break
-            if trunk_id_found is None:
-                trunk_id_found = trunk_display_num
-            
-            t_prefix = trunk_to_prefix_mapping.get(trunk_id_found, first_prefix)
-            running_tag = stack_light_signals.get(trunk_id_found, {}).get('running', f"{t_prefix}_LB{trunk_display_num:03d}_100P1_RUNNING_LIGHT_TOWER")
-            running_tags.append(running_tag)
         panel_running = panel_tower_signals.get('running', f"MCP{first_prefix}_501P1_RUNNING_LIGHT_TOWER")
         dig_out_lines.append(f'    "{panel_running}" := ' + ' OR\n    '.join([f'"{tag}"' for tag in running_tags]) + ';')
+        dig_out_lines.append('')
         dig_out_lines.append('')
         dig_out_lines.append('END_REGION')
         dig_out_lines.append('')
@@ -2560,12 +2616,28 @@ def create_dig_out_file(selected_cab_plc, output_base_folder, ordered_prefixes=N
         dig_out_lines.append('REGION Components Output')
         dig_out_lines.append('')
         
-        # Datalogic outputs
+        # Datalogic outputs - con numerazione K incrementale e formato corretto
         if df is not None:
             datalogic_items = df[df['ITEM_ID_CUSTOM'].str.contains('SC|LC', case=False, na=False)]['ITEM_ID_CUSTOM'].unique()
+            k_counter = 1
             for item_id in datalogic_items:
                 item_id_clean = str(item_id).replace('-', '_').upper()
-                trigger_tag = datalogic_signals.get(item_id, {}).get('trigger', f"MCP{first_prefix}_501K1_TRIGGER_SIGNAL_{item_id_clean}")
+                # Determina il prefisso per questo datalogic (dal prefisso dell'item)
+                datalogic_prefix = first_prefix
+                if ordered_prefixes:
+                    for prefix in ordered_prefixes:
+                        if prefix.upper() in item_id_clean:
+                            datalogic_prefix = prefix.upper()
+                            break
+                
+                # Formato: MCP{PREFIX}_501K{N}_TRIGGER_SIGNAL_{ITEM_ID} con underscore tra prefisso e item
+                # Per CA31 usa 502K1 invece di 501K
+                if 'CA31' in item_id_clean:
+                    trigger_tag = datalogic_signals.get(item_id, {}).get('trigger', f"MCP{datalogic_prefix}_502K1_TRIGGER_SIGNAL_{item_id_clean}")
+                else:
+                    trigger_tag = datalogic_signals.get(item_id, {}).get('trigger', f"MCP{datalogic_prefix}_501K{k_counter}_TRIGGER_SIGNAL_{item_id_clean}")
+                    k_counter += 1
+                
                 dig_out_lines.append(f'    REGION Output ATR DATALOGIC ({item_id_clean})')
                 dig_out_lines.append('    ')
                 dig_out_lines.append(f'        "{trigger_tag}" := "Datalogic_{item_id_clean}"."ProfinetCom".Trigger;')
@@ -2574,37 +2646,46 @@ def create_dig_out_file(selected_cab_plc, output_base_folder, ordered_prefixes=N
                 dig_out_lines.append('')
                 dig_out_lines.append('')
         
-        # Oversize outputs
-        if oversize_signals or (df is not None and len(df[df['ITEM_ID_CUSTOM'].str.contains('OG', case=False, na=False)]) > 0):
-            dig_out_lines.append('    REGION Output OVERSIZE')
-            dig_out_lines.append('    ')
-            
-            if df is not None:
-                oversize_items = df[df['ITEM_ID_CUSTOM'].str.contains('OG', case=False, na=False)]['ITEM_ID_CUSTOM'].unique()
-                oversize_num = 1
-                for item_id in oversize_items:
-                    item_id_clean = str(item_id).replace('-', '_').upper()
-                    presence_tag = oversize_signals.get(item_id, {}).get('presence', f"{first_prefix}_LB201_100P1_OVERSIZED_BAGGAGE_PRESENCE_TOWER")
-                    ack_tag = oversize_signals.get(item_id, {}).get('ack', f"{first_prefix}_MP101_100S1_OVERSIZE_ACKNOWLEDGMENT_LAMP")
-                    
-                    dig_out_lines.append('        // OVERSIZE PRESENCE LIGHT')
-                    dig_out_lines.append(f'        "{presence_tag}" := ("Oversize{oversize_num}".DATA.SA.ALL_MAX_H OR "Oversize{oversize_num}".DATA.SA.ALL_MAX_L) AND "DbGlobale".TimeData.ClkLampeggioLento;')
-                    dig_out_lines.append('    ')
-                    dig_out_lines.append('        // OVERSIZE ACK - When alarm is ON and photocell = 1 (not engaged)')
-                    dig_out_lines.append(f'        "{ack_tag}" := "{presence_tag}";')
-                    dig_out_lines.append('    ')
-                    oversize_num += 1
-            
-            dig_out_lines.append('    END_REGION')
-            dig_out_lines.append('')
-            dig_out_lines.append('')
+        # Oversize outputs - una sottoregione per ogni oversize
+        if df is not None:
+            oversize_items = df[df['ITEM_ID_CUSTOM'].str.contains('OG', case=False, na=False)]['ITEM_ID_CUSTOM'].unique()
+            oversize_num = 1
+            for item_id in oversize_items:
+                item_id_clean = str(item_id).replace('-', '_').upper()
+                # Determina il prefisso per questo oversize (dal prefisso dell'item)
+                oversize_prefix = first_prefix
+                if ordered_prefixes:
+                    for prefix in ordered_prefixes:
+                        if prefix.upper() in item_id_clean:
+                            oversize_prefix = prefix.upper()
+                            break
+                
+                presence_tag = oversize_signals.get(item_id, {}).get('presence', f"{oversize_prefix}_LB201_100P1_OVERSIZED_BAGGAGE_PRESENCE_TOWER")
+                ack_tag = oversize_signals.get(item_id, {}).get('ack', f"{oversize_prefix}_MP101_100S1_OVERSIZE_ACKNOWLEDGMENT_LAMP")
+                
+                dig_out_lines.append(f'    REGION Output OVERSIZE {oversize_num}')
+                dig_out_lines.append('    ')
+                dig_out_lines.append('        // OVERSIZE PRESENCE LIGHT')
+                dig_out_lines.append(f'        "{presence_tag}" := ("Oversize{oversize_num}".DATA.SA.ALL_MAX_H OR "Oversize{oversize_num}".DATA.SA.ALL_MAX_L) AND "DbGlobale".TimeData.ClkLampeggioLento;')
+                dig_out_lines.append('    ')
+                dig_out_lines.append('        // OVERSIZE ACK - When alarm is ON and photocell = 1 (not engaged)')
+                dig_out_lines.append(f'        "{ack_tag}" := "{presence_tag}";')
+                dig_out_lines.append('    ')
+                dig_out_lines.append('    END_REGION')
+                dig_out_lines.append('')
+                dig_out_lines.append('')
+                oversize_num += 1
         
-        # Telegram outputs per ogni utenza/conveyor
+        # Telegram outputs in sottoregione separata
         if conveyor_data_for_dig_in:
+            dig_out_lines.append('    REGION Output telegrams')
+            dig_out_lines.append('    ')
             for data in conveyor_data_for_dig_in:
                 item_id_custom_new = data['item_id_custom_new']
                 comment_name = data['comment_name']
-                dig_out_lines.append(f'    "{comment_name}_OUT" := "{item_id_custom_new}".Drive.Data.Out.Telegram;')
+                dig_out_lines.append(f'        "{comment_name}_OUT" := "{item_id_custom_new}".Drive.Data.Out.Telegram;')
+            dig_out_lines.append('    ')
+            dig_out_lines.append('    END_REGION')
             dig_out_lines.append('')
         
         dig_out_lines.append('END_REGION')
@@ -2815,7 +2896,7 @@ def generate_zones_input_scl(selected_cab_plc):
         scl_content.append(f'	        "Zones_DB".Interface[{zone_number}].In.SafeFault := NOT "SAFE_ZONE_DB".FeedbackOk.Zone{zone_number} OR NOT "SAFE_ZONE_DB".MotorsOk.Zone{zone_number};')
         scl_content.append(f'	        "Zones_DB".Interface[{zone_number}].In.SafeFeedbackOk := "SAFE_ZONE_DB".FeedbackOk.Zone{zone_number};')
         scl_content.append(f'	        "Zones_DB".Interface[{zone_number}].In.SafeMotorsOk := "SAFE_ZONE_DB".MotorsOk.Zone{zone_number};')
-        scl_content.append(f'	        "Zones_DB".Interface[{zone_number}].In.AllGatesSafe := "SAFE_ZONE{zone_name}_DB".Data.Gates.AllGatesClosedLocked;')
+        scl_content.append(f'	        "Zones_DB".Interface[{zone_number}].In.AllGatesSafe := "SAFE_ZONE1_DB".Data.Gates.AllGatesClosedLocked;')
         scl_content.append(f'	        "Zones_DB".Interface[{zone_number}].In.AckNecessary := "SAFE_ZONE_DB".AckRequest.Zone{zone_number};')
         scl_content.append("	    END_REGION ;")
         
@@ -3378,7 +3459,19 @@ def generate_pce_input_scl(selected_cab_plc):
         return False
     
     # Ordina le zone per numero
-    sorted_zones = sorted(zone_buttons_filtered.items(), key=lambda x: zone_mapping.get(x[0], 9999))
+    # Per API004, ordina in modo che ZONE 4B venga prima di ZONE 5B
+    def zone_sort_key(x):
+        zone_name = x[0]
+        zone_num = zone_mapping.get(zone_name, 9999)
+        # Se è API004, metti 4B prima di 5B
+        if str(selected_cab_plc).upper() == 'API004':
+            if zone_name == '4B':
+                return (0, zone_num)  # Priorità massima per 4B
+            elif zone_name == '5B':
+                return (1, zone_num)  # Seconda priorità per 5B
+        return (2, zone_num)  # Altre zone dopo
+    
+    sorted_zones = sorted(zone_buttons_filtered.items(), key=zone_sort_key)
     
     # Genera il contenuto SCL
     scl_content = []
@@ -3407,7 +3500,7 @@ def generate_pce_input_scl(selected_cab_plc):
     # Rack profinet fault temporary variable set - struttura API004_NEW
     for rack_var in sorted(rack_faults.keys()):
         scl_content.append('	REGION Rack profinet fault temporary variable set')
-        scl_content.append(f'	    #"{rack_var}" := "DbSvProfinetSa".FaultProfinet1[2];')
+        scl_content.append(f'	    #"{rack_var}" := "SV_DB_PROFINET_SA".FaultProfinet1[2];')
         scl_content.append('	END_REGION ;')
         scl_content.append('	')
     
@@ -3829,7 +3922,7 @@ def generate_pce_output_scl(selected_cab_plc):
         lines.append('\t        "SV_DB_PPP_SA".PCE[#i].ST_PRS := false;')
         lines.append('\t        "SV_DB_PPP_SA".PCE[#i].ST_RESTART := false;')
         lines.append('\t    END_FOR;')
-        lines.append('\tEND_REGION;')
+        lines.append('\tEND_REGION ;')
         lines.append('\t')
         lines.append('\tREGION EMERGENCY PUSHBUTTON LAMPS MANAGEMENT')
         lines.append('\t    REGION')
@@ -4028,3 +4121,353 @@ def extract_codes_from_interval(interval_text):
             unique_codes.append(code)
     
     return unique_codes
+
+def generate_logger_config_files(selected_cab_plc):
+    """
+    Genera i file di configurazione logger: ConfLogger1.scl, ConfLogger2.scl, LoggerConf.scl
+    per API004.
+    
+    Args:
+        selected_cab_plc (str): Il CAB_PLC selezionato.
+    """
+    if str(selected_cab_plc).upper() != 'API004':
+        return True
+    
+    api_folder = f'API0{selected_cab_plc[-2:]}'
+    output_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
+    os.makedirs(output_folder, exist_ok=True)
+    
+    # ConfLogger1.scl
+    conf_logger1_content = """FUNCTION "ConfLogger1" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      JumpStaticLogActivation : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      ConnectionLog {InstructionName := 'TCON_IP_v4'; LibVersion := '1.0'} : TCON_IP_v4;   //   Configurazione del canale di comunicazione
+      "Ist-LogBuffer" : "GstLogBuffer";
+      EnabledMessages : Array[0..32767] of Bool;   //   Array di configurazione messaggi abilitati
+   END_VAR
+
+
+BEGIN
+	REGION NETWORK 1 - Logger channel configuration
+	    
+	    // Log connection
+	    #ConnectionLog.InterfaceId := "Local~PROFINET_interface_1";//"Local~PROFINET_interface_GBIT_3";
+	    #ConnectionLog.ID := 8;
+	    #ConnectionLog.ActiveEstablished := true;
+	    #ConnectionLog.ConnectionType := 16#0B;
+	    #ConnectionLog.RemoteAddress.ADDR[1] := 10;//172;
+	    #ConnectionLog.RemoteAddress.ADDR[2] := 0;
+	    #ConnectionLog.RemoteAddress.ADDR[3] := 4;// 198;
+	    #ConnectionLog.RemoteAddress.ADDR[4] := 226;//28;
+	    #ConnectionLog.RemotePort := 7000;
+	    #ConnectionLog.LocalPort := 0;
+	    
+	    
+	    // LogBuffer configuration
+	    #"Ist-LogBuffer".Cfg.BufferClosingTime := T#500ms;
+	    #"Ist-LogBuffer".Cfg.LifeMsgTime := T#5s;
+	    #"Ist-LogBuffer".Cfg.SourceNode := 4;
+	    
+	END_REGION
+	
+	REGION Enable log messages
+	    
+	    IF NOT #JumpStaticLogActivation THEN
+	        // Always active logs
+	        #EnabledMessages["IDLOG_GTW_CHMRX_KEEP_ALIVE"] := FALSE; //5111
+	        #EnabledMessages["IDLOG_GTW_CHMTX_KEEP_ALIVE"] := FALSE; //5101
+	        #EnabledMessages["IDLOG_GTW_CHRRX_KEEP_ALIVE"] := FALSE; //5131
+	        #EnabledMessages["IDLOG_GTW_ENVELOPE_RX"] := FALSE; //5090
+	        #EnabledMessages["IDLOG_GTW_CHRTX_KEEP_ALIVE"] := FALSE; //5121
+	        #EnabledMessages["IDLOG_GTW_CHMRX_SORTINSTRUCTION"] := FALSE; //5113
+	        #EnabledMessages["IDLOG_GTW_CHMRX_SORTINSTRUCTIONEXT"] := FALSE; //5119
+	        #EnabledMessages["IDLOG_GTW_CHMRX_RESTARTBAGGAGE"] := FALSE; //5160
+	        #EnabledMessages["IDLOG_GTW_CHMRX_FLIGHTCLOSING"] := FALSE; //5116
+	        #EnabledMessages["IDLOG_GTW_CHMRX_WORKSTATIONSTS"] := FALSE; //5120
+	        #EnabledMessages["IDLOG_GTW_CHMRX_SWEEPINGLINE"] := FALSE; //5133
+	        #EnabledMessages["IDLOG_GTW_CHMRX_MOVEBAGGAGE"] := FALSE; //5134
+	        #EnabledMessages["IDLOG_GTW_CHMTX_SORT_REQUEST"] := FALSE; //5103
+	        #EnabledMessages["IDLOG_GTW_CHMTX_SCREENING_RESULT"] := FALSE; //5106
+	        #EnabledMessages["IDLOG_GTW_CHMTX_SCREENING_RESULT_EXT"] := FALSE; //5126
+	        #EnabledMessages["IDLOG_GTW_CHMTX_BAGGAGE_PRESENCE"] := FALSE; //5109
+	        #EnabledMessages["IDLOG_GTW_CHMTX_SUBSYSTEM_STS"] := FALSE; //5143
+	        #EnabledMessages["IDLOG_GTW_CHMTX_WORK_BOOKING"] := FALSE; //5163
+	        #EnabledMessages["IDLOG_GTW_CHRTX_SORT_RESULT"] := FALSE; //5122
+	        #EnabledMessages["IDLOG_GTW_CHRTX_TRACKING_EVENT"] := FALSE; //5123
+	        #EnabledMessages["IDLOG_GTW_ACK_TX"] := FALSE; //5150
+	        #EnabledMessages["IDLOG_GTW_COMPLETEMSG_RX"] := FALSE; //5091
+	        #EnabledMessages["IDLOG_GTW_CHM_SORTINSTRUCTION"] := FALSE; //5113
+	        #EnabledMessages["IDLOG_GTW_CHM_SORTINSTRUCTIONEXT"] := FALSE; //5119
+	        #EnabledMessages["IDLOG_GTW_CHM_RESTARTBAGGAGE"] := FALSE; //5160
+	        #EnabledMessages["IDLOG_GTW_CHM_FLIGHTCLOSING"] := FALSE; //5116
+	        #EnabledMessages["IDLOG_GTW_CHM_WORKSTATIONSTS"] := FALSE; //5120
+	        #EnabledMessages["IDLOG_GTW_CHM_SWEEPINGLINE"] := FALSE; //5133
+	        #EnabledMessages["IDLOG_GTW_CHM_MOVEBAGGAGE"] := FALSE; //5134
+	        #EnabledMessages["IDLOG_TRK_LogBrokenObject"] := FALSE; //102
+	        #EnabledMessages["IDLOG_TRK_LogPhotocellTrk"] := TRUE; //101
+	        #EnabledMessages["IDLOG_TRK_LogMsgGapMonitor"] := FALSE; //104
+	        #EnabledMessages["IDLOG_EDS_NewDataExit"] := TRUE; //4309
+	        #EnabledMessages["IDLOG_EDS_TrackingLost"] := TRUE; //4311
+	        #EnabledMessages["IDLOG_EDS_NewDataEnter"] := TRUE; //4307
+	        #EnabledMessages["IDLOG_EDS_NewDataAsync"] := TRUE; //4310
+	        #EnabledMessages["IDLOG_ATR_LogMsgReceivedData"] := TRUE; //4010
+	        #EnabledMessages["IDLOG_ATR_LogMsgProtocolIndex"] := FALSE; //4011
+	        #EnabledMessages["IDLOG_ATR_LogMsgKeepAliveSend"] := FALSE; //4012
+	        #EnabledMessages["IDLOG_ATR_LogObjDataNull"] := FALSE; //4013
+	    END_IF;
+	    
+	END_REGION
+END_FUNCTION
+
+"""
+    
+    # ConfLogger2.scl
+    conf_logger2_content = """FUNCTION "ConfLogger2" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      JumpStaticLogActivation : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      ConnectionLog {InstructionName := 'TCON_IP_v4'; LibVersion := '1.0'} : TCON_IP_v4;   //   Configurazione del canale di comunicazione
+      "Ist-LogBuffer" : "GstLogBuffer";
+      EnabledMessages : Array[0..32767] of Bool;   //   Array di configurazione messaggi abilitati
+   END_VAR
+
+
+BEGIN
+	REGION NETWORK 1 - Logger channel configuration
+	    
+	    // Log connection
+	    #ConnectionLog.InterfaceId := 64;
+	    #ConnectionLog.ID := 26;
+	    #ConnectionLog.ActiveEstablished := TRUE;
+	    #ConnectionLog.ConnectionType := 16#0B;
+	    #ConnectionLog.RemoteAddress.ADDR[1] := 10;
+	    #ConnectionLog.RemoteAddress.ADDR[2] := 0;
+	    #ConnectionLog.RemoteAddress.ADDR[3] := 1;
+	    #ConnectionLog.RemoteAddress.ADDR[4] := 121;
+	    #ConnectionLog.RemotePort := 7000;
+	    #ConnectionLog.LocalPort := 0;
+	    
+	    // LogBuffer configuration
+	    #"Ist-LogBuffer".Cfg.BufferClosingTime := T#500ms;
+	    #"Ist-LogBuffer".Cfg.LifeMsgTime := T#5s;
+	    #"Ist-LogBuffer".Cfg.SourceNode := 26;
+	    
+	END_REGION
+	
+	REGION Enable log messages
+	    
+	    IF NOT #JumpStaticLogActivation THEN
+	        // Always active logs
+	        #EnabledMessages["IDLOG_TRK_LogPhotocellTrk"] := TRUE;
+	        
+	    END_IF;
+	    
+	END_REGION
+	    
+	
+END_FUNCTION
+
+"""
+    
+    # LoggerConf.scl
+    logger_conf_content = """FUNCTION "LoggerConf" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+
+BEGIN
+	        REGION da spostare su parte conf
+	            
+	            "ConfLogger1"(JumpStaticLogActivation := FALSE,
+	                                  ConnectionLog := "DbiLogger".ConnectionLog,
+	                                  "Ist-LogBuffer" := "DbiLogBuffer",
+	                                  EnabledMessages := "DbiLogger".EnabledMessages);
+	                    
+	                    (*   Only if you have 2 logger
+	            "ConfLogger2"(JumpStaticLogActivation := FALSE,
+	                                     ConnectionLog := "IstLogger2".ConnectionLog,
+	                                     "Ist-LogBuffer" := "IstLogBuffer2",
+	                                     EnabledMessages := "IstLogger2".EnabledMessages);
+	        *) 
+	        END_REGION
+END_FUNCTION
+
+"""
+    
+    try:
+        # Scrivi i file
+        with open(os.path.join(output_folder, 'ConfLogger1.scl'), 'w', encoding='utf-8') as f:
+            f.write(conf_logger1_content)
+        with open(os.path.join(output_folder, 'ConfLogger2.scl'), 'w', encoding='utf-8') as f:
+            f.write(conf_logger2_content)
+        with open(os.path.join(output_folder, 'LoggerConf.scl'), 'w', encoding='utf-8') as f:
+            f.write(logger_conf_content)
+        print(f"DEBUG - File logger config creati in {output_folder}")
+        return True
+    except Exception as e:
+        print(f"ERRORE durante la creazione dei file logger config: {e}")
+        return False
+
+def generate_puls_line_scl(selected_cab_plc):
+    """
+    Genera il file PulsLine.scl per API004.
+    
+    Args:
+        selected_cab_plc (str): Il CAB_PLC selezionato.
+    """
+    if str(selected_cab_plc).upper() != 'API004':
+        return True
+    
+    api_folder = f'API0{selected_cab_plc[-2:]}'
+    output_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
+    os.makedirs(output_folder, exist_ok=True)
+    
+    puls_line_content = """FUNCTION "PulsLine" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+
+BEGIN
+	
+	
+	
+	REGION Comunicazione tra Linee e Pulsanti d'Emergenza
+	    //"LINE_1".Data.COM_PCE.PCE1 := NOT % EMERG_INPUT %;
+	END_REGION
+	
+END_FUNCTION
+
+"""
+    
+    try:
+        with open(os.path.join(output_folder, 'PulsLine.scl'), 'w', encoding='utf-8') as f:
+            f.write(puls_line_content)
+        print(f"DEBUG - File PulsLine.scl creato in {output_folder}")
+        return True
+    except Exception as e:
+        print(f"ERRORE durante la creazione del file PulsLine.scl: {e}")
+        return False
+
+def generate_additional_db_files(selected_cab_plc):
+    """
+    Genera i file .db aggiuntivi per API004: Carousel1_Full_Timeout.db, Side_Input_*.db, CP21_EDS_CTX.db, Utenza18_CP21ST039_DirMng.db
+    
+    Args:
+        selected_cab_plc (str): Il CAB_PLC selezionato.
+    """
+    if str(selected_cab_plc).upper() != 'API004':
+        return True
+    
+    api_folder = f'API0{selected_cab_plc[-2:]}'
+    output_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
+    os.makedirs(output_folder, exist_ok=True)
+    
+    try:
+        # Carousel1_Full_Timeout.db
+        carousel_timeout_content = """DATA_BLOCK "Carousel1_Full_Timeout"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+"CAROUSEL_FULL_TIMEOUT"
+
+BEGIN
+
+END_DATA_BLOCK
+
+"""
+        
+        # Side_Input_Carousel_CA11.db
+        side_input_ca11_content = """DATA_BLOCK "Side_Input_Carousel_CA11"
+{ S7_Optimized_Access := 'TRUE' }
+AUTHOR : DF
+VERSION : 0.3
+NON_RETAIN
+"SIDE_INPUT_NCE"
+
+BEGIN
+
+END_DATA_BLOCK
+
+"""
+        
+        # Side_Input_Carousel_CA31.db
+        side_input_ca31_content = """DATA_BLOCK "Side_Input_Carousel_CA31"
+{ S7_Optimized_Access := 'TRUE' }
+AUTHOR : DF
+VERSION : 0.3
+NON_RETAIN
+"SIDE_INPUT_NCE"
+
+BEGIN
+
+END_DATA_BLOCK
+
+"""
+        
+        # Side_Input_Utenza_17_to_18.db
+        side_input_utenza_content = """DATA_BLOCK "Side_Input_Utenza_17_to_18"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+"SIDE_INPUT"
+
+BEGIN
+
+END_DATA_BLOCK
+
+"""
+        
+        # CP21_EDS_CTX.db
+        cp21_eds_ctx_content = """DATA_BLOCK "CP21_EDS_CTX"
+{ DB_Accessible_From_OPC_UA := 'FALSE' ;
+ DB_Accessible_From_Webserver := 'FALSE' ;
+ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+"Smiths_CTX"
+
+BEGIN
+
+END_DATA_BLOCK
+
+"""
+        
+        # Utenza18_CP21ST039_DirMng.db
+        utenza_dir_mng_content = """DATA_BLOCK "Utenza18_CP21ST039_DirMng"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+NON_RETAIN
+"DIRECTION_MNG"
+
+BEGIN
+
+END_DATA_BLOCK
+
+"""
+        
+        # Scrivi tutti i file
+        with open(os.path.join(output_folder, 'Carousel1_Full_Timeout.db'), 'w', encoding='utf-8') as f:
+            f.write(carousel_timeout_content)
+        with open(os.path.join(output_folder, 'Side_Input_Carousel_CA11.db'), 'w', encoding='utf-8') as f:
+            f.write(side_input_ca11_content)
+        with open(os.path.join(output_folder, 'Side_Input_Carousel_CA31.db'), 'w', encoding='utf-8') as f:
+            f.write(side_input_ca31_content)
+        with open(os.path.join(output_folder, 'Side_Input_Utenza_17_to_18.db'), 'w', encoding='utf-8') as f:
+            f.write(side_input_utenza_content)
+        with open(os.path.join(output_folder, 'CP21_EDS_CTX.db'), 'w', encoding='utf-8') as f:
+            f.write(cp21_eds_ctx_content)
+        with open(os.path.join(output_folder, 'Utenza18_CP21ST039_DirMng.db'), 'w', encoding='utf-8') as f:
+            f.write(utenza_dir_mng_content)
+        
+        print(f"DEBUG - File .db aggiuntivi creati in {output_folder}")
+        return True
+    except Exception as e:
+        print(f"ERRORE durante la creazione dei file .db aggiuntivi: {e}")
+        return False
