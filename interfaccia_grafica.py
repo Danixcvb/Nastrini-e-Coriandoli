@@ -427,6 +427,9 @@ def create_gui():
             # Carica il file Excel
             df = pd.read_excel(excel_file_path)
             
+            # Filtra le righe con ITEM_TRUNK == 0 (devono essere ignorate)
+            df = df[df['ITEM_TRUNK'].astype(float) != 0]
+            
             # Verifica le colonne richieste
             required_columns = ['ITEM_ID_CUSTOM', 'CAB_PLC', 'ITEM_TRUNK', 'ITEM_SPEED_TRANSPORT', 
                               'ITEM_SPEED_LAUNCH', 'ITEM_SPEED_MAX', 'ITEM_ACCELERATION', 'ITEM_L']

@@ -10,8 +10,10 @@ import subprocess
 import random
 import math
 import re # <-- Import re module
+from io import TextIOWrapper
 
 from PyQt6.QtWidgets import (
+    QCheckBox,
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QLineEdit, QFileDialog, QMessageBox, QComboBox,
     QDialog, QListWidget, QListWidgetItem, QDialogButtonBox, QStatusBar,
@@ -20,7 +22,7 @@ from PyQt6.QtWidgets import (
     QFrame, QFormLayout
 )
 from PyQt6.QtGui import QPalette, QColor, QFont, QPolygonF, QPainter, QBrush, QPen
-from PyQt6.QtCore import Qt, QPointF, QTimer, QRectF, QPropertyAnimation, QPoint, QEasingCurve, pyqtProperty
+from PyQt6.QtCore import Qt, QPointF, QTimer, QRectF, QPropertyAnimation, QPoint, QEasingCurve, pyqtProperty, pyqtSignal, QObject
 
 # Importa funzioni e configurazioni dal progetto
 import config
@@ -31,6 +33,49 @@ from Generazione_Allarmi.alarm_generator_excel import GeneratorThread as ExcelGe
 from Generazione_Allarmi.alarm_generator_scl import GeneratorThread as SclGeneratorThread
 # Assicurati che le altre funzioni necessarie siano importate o riscritte qui
 # from funzioni_elaborazione import ... # Se necessario
+
+class LogStream(QObject):
+    """Stream che intercetta stdout e lo reindirizza sia al terminale che alla casella di log."""
+    message_written = pyqtSignal(str)
+    
+    def __init__(self, original_stream, log_callback=None):
+        super().__init__()
+        self.original_stream = original_stream
+        self.log_callback = log_callback
+        self.buffer = ""
+    
+    def write(self, text):
+        """Scrive sia al terminale originale che alla casella di log."""
+        # Scrivi al terminale originale
+        if self.original_stream:
+            self.original_stream.write(text)
+            self.original_stream.flush()
+        
+        # Aggiungi al buffer
+        self.buffer += text
+        
+        # Se c'è un newline, emetti il messaggio completo
+        if '\n' in self.buffer:
+            lines = self.buffer.split('\n')
+            # Emetti tutte le righe complete tranne l'ultima (che potrebbe essere incompleta)
+            for line in lines[:-1]:
+                if line.strip():  # Ignora righe vuote
+                    self.message_written.emit(line)
+            # Mantieni l'ultima riga nel buffer se non termina con \n
+            self.buffer = lines[-1] if not text.endswith('\n') else ""
+    
+    def flush(self):
+        """Flush del buffer."""
+        if self.original_stream:
+            self.original_stream.flush()
+        # Emetti anche il buffer residuo se presente
+        if self.buffer.strip():
+            self.message_written.emit(self.buffer)
+            self.buffer = ""
+    
+    def isatty(self):
+        """Per compatibilità con sys.stdout."""
+        return False
 
 class NastriApp(QMainWindow):
     """
@@ -45,8 +90,15 @@ class NastriApp(QMainWindow):
         self.excel_file_path = None # Percorso del file excel selezionato
         self.cab_plc_options = ["Seleziona un file Excel..."]
         self.alarm_gen_thread = None # Inizializza l'attributo del thread
+        
+        # Salva il riferimento allo stdout originale
+        self.original_stdout = sys.stdout
+        
+        # Inizializza il log stream (verrà configurato dopo _init_ui)
+        self.log_stream = None
 
         self._init_ui()
+        self._setup_log_stream()
         self._load_initial_config()
 
     def _init_ui(self):
@@ -54,35 +106,47 @@ class NastriApp(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-        main_layout = QVBoxLayout(central_widget)
+        main_layout = QVBoxLayout(central_widget)  # Main layout is vertical
         main_layout.setContentsMargins(25, 25, 25, 25) # Slightly reduced margins
-        main_layout.setSpacing(15) # Reduced main spacing
+        main_layout.setSpacing(15) # Vertical spacing
 
-        # --- Sezione 1: Configurazione Nastri (using QFormLayout) ---
-        config_group_layout = QVBoxLayout() # Layout for this section
-
+        # --- Titolo principale ---
         nastri_title_label = QLabel("Strumento incredibile per progetti nastri")
         nastri_title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        nastri_title_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        config_group_layout.addWidget(nastri_title_label)
+        nastri_title_label.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
+        nastri_title_label.setStyleSheet("color: #ECF0F1; padding: 10px;")
+        main_layout.addWidget(nastri_title_label)
+        main_layout.addSpacing(5)
 
-        config_group_layout.addSpacing(10) # Add some space after title
+        # Create horizontal layout for the two columns
+        columns_layout = QHBoxLayout()
+        columns_layout.setSpacing(25) # Horizontal spacing between columns
+
+        # --- Sezione 1: Configurazione Nastri (using QFormLayout) ---
+        config_group_widget = QWidget()  # Create a widget container for the first column
+        config_group_layout = QVBoxLayout(config_group_widget)  # Layout for this section
+        config_group_layout.setContentsMargins(15, 15, 15, 15)
+        config_group_layout.setSpacing(15)
 
         # Form Layout for Inputs
         form_layout = QFormLayout()
         form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
         form_layout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
-        form_layout.setHorizontalSpacing(10)
-        form_layout.setVerticalSpacing(10)
+        form_layout.setHorizontalSpacing(12)
+        form_layout.setVerticalSpacing(15)
 
         # Excel Selection
         excel_input_layout = QHBoxLayout()
+        excel_input_layout.setSpacing(8)
         self.excel_path_lineedit = QLineEdit("Nessun file selezionato")
         self.excel_path_lineedit.setReadOnly(True)
         self.excel_path_lineedit.setFont(QFont("Segoe UI", 10))
+        self.excel_path_lineedit.setMinimumHeight(32)
         excel_input_layout.addWidget(self.excel_path_lineedit, 1)
         excel_button = QPushButton("Sfoglia...")
         excel_button.setFont(QFont("Segoe UI", 10))
+        excel_button.setMinimumHeight(32)
+        excel_button.setMinimumWidth(80)
         excel_button.clicked.connect(self.select_excel_file)
         excel_input_layout.addWidget(excel_button)
         form_layout.addRow("File Excel:", excel_input_layout)
@@ -91,24 +155,33 @@ class NastriApp(QMainWindow):
         self.cab_plc_combobox = QComboBox()
         self.cab_plc_combobox.setFont(QFont("Segoe UI", 10))
         self.cab_plc_combobox.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.cab_plc_combobox.setMinimumHeight(32)
         self.cab_plc_combobox.addItems(self.cab_plc_options)
         self.cab_plc_combobox.setCurrentIndex(-1)
         self.cab_plc_combobox.currentIndexChanged.connect(self._update_button_states)
         form_layout.addRow("CAB_PLC:", self.cab_plc_combobox)
 
         config_group_layout.addLayout(form_layout) # Add form to section layout
+        config_group_layout.addSpacing(10)
+
+        # Checkbox per zona emergenza fissa a "1"
+        self.use_fixed_zone_checkbox = QCheckBox("Usa zona emergenza fissa (zona 1)")
+        self.use_fixed_zone_checkbox.setFont(QFont("Segoe UI", 10))
+        self.use_fixed_zone_checkbox.setToolTip("Se spuntata, tutte le zone di emergenza verranno impostate a '1' invece di essere lette dal file")
+        config_group_layout.addWidget(self.use_fixed_zone_checkbox)
+        config_group_layout.addSpacing(10)
 
         # Config Generate Button (Blue)
         self.generate_config_button = QPushButton("Genera Configurazioni Nastri")
         self.generate_config_button.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        self.generate_config_button.setMinimumHeight(38)
+        self.generate_config_button.setMinimumHeight(42)
         self.generate_config_button.setStyleSheet("""
             QPushButton {
                 background-color: #3498DB; /* Blue */
                 color: white;
                 border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
+                padding: 10px 20px;
+                border-radius: 5px;
             }
             QPushButton:disabled {
                 background-color: #A9CCE3; /* Lighter blue when disabled */
@@ -128,25 +201,42 @@ class NastriApp(QMainWindow):
         button_h_layout.addWidget(self.generate_config_button)
         button_h_layout.addStretch()
         config_group_layout.addLayout(button_h_layout)
+        config_group_layout.addStretch()  # Push content to top
 
-        main_layout.addLayout(config_group_layout) # Add config section to main layout
+        # Add config section widget to columns layout
+        config_group_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        columns_layout.addWidget(config_group_widget, 1)  # Add with stretch factor 1
+
+        # Add a vertical separator line between the two columns
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.VLine)
+        separator.setFrameShadow(QFrame.Shadow.Sunken)
+        separator.setStyleSheet("background-color: #5A5A5A; max-width: 2px; min-width: 2px;")
+        columns_layout.addWidget(separator)
 
         # --- Sezione 2: Generazione Allarmi HMI ---
         self.alarm_gen_widget = AlarmGeneratorWidget()
         self.alarm_gen_widget.generation_requested.connect(self._handle_alarm_generation_request)
+        self.alarm_gen_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        
+        # Extract log from alarm widget and remove it from there
+        self.log_text_edit = self.alarm_gen_widget.log_text_edit
+        # Remove log from alarm widget's layout
+        self.alarm_gen_widget.layout().removeWidget(self.log_text_edit)
+        self.log_text_edit.setParent(None)
 
         # Color the button INSIDE the alarm generator widget (Red)
         # Assuming the button inside is accessible as 'generate_button'
         try:
             alarm_generate_button = self.alarm_gen_widget.generate_button
-            alarm_generate_button.setMinimumHeight(38) # Match height
+            alarm_generate_button.setMinimumHeight(42) # Match height
             alarm_generate_button.setStyleSheet("""
                 QPushButton {
                     background-color: #E74C3C; /* Red */
                     color: white;
                     border: none;
-                    padding: 8px 16px;
-                    border-radius: 4px;
+                    padding: 10px 20px;
+                    border-radius: 5px;
                 }
                 QPushButton:disabled {
                     background-color: #F5B7B1; /* Lighter red when disabled */
@@ -162,7 +252,19 @@ class NastriApp(QMainWindow):
         except AttributeError:
             print("WARN: Could not find 'generate_button' in AlarmGeneratorWidget to apply red style.")
 
-        main_layout.addWidget(self.alarm_gen_widget, 1) # Keep stretch factor = 1
+        columns_layout.addWidget(self.alarm_gen_widget, 1) # Keep stretch factor = 1
+        
+        # Add columns layout to main layout
+        main_layout.addLayout(columns_layout)
+        
+        # Add log area below the columns
+        main_layout.addSpacing(10)
+        log_label = QLabel("Log:")
+        log_label.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        log_label.setStyleSheet("color: #ECF0F1; padding: 5px 0px;")
+        main_layout.addWidget(log_label)
+        self.log_text_edit.setMinimumHeight(150)
+        main_layout.addWidget(self.log_text_edit, 1)  # Add log with stretch factor 1
 
         # --- Barra di Stato (Comune) ---
         self.status_bar = QStatusBar()
@@ -293,6 +395,10 @@ class NastriApp(QMainWindow):
 
         try:
             df = pd.read_excel(self.excel_file_path)
+            
+            # Filtra le righe con ITEM_TRUNK == 0 (devono essere ignorate)
+            df = df[df['ITEM_TRUNK'].astype(float) != 0]
+            
             # Verifica colonne necessarie (semplificato, assumiamo esistano per ora)
             required_columns = ['ITEM_ID_CUSTOM', 'CAB_PLC', 'ITEM_TRUNK'] # Minimal check
             if not all(col in df.columns for col in required_columns):
@@ -383,17 +489,32 @@ class NastriApp(QMainWindow):
         """Starts the alarm generation threads for both Excel and SCL."""
         self.status_bar.showMessage("Avvio generazione allarmi HMI (Excel e SCL)...", 0)
         QApplication.processEvents()
-        self.alarm_gen_widget.log_text_edit.clear()
+        self.log_text_edit.clear()
         # Avvia thread per Excel
         self.excel_gen_thread = ExcelGeneratorThread(input_file, output_dir, instance_counts)
-        self.excel_gen_thread.progress_signal.connect(self.alarm_gen_widget.log_message)
+        self.excel_gen_thread.progress_signal.connect(self._log_message)
         self.excel_gen_thread.finished_signal.connect(lambda success, msg: self.status_bar.showMessage(f"Excel: {msg}", 5000))
         self.excel_gen_thread.start()
         # Avvia thread per SCL
         self.scl_gen_thread = SclGeneratorThread(input_file, output_dir, instance_counts)
-        self.scl_gen_thread.progress_signal.connect(self.alarm_gen_widget.log_message)
+        self.scl_gen_thread.progress_signal.connect(self._log_message)
         self.scl_gen_thread.finished_signal.connect(lambda success, msg: self.status_bar.showMessage(f"SCL: {msg}", 5000))
         self.scl_gen_thread.start()
+
+    def _setup_log_stream(self):
+        """Configura il log stream per intercettare stdout."""
+        if self.log_text_edit:
+            # Crea il log stream che scrive sia al terminale che alla casella di log
+            self.log_stream = LogStream(self.original_stdout)
+            self.log_stream.message_written.connect(self._log_message)
+            # Reindirizza stdout al log stream
+            sys.stdout = self.log_stream
+    
+    def _log_message(self, message):
+        """Appends a message to the log area."""
+        if self.log_text_edit:
+            self.log_text_edit.append(message)
+            self.log_text_edit.verticalScrollBar().setValue(self.log_text_edit.verticalScrollBar().maximum()) # Auto-scroll
 
     def _on_alarm_generation_finished(self):
         """Handles the completion of the alarm generation process."""
@@ -405,6 +526,12 @@ class NastriApp(QMainWindow):
         # Riabilita potenzialmente anche il pulsante di generazione configurazione
         # se nessun altro processo è in corso (potrebbe essere necessario un controllo più robusto)
         self._update_button_states() # Update button states based on current selections
+    
+    def closeEvent(self, event):
+        """Ripristina stdout originale quando l'applicazione viene chiusa."""
+        if self.log_stream:
+            sys.stdout = self.original_stdout
+        super().closeEvent(event)
 
 # --- Dialog Classes ---
 class OrderDialog(QDialog):

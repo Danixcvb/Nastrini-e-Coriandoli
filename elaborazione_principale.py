@@ -39,7 +39,7 @@ from creazione_file import (
 import random
 import math
 
-def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
+def process_excel(selected_cab_plc, status_var, root, order, excel_file_path, use_fixed_zone=False):
     """
     Elabora il file Excel e genera le configurazioni per il CAB_PLC selezionato.
     
@@ -95,6 +95,10 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         # Carica il file Excel
         df = pd.read_excel(excel_file_path)
         print(f"DataFrame caricato con {len(df)} righe")
+        
+        # Filtra le righe con ITEM_TRUNK == 0 (devono essere ignorate)
+        df = df[df['ITEM_TRUNK'].astype(float) != 0]
+        print(f"DataFrame dopo filtro ITEM_TRUNK != 0: {len(df)} righe")
         
         # Verifica le colonne richieste
         required_columns = ['ITEM_ID_CUSTOM', 'CAB_PLC', 'ITEM_TRUNK', 'ITEM_SPEED_TRANSPORT', 
@@ -436,23 +440,23 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             REGION PROFINET interface connection
                 
                 REGION Address Configuration
-                    "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.InputHwId := "{format_datalogic_hwid(item_id_custom)}_CD009~IM_128ByteIn_1";
-                    "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.OutputHwId := "{format_datalogic_hwid(item_id_custom)}_CD009~OM_32ByteOut_1";
+                    "Datalogic_{item_id_custom}"."ProfinetCom".DATA.CNF.InputHwId := "{format_datalogic_hwid(item_id_custom)}_CD009~IM_128ByteIn_1";
+                    "Datalogic_{item_id_custom}"."ProfinetCom".DATA.CNF.OutputHwId := "{format_datalogic_hwid(item_id_custom)}_CD009~OM_32ByteOut_1";
                     
                 END_REGION
 
                 REGION Driver Configuration
-                    "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.DadDriver := TRUE;
-                    "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.DpdDriver := FALSE;
-                    "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.DataConsistency := TRUE;
-                    "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.EnableIO := FALSE;
+                    "Datalogic_{item_id_custom}"."ProfinetCom".DATA.CNF.DadDriver := TRUE;
+                    "Datalogic_{item_id_custom}"."ProfinetCom".DATA.CNF.DpdDriver := FALSE;
+                    "Datalogic_{item_id_custom}"."ProfinetCom".DATA.CNF.DataConsistency := TRUE;
+                    "Datalogic_{item_id_custom}"."ProfinetCom".DATA.CNF.EnableIO := FALSE;
                     
                 END_REGION
                 
                 REGION Parameters Configuration
-                    "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.TimeoutKeepAliveRecv := T#20S;
-                    "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.TimeoutKeepAliveSend := T#10S;
-                    "Datalogic_{item_id_custom}"."Sub-DatalogicComProfinet_Instance".DATA.CNF.MsgSendDelay := T#100MS;
+                    "Datalogic_{item_id_custom}"."ProfinetCom".DATA.CNF.TimeoutKeepAliveRecv := T#20S;
+                    "Datalogic_{item_id_custom}"."ProfinetCom".DATA.CNF.TimeoutKeepAliveSend := T#10S;
+                    "Datalogic_{item_id_custom}"."ProfinetCom".DATA.CNF.MsgSendDelay := T#100MS;
                     
                 END_REGION
                 
@@ -1194,6 +1198,9 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
                     # Mantieni il numero originale per i tronchi prima del Carousel
                     trunk_number_mapping[trunk_key] = trunk_key
         
+        # Contatore globale per Datalogic (parte da 1 e incrementa per ogni Datalogic generato)
+        global_datalogic_counter = 1
+        
         for idx, trunk_key in enumerate(ordered_trunk_nums):
             items_ordered = main_data_by_trunk[trunk_key]
             
@@ -1253,13 +1260,14 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
             # Chiama create_main_file con contesto corretto
             if items_ordered:
                 try:
-                    create_main_file(
+                    global_datalogic_counter = create_main_file(
                         trunk_num_for_file, 
                         items_ordered, 
                         main_output_folder,
                         last_valid_prev_item_data=last_valid_prev_item_data,
                         first_valid_next_item_data=first_valid_next_item_data,
-                        trunk_to_line_mapping=trunk_to_line_mapping
+                        trunk_to_line_mapping=trunk_to_line_mapping,
+                        datalogic_counter=global_datalogic_counter
                     )
                     
                     # Crea i file correlati
@@ -1330,14 +1338,15 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         print(f"DEBUG - trunk_prefix_map: {trunk_prefix_map}")
 
         # Genera il file GEN_LINE.scl dopo che tutte le linee e i trunk sono stati processati
-        generate_gen_line_file(df, selected_cab_plc, line_type_mapping, ordered_prefixes, trunk_to_line_mapping, carousel_trunk_position)
+        # Usa la stessa logica del MAIN.scl: associa i tronchi alle linee in sequenza progressiva
+        generate_gen_line_file(df, selected_cab_plc, line_type_mapping, ordered_prefixes, trunks_per_line, carousel_trunk_position)
 
         # Crea il file DigIn.scl nella cartella API0##
         print(f"DEBUG - carousel_data_for_dig_in prima di create_dig_in_file: {len(carousel_data_for_dig_in) if carousel_data_for_dig_in else 0} elementi")
         if carousel_data_for_dig_in:
             for idx, car_data in enumerate(carousel_data_for_dig_in):
                 print(f"DEBUG - carousel_data_for_dig_in[{idx}]: carousel_id={car_data.get('carousel_id')}, motors={len(car_data.get('motors', []))}")
-        create_dig_in_file(selected_cab_plc, 'Configurazioni', conveyor_data_for_dig_in, carousel_data_for_dig_in, ordered_prefixes, trunk_to_line_mapping, prefix_to_line_numbers, carousel_trunk_position)
+        create_dig_in_file(selected_cab_plc, 'Configurazioni', conveyor_data_for_dig_in, carousel_data_for_dig_in, ordered_prefixes, trunk_to_line_mapping, prefix_to_line_numbers, carousel_trunk_position, df)
 
         # Aggiorna lo stato
         # status_var.set(f"Completato! {len(files_created)} file CONF_T e {len(main_data_by_trunk)} file MAIN salvati.")
@@ -1349,7 +1358,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         # Genera il file Zones_Input.scl
         print("DEBUG - Generazione file Zones_Input.scl...")
         try:
-            generate_zones_input_scl(selected_cab_plc)
+            generate_zones_input_scl(selected_cab_plc, use_fixed_zone=use_fixed_zone)
         except Exception as e:
             print(f"ERRORE durante la generazione del file Zones_Input.scl: {e}")
             # Non bloccare il processo se la generazione delle zone fallisce
@@ -1357,7 +1366,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         # Genera il file PCE_Input.scl
         print("DEBUG - Generazione file PCE_Input.scl...")
         try:
-            generate_pce_input_scl(selected_cab_plc)
+            generate_pce_input_scl(selected_cab_plc, use_fixed_zone=use_fixed_zone)
         except Exception as e:
             print(f"ERRORE durante la generazione del file PCE_Input.scl: {e}")
             # Non bloccare il processo se la generazione del PCE fallisce
@@ -1372,7 +1381,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path):
         # Genera PCE_Output.scl
         print("DEBUG - Generazione file PCE_Output.scl...")
         try:
-            generate_pce_output_scl(selected_cab_plc)
+            generate_pce_output_scl(selected_cab_plc, use_fixed_zone=use_fixed_zone)
         except Exception as e:
             print(f"ERRORE durante la generazione del file PCE_Output.scl: {e}")
         

@@ -6,6 +6,7 @@ Gestisce la generazione dei file .txt e .scl per le configurazioni dei nastri tr
 import os
 from funzioni_elaborazione import count_ca_occurrences, get_last_three_digits
 import pandas as pd
+from io_data import find_io_list_file
 
 def create_txt_files(df, selected_cab_plc, order):
     """
@@ -492,7 +493,7 @@ def _is_valid_component_for_chain(item_data):
     item_id = item_data.get('ITEM_ID_CUSTOM', '')
     return ("ST" in item_id.upper() or "CN" in item_id.upper() or "CX" in item_id.upper() or count_ca_occurrences(item_id) == 2)
 
-def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_item_data=None, first_valid_next_item_data=None, trunk_to_line_mapping=None):
+def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_item_data=None, first_valid_next_item_data=None, trunk_to_line_mapping=None, datalogic_counter=1):
     """
     Crea il file MAINx per un tronco specifico.
     
@@ -502,6 +503,10 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
         output_folder (str): Cartella di output
         last_valid_prev_item_data (dict, optional): Dati dell'ultimo item valido del tronco precedente.
         first_valid_next_item_data (dict, optional): Dati del primo item valido del tronco successivo.
+        datalogic_counter (int): Contatore globale per i Datalogic (parte da 1)
+    
+    Returns:
+        int: Il valore aggiornato del contatore Datalogic
     """
     content = []
     
@@ -546,7 +551,7 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
     
     # Contatori per elementi FD e SD
     fd_counter = 1
-    datalogic_counter = 1
+    # datalogic_counter viene passato come parametro e viene incrementato durante l'elaborazione
     oversize_counter = 1
 
     # Aggiungi la sezione di gestione richiesta start tronco
@@ -665,8 +670,8 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
                 content.append('	                          TimeData := "DbGlobale".TimeData,')
                 content.append('	                          Constants := "DbConstants".Constants,')
                 content.append(f'	                          Trk := "{prev_utenza_name_formatted}".Conveyor.Trk,')
-                content.append(f'	                          PANYTO_SA := "DbSvDatalogicSa".DATALOGIC[{datalogic_counter}],')
-                content.append(f'	                          PANYTO_CMD := "DbSvDatalogicCmd".DATALOGIC[{datalogic_counter}],')
+                content.append(f'	                          PANYTO_SA := "SV_DB_DATALOGIC_SA".DATALOGIC[{datalogic_counter}],')
+                content.append(f'	                          PANYTO_CMD := "SV_DB_DATALOGIC_CMD".DATALOGIC[{datalogic_counter}],')
                 content.append('	                          DB_OBJ := "DbsObject".DbObj[1],')
                 content.append('	                          "Ist-McpChmMsgBuffer":= "DbiChmMsgBuffer",')
                 content.append('	                          "Ist-McpChrMsgBuffer":= "DbiChrMsgBuffer",')
@@ -864,6 +869,9 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
     
     with open(output_path, 'w') as f:
         f.write("\n".join(content))
+    
+    # Restituisci il contatore aggiornato
+    return datalogic_counter
 
 def create_trunk_file(trunk_number, output_folder):
     """
@@ -1007,7 +1015,7 @@ def create_main_structure_file(output_folder, num_lines, selected_cab_plc, trunk
         '                 LampeggioVeloce_En := TRUE,',
         '                 Sirena_En := FALSE,',
         '                 GlobalData:="DbGlobale".GlobalData,',
-        '                 SyncroData:="DbGlobale".SynchroData,',
+        '                 SynchroData:="DbGlobale".SynchroData,',
         '                 TimeData:="DbGlobale".TimeData);',
         'END_REGION',
         '',
@@ -1032,7 +1040,7 @@ def create_main_structure_file(output_folder, num_lines, selected_cab_plc, trunk
         '    "DbiPcSocket"(StartUpPlcFlag := "DbGlobale".GlobalData.StartUpPlcFlag,',
         '                  "GtwConfiguration" := "DbGtwConfiguration".GtwConfiguration,',
         '                  TimeData := "DbGlobale".TimeData,',
-        '                  SyncroData := "DbGlobale".SynchroData,',
+        '                  SynchroData := "DbGlobale".SynchroData,',
         '                  HmiGatewayRd := "DbHmiGatewayRd",',
         '                  HmiGatewayWr := "DbHmiGatewayWr",',
         '                  DbiChmMsgBuffer := "DbiChmMsgBuffer",',
@@ -1113,27 +1121,6 @@ def create_main_structure_file(output_folder, num_lines, selected_cab_plc, trunk
         '    //   "MAIN_SCADA_TRUNK"();',
         'END_REGION',
         '',
-        'REGION Time management',
-        '    "DbTimeMng"(OBDateTime := #OBDateTime,',
-        '                 StartCycle := FALSE,',
-        '                 EndCycle := TRUE,',
-        '                 Clk100ms_En := TRUE,',
-        '                 Clk200ms_En := TRUE,',
-        '                 Clk500ms_En := TRUE,',
-        '                 Clk1sec_En := TRUE,',
-        '                 Clk1min_En := TRUE,',
-        '                 LampeggioLento_En := TRUE,',
-        '                 LampeggioVeloce_En := TRUE,',
-        '                 Sirena_En := TRUE,',
-        '                 GlobalData:="DbGlobale".GlobalData,',
-        '                 SyncroData:="DbGlobale".SynchroData,',
-        '                 TimeData:="DbGlobale".TimeData);',
-        'END_REGION',
-        '',
-        'REGION PN COMMUNICATION',
-        '    "PN_PN_EXCHANGE"();',
-        'END_REGION',
-        '',
         'REGION Version',
         '    "V_Major" := "PlcSwVersion".MAJOR;',
         '    "V_Minor" := "PlcSwVersion".MINOR;',
@@ -1161,15 +1148,9 @@ def create_main_structure_file(output_folder, num_lines, selected_cab_plc, trunk
         '                 LampeggioVeloce_En := TRUE,',
         '                 Sirena_En := TRUE,',
         '                 GlobalData := "DbGlobale".GlobalData,',
-        '                 SyncroData := "DbGlobale".SynchroData,',
+        '                 SynchroData := "DbGlobale".SynchroData,',
         '                 TimeData := "DbGlobale".TimeData);',
         'END_REGION',
-        '',
-        '',
-        'REGION PN COMMUNICATION',
-        '    //  "PN_PN_EXCHANGE"();',
-        'END_REGION',
-        '',
         '',
         ''
     ])
@@ -1443,16 +1424,17 @@ def create_conf_file(selected_cab_plc, df, output_folder, order, prefix_to_line_
     
     print(f"DEBUG - File CONF.scl creato in {output_path}") 
 
-def generate_gen_line_file(df, selected_cab_plc, line_type_mapping, ordered_prefixes, trunk_to_line_mapping, carousel_trunk_position=None):
+def generate_gen_line_file(df, selected_cab_plc, line_type_mapping, ordered_prefixes, trunks_per_line, carousel_trunk_position=None):
     """
     Genera il file GEN_LINE.scl in base alle linee e ai trunk esistenti.
+    Usa la stessa logica del MAIN.scl: associa i tronchi alle linee in sequenza progressiva.
 
     Args:
         df (DataFrame): DataFrame con i dati completi.
         selected_cab_plc (str): CAB_PLC selezionato.
         line_type_mapping (dict): Mappa dei numeri di linea ai loro tipi (es. 'Carousel').
         ordered_prefixes (list): Lista ordinata dei prefissi delle linee (es. ['CP11', 'CP12', ...]).
-        trunk_to_line_mapping (dict): Mappa dei numeri di trunk ai numeri di linea associati.
+        trunks_per_line (list): Lista con il numero di tronchi per ogni linea (es. [11, 9, 4, 1, 1]).
         carousel_trunk_position (int, optional): Posizione del tronco Carousel (es. 14)
     """
     print(f"DEBUG - Generazione di GenLine.scl per {selected_cab_plc}...")
@@ -1532,92 +1514,71 @@ def generate_gen_line_file(df, selected_cab_plc, line_type_mapping, ordered_pref
     
     trunk_numbers = sorted([t for t in trunk_numbers if isinstance(t, int)]) + ([t for t in trunk_numbers if isinstance(t, str)])
 
-    # Crea mappatura di scalatura per i tronchi dopo il Carousel
-    # I file DbiTrunkLN sono già stati creati con i numeri scalati, quindi dobbiamo
-    # mappare i numeri letti dai file ai numeri originali per cercare in trunk_to_line_mapping
-    # e poi applicare la scalatura inversa per generare i riferimenti corretti
+    # Calcola i range di tronchi per ogni linea (stessa logica del MAIN.scl)
+    trunk_ranges = []
+    current_trunk = 1
+    for num_trunks in trunks_per_line:
+        trunk_ranges.append((current_trunk, current_trunk + num_trunks - 1))
+        current_trunk += num_trunks
+    
+    print(f"DEBUG - Range tronchi per linea: {trunk_ranges}")
+    print(f"DEBUG - trunks_per_line: {trunks_per_line}")
+    
+    # Crea mappatura tronco -> linea basata sulla sequenza progressiva
+    trunk_to_line_map = {}
+    for line_idx, (start_trunk, end_trunk) in enumerate(trunk_ranges, 1):
+        for trunk_num in range(start_trunk, end_trunk + 1):
+            trunk_to_line_map[trunk_num] = line_idx
     
     # Calcola il numero totale di tronchi (incluso il carousel) per determinare l'ID del carousel
     total_trunks_with_carousel = len(trunk_numbers)
-    carousel_trunk_id = total_trunks_with_carousel  # L'ultimo numero di tronco + 1 sarebbe questo, ma il carousel è incluso
+    carousel_trunk_id = total_trunks_with_carousel
     
-    # Se c'è un carousel, il suo ID numerico è il numero totale di tronchi originali (prima della scalatura)
+    # Se c'è un carousel, gestiscilo separatamente
     if carousel_trunk_position is not None:
-        # Il carousel è al carousel_trunk_position, quindi il numero totale originale è carousel_trunk_position + (total_trunks_with_carousel - carousel_trunk_position)
-        # Ma in realtà, se abbiamo 15 tronchi + 1 carousel, e il carousel è al 14, allora:
-        # - Tronchi 1-13: rimangono 1-13
-        # - Tronco 14: diventa Carousel
-        # - Tronco 15 originale: diventa 14
-        # Quindi il numero totale originale è 15, e il carousel ha ID 15 (non 16)
-        # Ma l'utente dice che deve essere l'ultimo numero + 1, quindi se ci sono 15 tronchi + 1 carousel, il carousel ha ID 16
-        # Quindi: carousel_trunk_id = carousel_trunk_position + (total_trunks_with_carousel - carousel_trunk_position) = total_trunks_with_carousel
-        # Ma l'utente vuole l'ultimo numero + 1, quindi se total_trunks_with_carousel = 16 (15 tronchi + 1 carousel), il carousel ha ID 16
-        # Ma se il carousel è al 14 e ci sono 15 tronchi totali, allora:
-        # - Tronchi originali: 1-15
-        # - Carousel è al 14
-        # - Dopo scalatura: 1-13, Carousel, 14-15 (che erano 15-16 originali)
-        # Quindi total_trunks_with_carousel = 16 (15 numerici + 1 carousel)
-        # E il carousel deve avere ID 16 (ultimo numero + 1)
         carousel_trunk_id = total_trunks_with_carousel
-    
-    trunk_number_mapping = {}
-    for trunk_key in trunk_numbers:
-        if trunk_key == "Carousel":
-            trunk_number_mapping[trunk_key] = "Carousel"
-        elif isinstance(trunk_key, int):
-            # Se il tronco è dopo il Carousel, è già stato scalato quando creato
-            # Quindi dobbiamo risalire al numero originale per cercare in trunk_to_line_mapping
-            if carousel_trunk_position is not None and trunk_key >= carousel_trunk_position:
-                # Questo tronco è stato scalato, quindi il numero originale era trunk_key + 1
-                original_trunk_num = trunk_key + 1
-                trunk_number_mapping[trunk_key] = {'original': original_trunk_num, 'mapped': trunk_key}
-            else:
-                # Questo tronco non è stato scalato
-                trunk_number_mapping[trunk_key] = {'original': trunk_key, 'mapped': trunk_key}
 
     # Per ogni trunk, genera le chiamate TRUNK
     for trunk_key in trunk_numbers:
-        # Determina il numero originale per cercare in trunk_to_line_mapping
+        # Determina il numero del tronco
         if trunk_key == "Carousel":
-            original_trunk_for_mapping = carousel_trunk_position if carousel_trunk_position is not None else "Carousel"
             trunk_num = "Carousel"
-        elif isinstance(trunk_key, int):
-            mapping_info = trunk_number_mapping.get(trunk_key, {'original': trunk_key, 'mapped': trunk_key})
-            original_trunk_for_mapping = mapping_info['original']
-            trunk_num = mapping_info['mapped']
-        else:
-            original_trunk_for_mapping = trunk_key
-            trunk_num = trunk_key
-        
-        # Usa la mappatura trunk_to_line_mapping per associare il trunk alla linea corretta
-        # IMPORTANTE: trunk_to_line_mapping usa i numeri originali dei tronchi (ITEM_TRUNK dal DataFrame)
-        # Quindi dobbiamo cercare usando original_trunk_for_mapping
-        associated_line_num = trunk_to_line_mapping.get(original_trunk_for_mapping)
-        if associated_line_num is None:
-            print(f"DEBUG - ATTENZIONE: Trunk {original_trunk_for_mapping} non trovato in trunk_to_line_mapping")
-            print(f"DEBUG - trunk_to_line_mapping disponibile: {trunk_to_line_mapping}")
-            print(f"DEBUG - trunk_key: {trunk_key}, original_trunk_for_mapping: {original_trunk_for_mapping}")
-            # Prova a cercare anche con il numero scalato come fallback
-            associated_line_num = trunk_to_line_mapping.get(trunk_key)
-            if associated_line_num is None:
-                associated_line_num = 1  # Default a 1 se non trovato
-                print(f"DEBUG - Uso default DbiLine1")
-        
-        # Gestisci "Carousel" come nome invece di numero
-        if trunk_num == "Carousel":
-            trunk_num_formatted = "Carousel"
             trunk_display = "Carousel"
-            # Il carousel deve avere come ID l'ultimo numero di tronco + 1
+            trunk_num_formatted = "Carousel"
             trunk_id_ref = str(carousel_trunk_id)
-        else:
-            trunk_num_formatted = f"{trunk_num:02d}"
+            # Il carousel va alla sua linea separata (ultima linea)
+            line_num_for_display = len(trunk_ranges) + 1 if carousel_trunk_position else len(trunk_ranges)
+            line_ref = "DbiLineCarousel"
+        elif isinstance(trunk_key, int):
+            trunk_num = trunk_key
             trunk_display = trunk_num
+            trunk_num_formatted = f"{trunk_num:02d}"
             trunk_id_ref = str(trunk_num)
+            
+            # Usa la mappatura sequenziale per determinare la linea
+            associated_line_num = trunk_to_line_map.get(trunk_num)
+            if associated_line_num is None:
+                # Fallback: calcola in base alla posizione
+                for line_idx, (start_trunk, end_trunk) in enumerate(trunk_ranges, 1):
+                    if start_trunk <= trunk_num <= end_trunk:
+                        associated_line_num = line_idx
+                        break
+            if associated_line_num is None:
+                    associated_line_num = 1  # Default
+                    print(f"DEBUG - ATTENZIONE: Trunk {trunk_num} non trovato nella mappatura, uso LINE 1")
+            
+            line_num_for_display = associated_line_num
+            line_ref = f"DbiLine{associated_line_num}"
+        else:
+            # Fallback per casi non previsti
+            trunk_num = trunk_key
+            trunk_display = trunk_key
+            trunk_num_formatted = str(trunk_key)
+            trunk_id_ref = str(trunk_key)
+            line_num_for_display = 1
+            line_ref = "DbiLine1"
         
-        # Usa DbiLineCarousel se la linea è carousel
-        line_ref = "DbiLineCarousel" if associated_line_num == 'Carousel' else f"DbiLine{associated_line_num}"
-        
-        gen_line_content.append(f"\tREGION Call TRUNK {trunk_display} LINE {associated_line_num}")
+        gen_line_content.append(f"\tREGION Call TRUNK {trunk_display} LINE {line_num_for_display}")
         gen_line_content.append("\t")
         gen_line_content.append(f"\t    #StartTronco := \"DbGlobale\".GlobalData.Start_All OR \"DbGlobale\".GlobalData.StartTronco{trunk_id_ref};")
         gen_line_content.append("\t    ")
@@ -1625,10 +1586,10 @@ def generate_gen_line_file(df, selected_cab_plc, line_type_mapping, ordered_pref
         gen_line_content.append(f"\t             ID := {trunk_id_ref},")
         gen_line_content.append("\t             Start_Tronco := #StartTronco,")
         gen_line_content.append("\t             TimeData := \"DbGlobale\".TimeData,")
-        gen_line_content.append(f"\t                   PANYTOTRUNK_SA := \"DbSvTrunkSa\".TRUNK{trunk_id_ref},")
-        gen_line_content.append(f"\t                   PANYTOTRUNK_CMD := \"DbSvTrunkCmd\".TRUNK{trunk_id_ref},")
-        gen_line_content.append(f"\t                   PANYTOPCT_SA := \"DbSvPctSa\".PCT{trunk_id_ref},")
-        gen_line_content.append(f"\t                   PANYTOPCT_CMD := \"DbSvPctCmd\".PCT{trunk_id_ref},")
+        gen_line_content.append(f"\t                   PANYTOTRUNK_SA := \"SV_DB_TRUNK_SA\".TRUNK[{trunk_id_ref}],   ")
+        gen_line_content.append(f"\t                   PANYTOTRUNK_CMD := \"SV_DB_TRUNK_CMD\".TRUNK[{trunk_id_ref}],")
+        gen_line_content.append(f"\t                   PANYTOPCT_SA := \"SV_DB_PCT_SA\".PCT{trunk_id_ref},")
+        gen_line_content.append(f"\t                   PANYTOPCT_CMD := \"SV_DB_PCT_CMD\".PCT{trunk_id_ref},")
         gen_line_content.append(f"\t             InterfaceLineTrunk := \"{line_ref}\".ComLineTrunk);")
         gen_line_content.append("\tEND_REGION")
         gen_line_content.append("\t")
@@ -1669,9 +1630,10 @@ END_DATA_BLOCK
         f.write(badge_reader_content)
     print(f"DEBUG - File BadgeReader1.scl creato in {badge_reader_file_path}")
 
-def create_dig_in_file(selected_cab_plc, output_base_folder, conveyor_data_for_dig_in=None, carousel_data_for_dig_in=None, ordered_prefixes=None, trunk_to_line_mapping=None, prefix_to_line_numbers=None, carousel_trunk_position=None):
+def create_dig_in_file(selected_cab_plc, output_base_folder, conveyor_data_for_dig_in=None, carousel_data_for_dig_in=None, ordered_prefixes=None, trunk_to_line_mapping=None, prefix_to_line_numbers=None, carousel_trunk_position=None, df=None):
     """
-    Crea il file DigIn.scl nella cartella API0##, includendo le regioni di configurazione per i conveyor e i carousel.
+    Crea il file DigIn.scl nella cartella API0## seguendo la struttura dell'esempio API004.
+    Struttura: HMI Test -> PANEL -> LINE -> Trunks -> Conveyors -> Datalogic -> Oversize -> SMITHS -> Carousel
     
     Args:
         selected_cab_plc (str): Il CAB_PLC selezionato.
@@ -1682,6 +1644,7 @@ def create_dig_in_file(selected_cab_plc, output_base_folder, conveyor_data_for_d
         trunk_to_line_mapping (dict): Mappa trunk_id -> line_number per associare tronchi alle linee.
         prefix_to_line_numbers (dict): Mappa prefix -> {'normal': line_num, 'carousel': line_num} per le linee.
         carousel_trunk_position (int, optional): Posizione del tronco Carousel per la scalatura.
+        df (DataFrame): DataFrame con i dati della machine table per trovare Datalogic, Oversize, SMITHS, ecc.
     """
     # Se sono disponibili esempi validati per API008, usa quelli per garantire conformità
     api_folder = f'API0{selected_cab_plc[-2:]}'
@@ -1711,35 +1674,248 @@ def create_dig_in_file(selected_cab_plc, output_base_folder, conveyor_data_for_d
         "	"
     ]
     
-    # Verifica se ci sono linee CA12, CA22 o CA32 per aggiungere Badge Reader
-    has_badge_reader_line = False
-    if ordered_prefixes:
-        for prefix in ordered_prefixes:
-            prefix_upper = prefix.upper()
-            if prefix_upper in ['CA12', 'CA22', 'CA32']:
-                has_badge_reader_line = True
-                break
+    # ============================================
+    # 1. REGION HMI Test (con tutti i JOG per i tronchi)
+    # ============================================
+    # Determina tutti i tronchi leggendo i file .db nella cartella di output (fonte più affidabile)
+    api_folder = f'API0{selected_cab_plc[-2:]}'
+    output_folder = os.path.join(output_base_folder, selected_cab_plc, api_folder)
     
-    # Aggiungi la sezione Badge Reader all'inizio se necessario
-    if has_badge_reader_line:
-        # Determina il prefisso CAB_PLC per i riferimenti
-        cab_prefix = selected_cab_plc[-2:] if len(selected_cab_plc) >= 2 else selected_cab_plc
-        badge_reader_region = f"""
-REGION Input Badge Reader
+    all_trunks_for_hmi = []
+    max_trunk_num = 0
+    
+    # Leggi i file .db dei tronchi dalla cartella di output
+    if os.path.exists(output_folder):
+        try:
+            trunk_files = [f for f in os.listdir(output_folder) if f.startswith('DbiTrunkLN') and f.endswith('.db')]
+            for trunk_file in trunk_files:
+                trunk_name = trunk_file.replace('DbiTrunkLN', '').replace('.db', '')
+                if trunk_name == 'Carousel':
+                    all_trunks_for_hmi.append('Carousel')
+                else:
+                    try:
+                        trunk_num = int(trunk_name)
+                        all_trunks_for_hmi.append(trunk_num)
+                        if trunk_num > max_trunk_num:
+                            max_trunk_num = trunk_num
+                    except ValueError:
+                        continue
+            print(f"DEBUG - create_dig_in_file HMI Test: Tronchi dai file .db: {len(all_trunks_for_hmi)} tronchi")
+        except Exception as e:
+            print(f"DEBUG - create_dig_in_file HMI Test: Errore nel leggere file .db: {e}")
+    
+    # Se non abbiamo trovato tronchi dai file .db, usa trunk_to_line_mapping
+    if not all_trunks_for_hmi and trunk_to_line_mapping:
+        numeric_trunks = [k for k in trunk_to_line_mapping.keys() if isinstance(k, (int, float))]
+        if numeric_trunks:
+            max_trunk_num = max([int(t) for t in numeric_trunks])
+            all_trunks_for_hmi = [int(t) for t in numeric_trunks]
+        if 'Carousel' in trunk_to_line_mapping.values():
+            all_trunks_for_hmi.append('Carousel')
+        print(f"DEBUG - create_dig_in_file HMI Test: Tronchi da trunk_to_line_mapping: {len(all_trunks_for_hmi)} tronchi")
+    
+    # Se ancora non abbiamo trovato tronchi, usa il DataFrame
+    if not all_trunks_for_hmi and df is not None:
+        try:
+            df_trunks = df['ITEM_TRUNK'].dropna().unique()
+            for trunk_id in df_trunks:
+                if pd.notna(trunk_id):
+                    trunk_val = float(trunk_id)
+                    if trunk_val != 0:
+                        trunk_int = int(trunk_val)
+                        if trunk_int not in all_trunks_for_hmi:
+                            all_trunks_for_hmi.append(trunk_int)
+                            if trunk_int > max_trunk_num:
+                                max_trunk_num = trunk_int
+            print(f"DEBUG - create_dig_in_file HMI Test: Tronchi dal DataFrame: {len(all_trunks_for_hmi)} tronchi")
+        except Exception as e:
+            print(f"DEBUG - create_dig_in_file HMI Test: Errore nel leggere tronchi dal DataFrame: {e}")
+    
+    # Ordina i tronchi: prima i numerici, poi Carousel
+    numeric_trunks_hmi = sorted([t for t in all_trunks_for_hmi if isinstance(t, int)])
+    carousel_trunks_hmi = [t for t in all_trunks_for_hmi if t == 'Carousel']
+    sorted_trunks_hmi = numeric_trunks_hmi + carousel_trunks_hmi
+    
+    # Crea mappatura di scalatura per i tronchi (come in create_conf_file)
+    trunk_scaling_mapping = {}
+    if carousel_trunk_position is not None:
+        for trunk_idx in sorted_trunks_hmi:
+            if trunk_idx == 'Carousel':
+                continue
+            if trunk_idx == carousel_trunk_position:
+                trunk_scaling_mapping[trunk_idx] = "Carousel"
+            elif trunk_idx > carousel_trunk_position:
+                trunk_scaling_mapping[trunk_idx] = trunk_idx - 1  # Scala di 1
+            else:
+                trunk_scaling_mapping[trunk_idx] = trunk_idx  # Mantieni originale
+    else:
+        # Se non c'è carousel, tutti i tronchi mantengono il loro numero originale
+        for trunk_idx in sorted_trunks_hmi:
+            if trunk_idx != 'Carousel':
+                trunk_scaling_mapping[trunk_idx] = trunk_idx
+    
+    # Genera tutti i JOG per i tronchi trovati
+    jog_lines = []
+    for trunk_idx in sorted_trunks_hmi:
+        if trunk_idx == 'Carousel':
+            # Il carousel usa il numero originale del tronco per JOG_T
+            jog_trunk_num = carousel_trunk_position if carousel_trunk_position is not None else 'Carousel'
+            jog_lines.append(f'        "DbiTrunkLNCarousel".Data.IN.JOG := "DB_TEST_HMI".JOG_T{jog_trunk_num};')
+        else:
+            if trunk_idx in trunk_scaling_mapping:
+                mapped_trunk = trunk_scaling_mapping[trunk_idx]
+            else:
+                mapped_trunk = trunk_idx
+            
+            if mapped_trunk == "Carousel":
+                jog_trunk_num = carousel_trunk_position if carousel_trunk_position is not None else trunk_idx
+                jog_lines.append(f'        "DbiTrunkLNCarousel".Data.IN.JOG := "DB_TEST_HMI".JOG_T{jog_trunk_num};')
+            else:
+                jog_lines.append(f'        "DbiTrunkLN{mapped_trunk:02d}".Data.IN.JOG := "DB_TEST_HMI".JOG_T{trunk_idx};')
+    
+    hmi_test_region = f"""
+REGION HMI Test
 
-    // MANAGE INPUT READER
-    // 
-    "BadgeReader1".Data.IN.BadgeSignal := "CUSTOMER_X_ENABLE_BPCT";
-    "BadgeReader1".Data.IN.EOK := "MCP{cab_prefix}_165F1_230VAC_UPS_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_BADGE_READER";
-    "BadgeReader1"();
+
+
+    
+
+        // HMI COMMANDS FROM TP700 DEPLOY TOOL
+
+    IF "DB_TEST_HMI".ENABLED THEN
+{chr(10).join(jog_lines)}
         
+        IF ("DB_TEST_HMI".ACTIVATE_TURBO) THEN
+            "DB_TEST_HMI".BONUS_SPEED := "DB_TEST_HMI".BONUS_SPEED_SP;
+        ELSE
+            "DB_TEST_HMI".BONUS_SPEED := 0;
+        END_IF;
+    END_IF;
+    
+
+END_REGION;
+"""
+    dig_in_content_lines.append(hmi_test_region)
+    
+    # ============================================
+    # 2. REGION Input PANEL
+    # ============================================
+    # Carica segnali Panel dall'IO List
+    cab_prefix = selected_cab_plc[-2:] if len(selected_cab_plc) >= 2 else selected_cab_plc
+    cab_prefix_upper = cab_prefix.upper()
+    
+    # Cerca segnali Panel dall'IO List
+    io_list_file = find_io_list_file(selected_cab_plc)
+    panel_signals = {
+        'fault_ack': f"MCP{cab_prefix_upper}_450S2_FAULT_ACKNOWLEDGMENT",
+        'emergency_reset': f"MCP{cab_prefix_upper}_450S1_EMERGENCY_RESET",
+        'bus_com_gen_1': f"MCP{cab_prefix_upper}_107F2_230VAC_UPS_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_NETWORK_ANALYZER",
+        'bus_com_gen_2': f"MCP{cab_prefix_upper}_107F1_400VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_NETWORK_ANALYZER",
+        'vent': f"MCP{cab_prefix_upper}_105F1_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_FAN",
+        'temp': f"MCP{cab_prefix_upper}_105B1_HIGH_TEMPERATURE_ALARM",
+        'eok24': f"MCP{cab_prefix_upper}_100Q1_MAIN_SWITCH_CLOSED",
+        'eal24': f"MCP{cab_prefix_upper}_100Q1_MAIN_SWITCH_TRIPPED",
+        'gen': f"MCP{cab_prefix_upper}_211F1_ELECTRONIC_FUSE_FEEDBACK"
+    }
+    
+    if io_list_file:
+        try:
+            import pandas as pd
+            xls_io = pd.ExcelFile(io_list_file)
+            df_io = pd.read_excel(xls_io, sheet_name='IO List', header=None)
+            id_col_idx = 4
+            sw_tag_col_idx = 6
+            
+            for idx in range(3, len(df_io)):
+                sw_tag = str(df_io.iloc[idx, sw_tag_col_idx]) if pd.notna(df_io.iloc[idx, sw_tag_col_idx]) else ""
+                sw_tag_upper = sw_tag.strip().upper()
+                
+                # Cerca segnali Panel specifici
+                if '450S2' in sw_tag_upper and 'FAULT_ACKNOWLEDGMENT' in sw_tag_upper:
+                    panel_signals['fault_ack'] = sw_tag.strip()
+                elif '450S1' in sw_tag_upper and 'EMERGENCY_RESET' in sw_tag_upper:
+                    panel_signals['emergency_reset'] = sw_tag.strip()
+                elif '107F2' in sw_tag_upper and 'NETWORK_ANALYZER' in sw_tag_upper:
+                    panel_signals['bus_com_gen_1'] = sw_tag.strip()
+                elif '107F1' in sw_tag_upper and 'NETWORK_ANALYZER' in sw_tag_upper:
+                    panel_signals['bus_com_gen_2'] = sw_tag.strip()
+                elif '105F1' in sw_tag_upper and 'FAN' in sw_tag_upper:
+                    panel_signals['vent'] = sw_tag.strip()
+                elif '105B1' in sw_tag_upper and 'TEMPERATURE' in sw_tag_upper:
+                    panel_signals['temp'] = sw_tag.strip()
+                elif '100Q1' in sw_tag_upper and 'MAIN_SWITCH_CLOSED' in sw_tag_upper:
+                    panel_signals['eok24'] = sw_tag.strip()
+                elif '100Q1' in sw_tag_upper and 'MAIN_SWITCH_TRIPPED' in sw_tag_upper:
+                    panel_signals['eal24'] = sw_tag.strip()
+                elif '211F1' in sw_tag_upper and 'ELECTRONIC_FUSE' in sw_tag_upper:
+                    panel_signals['gen'] = sw_tag.strip()
+        except Exception as e:
+            print(f"DEBUG - Errore durante la lettura dell'IO List per Panel: {e}")
+    
+    # Genera Signal1-Signal136 per Panel Custom Alarm
+    signal_lines = []
+    for i in range(1, 137):
+        signal_lines.append(f'        "DbiPanel1".Data.IN.Signal{i} := FALSE;')
+    
+    panel_region = f"""
+REGION Input PANEL
+
+    
+
+    REGION Panel Digital inputs        
+        "DbiPanel1".Data.IN.ABIL := true;
+        "DbiPanel1".Data.IN.ESCL := true;
+        "DbiPanel1".Data.IN.TAC := true;
+        "DbiPanel1".Data.IN.RANM := "{panel_signals['fault_ack']}";
+        "DbiPanel1".Data.IN.REMG := "{panel_signals['emergency_reset']}";
+        "DbiPanel1".Data.IN.BUS_COM_GEN := true;
+        "DbiPanel1".Data.IN.BUS_COM_GEN := "DbiPanel1".Data.IN.BUS_COM_GEN AND "{panel_signals['bus_com_gen_1']}";
+        "DbiPanel1".Data.IN.BUS_COM_GEN := "DbiPanel1".Data.IN.BUS_COM_GEN AND "{panel_signals['bus_com_gen_2']}";
+        "DbiPanel1".Data.IN.VENT := "{panel_signals['vent']}";
+        "DbiPanel1".Data.IN.TEMP := "{panel_signals['temp']}";
+        "DbiPanel1".Data.IN.EOK24 := "{panel_signals['eok24']}";
+        "DbiPanel1".Data.IN.EAL24 := "{panel_signals['eal24']}";
+        "DbiPanel1".Data.IN.EAL24I := true;
+        "DbiPanel1".Data.IN.EAL24O := true;
+        "DbiPanel1".Data.IN.GEN := "{panel_signals['gen']}";
 END_REGION
 
+    
+
+    REGION Panel Custom Alarm
+{chr(10).join(signal_lines)}
+    END_REGION
+
+    
+
+END_REGION
 """
-        dig_in_content_lines.append(badge_reader_region)
-        
-        # Crea il data block BadgeReader1
-        create_badge_reader_db(selected_cab_plc, output_base_folder)
+    dig_in_content_lines.append(panel_region)
+    
+    # ============================================
+    # 3. REGION Input LINE 1/2/3/4 (con struttura semplificata)
+    # ============================================
+    # Assicurati che trunk_scaling_mapping sia definita correttamente per tutte le sezioni
+    # Ridefinisci trunk_scaling_mapping se necessario per includere tutti i tronchi
+    if trunk_to_line_mapping:
+        # Trova il numero massimo di tronchi da trunk_to_line_mapping
+        max_trunk_from_mapping = max([k for k in trunk_to_line_mapping.keys() if isinstance(k, (int, float))]) if trunk_to_line_mapping else 0
+        if max_trunk_from_mapping > max_trunk_num:
+            max_trunk_num = max_trunk_from_mapping
+            # Ricrea trunk_scaling_mapping con il numero corretto di tronchi
+            trunk_scaling_mapping = {}
+            if carousel_trunk_position is not None:
+                for trunk_idx in range(1, max_trunk_num + 1):
+                    if trunk_idx == carousel_trunk_position:
+                        trunk_scaling_mapping[trunk_idx] = "Carousel"
+                    elif trunk_idx > carousel_trunk_position:
+                        trunk_scaling_mapping[trunk_idx] = trunk_idx - 1  # Scala di 1
+                    else:
+                        trunk_scaling_mapping[trunk_idx] = trunk_idx  # Mantieni originale
+            else:
+                # Se non c'è carousel, tutti i tronchi mantengono il loro numero originale
+                for trunk_idx in range(1, max_trunk_num + 1):
+                    trunk_scaling_mapping[trunk_idx] = trunk_idx
     
     # Genera le sezioni REGION Input LINE per ogni linea
     if trunk_to_line_mapping and prefix_to_line_numbers and ordered_prefixes:
@@ -1749,19 +1925,6 @@ END_REGION
             if line_num not in line_to_trunks:
                 line_to_trunks[line_num] = []
             line_to_trunks[line_num].append(trunk_id)
-        
-        # Crea mappatura di scalatura per i tronchi (come in create_conf_file)
-        trunk_scaling_mapping = {}
-        if carousel_trunk_position is not None:
-            # Trova il numero massimo di tronchi
-            max_trunk = max(trunk_to_line_mapping.keys()) if trunk_to_line_mapping else 0
-            for trunk_idx in range(1, max_trunk + 1):
-                if trunk_idx == carousel_trunk_position:
-                    trunk_scaling_mapping[trunk_idx] = "Carousel"
-                elif trunk_idx > carousel_trunk_position:
-                    trunk_scaling_mapping[trunk_idx] = trunk_idx - 1  # Scala di 1
-                else:
-                    trunk_scaling_mapping[trunk_idx] = trunk_idx  # Mantieni originale
         
         # Genera REGION Input LINE per ogni linea normale (non Carousel)
         for line_idx, prefix in enumerate(ordered_prefixes, start=1):
@@ -1812,25 +1975,38 @@ END_REGION
                             jog_trunk_num = mapped_trunk
                         trunk_jog_lines.append(f'        "{trunk_ref}".Data.IN.JOG := "DB_TEST_HMI".JOG_T{jog_trunk_num};')
                     
+                    # Cerca pulsanti di reset specifici per questa linea dall'IO List o dal DataFrame
+                    reset_button_lines = []
+                    if df is not None:
+                        # Cerca pulsanti BR (Button Reset) per questa linea
+                        prefix_upper = prefix.upper()
+                        br_items = df[df['ITEM_ID_CUSTOM'].str.contains('BR', case=False, na=False) & 
+                                     df['ITEM_ID_CUSTOM'].str.upper().str.startswith(prefix_upper, na=False)]
+                        for _, br_row in br_items.iterrows():
+                            br_id = str(br_row['ITEM_ID_CUSTOM']).replace('-', '_').upper()
+                            reset_button_lines.append(f'    "{br_id}_100S2_FAULT_ACKNOWLEDGMENT" OR')
+                    
+                    # Aggiungi sempre il pulsante Panel fault acknowledgment
+                    reset_button_lines.insert(0, f'    "{panel_signals["fault_ack"]}" OR')
+                    
                     line_region_content = f"""
 REGION Input LINE {normal_line_num}
 
-    // //EMERGENCY FOR LINE {normal_line_num}
-    // "{line_ref}".Data.IN.EXT_EMG := NOT "ESTOP_Z1".Q;
     
-    // // FIRE ALARM SCENARY
-    // "{line_ref}".Data.IN.COND_EN_SCN1 := FALSE; //NOT "FIRESHUTTER1".Data.OUT.StopForFireAndAreaFree;
     
     // LINE AND TRUNKS ENABLING
     "{line_ref}".Data.SA.ST_LINE_ENBL := true;
     "{line_ref}".ComLineTrunk.L_OPENED := true;
-{chr(10).join(trunk_enabled_lines)}
     
     // FAULT RESET
     "{line_ref}".Data.IN.KEY_RANM :=
+{chr(10).join(reset_button_lines)}
 {chr(10).join([line + " OR" for line in trunk_reset_lines])}
     "DbGlobale".GlobalData.Reset_Alm OR
             ("DB_TEST_HMI".RESET AND "DB_TEST_HMI".ENABLED);
+    
+    // EMERGENCY
+    "{line_ref}".Data.COM_PCE.PCE1 := NOT "SAFE_ZONE_DB".EmergencyOk.Zone1;
     
     // BUZZER MUTE
             "{line_ref}".Data.IN.TACITASIRENA := "{line_ref}".Data.IN.TACITASIRENA;
@@ -1841,117 +2017,152 @@ REGION Input LINE {normal_line_num}
     // BADGE LINE STARTING AND STOPPING
             "{line_ref}".Data.IN.START := "DB_TEST_HMI".BADGE_START;
             "{line_ref}".Data.CMD.CMD_START := "DB_TEST_HMI".BADGE_START;
-	
     "{line_ref}".Data.IN.STOP := "DB_TEST_HMI".STOP_LINE OR "{line_ref}".Data.SA.ST_EMG;
-    
     "{line_ref}".Data.CMD.CMD_STOP := "DB_TEST_HMI".STOP_LINE OR "{line_ref}".Data.SA.ST_EMG;
     
     
-    // HMI COMMANDS FROM TP700 DEPLOY TOOL
-    IF "DB_TEST_HMI".ENABLED THEN
-{chr(10).join(trunk_jog_lines)}
-        
-        IF ("DB_TEST_HMI".ACTIVATE_TURBO) THEN
-            "DB_TEST_HMI".BONUS_SPEED := "DB_TEST_HMI".BONUS_SPEED_SP;
-        ELSE
-            "DB_TEST_HMI".BONUS_SPEED := 0;
-        END_IF;
-    END_IF;
+    
     
 END_REGION
-
 """
                     dig_in_content_lines.append(line_region_content)
         
-        # Genera REGION Input LINE per la linea Carousel (se presente)
-        if 'Carousel' in line_to_trunks:
-            carousel_trunks = line_to_trunks['Carousel']
-            carousel_trunks_sorted = sorted(carousel_trunks)
-            trunk_refs_carousel = []
-            for trunk_id in carousel_trunks_sorted:
-                trunk_refs_carousel.append("DbiTrunkLNCarousel")
-            
-            line_ref_carousel = "DbiLineCarousel"
-            trunk_enabled_lines_carousel = []
-            trunk_reset_lines_carousel = []
-            trunk_jog_lines_carousel = []
-            
-            # Calcola il numero del tronco carousel per JOG_T
-            # Il carousel usa il numero originale del tronco (carousel_trunk_position)
-            carousel_jog_trunk_num = carousel_trunk_position if carousel_trunk_position is not None else None
-            if carousel_jog_trunk_num is None:
-                # Se non c'è carousel_trunk_position, cerca il tronco carousel nella mappatura
-                for trunk_id, line_num in trunk_to_line_mapping.items():
-                    if line_num == 'Carousel':
-                        carousel_jog_trunk_num = trunk_id
-                        break
-                if carousel_jog_trunk_num is None:
-                    # Fallback: usa il numero massimo trovato
-                    carousel_jog_trunk_num = max(trunk_to_line_mapping.keys()) if trunk_to_line_mapping else 0
-            
-            for i, trunk_ref in enumerate(trunk_refs_carousel, start=1):
-                trunk_enabled_lines_carousel.append(f'    "{trunk_ref}".Data.SA.ST_LINE_ENABLED := true;')
-                trunk_reset_lines_carousel.append(f'    "{trunk_ref}".Data.IN.RESET')
-                trunk_jog_lines_carousel.append(f'        "{trunk_ref}".Data.IN.JOG := "DB_TEST_HMI".JOG_T{carousel_jog_trunk_num};')
-            
-            # Per la linea Carousel, usa un numero di linea appropriato (ultimo + 1 o un numero speciale)
-            carousel_line_num = len(ordered_prefixes) + 1 if ordered_prefixes else 999
-            
-            carousel_line_region_content = f"""
-REGION Input LINE Carousel
+        # NOTA: La sezione LINE Carousel viene generata nella sezione Carousel finale, non qui
 
-    // //EMERGENCY FOR LINE Carousel
-    // "{line_ref_carousel}".Data.IN.EXT_EMG := NOT "ESTOP_Z1".Q;
+    # ============================================
+    # 4. REGION Input Trunks (con tutti i tronchi separati)
+    # ============================================
+    dig_in_content_lines.append("REGION Input Trunks")
+    dig_in_content_lines.append("")
     
-    // // FIRE ALARM SCENARY
-    // "{line_ref_carousel}".Data.IN.COND_EN_SCN1 := FALSE; //NOT "FIRESHUTTER1".Data.OUT.StopForFireAndAreaFree;
+    # Genera REGION Input TRUNK per ogni tronco
+    # IMPORTANTE: Assicurati di processare TUTTI i tronchi
+    # La fonte più affidabile sono i file .db dei tronchi già creati nella cartella di output
+    print(f"DEBUG - create_dig_in_file: trunk_to_line_mapping ricevuto: {trunk_to_line_mapping}")
+    print(f"DEBUG - create_dig_in_file: Numero di tronchi in trunk_to_line_mapping: {len(trunk_to_line_mapping) if trunk_to_line_mapping else 0}")
     
-    // LINE AND TRUNKS ENABLING
-    "{line_ref_carousel}".Data.SA.ST_LINE_ENBL := true;
-    "{line_ref_carousel}".ComLineTrunk.L_OPENED := true;
-{chr(10).join(trunk_enabled_lines_carousel)}
+    # Raccogli tutti i tronchi dai file .db nella cartella di output (fonte più affidabile)
+    all_trunk_ids = []
     
-    // FAULT RESET
-    "{line_ref_carousel}".Data.IN.KEY_RANM :=
-{chr(10).join([line + " OR" for line in trunk_reset_lines_carousel])}
-    "DbGlobale".GlobalData.Reset_Alm OR
-            ("DB_TEST_HMI".RESET AND "DB_TEST_HMI".ENABLED);
+    # Prima prova a leggere i file .db dei tronchi dalla cartella di output
+    api_folder = f'API0{selected_cab_plc[-2:]}'
+    output_folder = os.path.join(output_base_folder, selected_cab_plc, api_folder)
     
-    // BUZZER MUTE
-            "{line_ref_carousel}".Data.IN.TACITASIRENA := "{line_ref_carousel}".Data.IN.TACITASIRENA;
+    if os.path.exists(output_folder):
+        try:
+            # Cerca tutti i file DbiTrunkLN*.db
+            trunk_files = [f for f in os.listdir(output_folder) if f.startswith('DbiTrunkLN') and f.endswith('.db')]
+            
+            for trunk_file in trunk_files:
+                # Estrai il numero del tronco dal nome del file
+                trunk_name = trunk_file.replace('DbiTrunkLN', '').replace('.db', '')
+                if trunk_name == 'Carousel':
+                    if 'Carousel' not in all_trunk_ids:
+                        all_trunk_ids.append('Carousel')
+                else:
+                    try:
+                        trunk_num = int(trunk_name)
+                        if trunk_num not in all_trunk_ids:
+                            all_trunk_ids.append(trunk_num)
+                    except ValueError:
+                        continue
+            
+            print(f"DEBUG - create_dig_in_file: Tronchi dai file .db: {len(all_trunk_ids)} tronchi trovati")
+        except Exception as e:
+            print(f"DEBUG - create_dig_in_file: Errore nel leggere file .db: {e}")
     
-    // LOCAL (MAINTENANCE/MANUAL) - REMOTE (AUTOMATIC) 
-            "{line_ref_carousel}".Data.IN."REMOTE" := "DB_TEST_HMI".AUTO;
+    # Se non abbiamo trovato tronchi dai file .db, prova con trunk_to_line_mapping
+    if not all_trunk_ids and trunk_to_line_mapping:
+        for trunk_id in trunk_to_line_mapping.keys():
+            if isinstance(trunk_id, (int, float)):
+                if int(trunk_id) not in all_trunk_ids:
+                    all_trunk_ids.append(int(trunk_id))
+            elif trunk_id == "Carousel" or str(trunk_id).upper() == "CAROUSEL":
+                if "Carousel" not in all_trunk_ids:
+                    all_trunk_ids.append("Carousel")
+        print(f"DEBUG - create_dig_in_file: Tronchi da trunk_to_line_mapping: {len(all_trunk_ids)} tronchi")
+    elif trunk_to_line_mapping:
+        # Aggiungi anche i tronchi da trunk_to_line_mapping che potrebbero mancare
+        for trunk_id in trunk_to_line_mapping.keys():
+            if isinstance(trunk_id, (int, float)):
+                if int(trunk_id) not in all_trunk_ids:
+                    all_trunk_ids.append(int(trunk_id))
+            elif trunk_id == "Carousel" or str(trunk_id).upper() == "CAROUSEL":
+                if "Carousel" not in all_trunk_ids:
+                    all_trunk_ids.append("Carousel")
     
-    // BADGE LINE STARTING AND STOPPING
-            "{line_ref_carousel}".Data.IN.START := "DB_TEST_HMI".BADGE_START;
-            "{line_ref_carousel}".Data.CMD.CMD_START := "DB_TEST_HMI".BADGE_START;
-            "DbGlobale".GlobalData.Start_All := "DB_TEST_HMI".BADGE_START;
-    "{line_ref_carousel}".Data.IN.STOP := "DB_TEST_HMI".STOP_LINE OR "{line_ref_carousel}".Data.SA.ST_EMG;
+    # Se ancora non abbiamo trovato tronchi, prova con il DataFrame
+    if not all_trunk_ids and df is not None:
+        try:
+            df_trunks = df['ITEM_TRUNK'].dropna().unique()
+            for trunk_id in df_trunks:
+                if pd.notna(trunk_id):
+                    trunk_val = float(trunk_id)
+                    if trunk_val != 0 and trunk_val not in all_trunk_ids:
+                        all_trunk_ids.append(int(trunk_val))
+            print(f"DEBUG - create_dig_in_file: Tronchi dal DataFrame: {len(all_trunk_ids)} tronchi")
+        except Exception as e:
+            print(f"DEBUG - create_dig_in_file: Errore nel leggere tronchi dal DataFrame: {e}")
     
-    "{line_ref_carousel}".Data.CMD.CMD_STOP := "DB_TEST_HMI".STOP_LINE OR "{line_ref_carousel}".Data.SA.ST_EMG;
-    
-    
-    // HMI COMMANDS FROM TP700 DEPLOY TOOL
-    IF "DB_TEST_HMI".ENABLED THEN
-{chr(10).join(trunk_jog_lines_carousel)}
+    if all_trunk_ids:
+        # Ordina i tronchi: prima i numerici, poi Carousel
+        numeric_trunks = sorted([t for t in all_trunk_ids if isinstance(t, int)])
+        carousel_trunks = [t for t in all_trunk_ids if t == "Carousel"]
+        sorted_trunk_ids = numeric_trunks + carousel_trunks
         
-        IF ("DB_TEST_HMI".ACTIVATE_TURBO) THEN
-            "DB_TEST_HMI".BONUS_SPEED := "DB_TEST_HMI".BONUS_SPEED_SP;
-        ELSE
-            "DB_TEST_HMI".BONUS_SPEED := 0;
-        END_IF;
-    END_IF;
+        print(f"DEBUG - create_dig_in_file: Processando {len(sorted_trunk_ids)} tronchi: {sorted_trunk_ids}")
+    else:
+        print(f"DEBUG - create_dig_in_file: ATTENZIONE - Nessun tronco trovato!")
+        sorted_trunk_ids = []
     
-END_REGION
+    if sorted_trunk_ids:
+        for trunk_id in sorted_trunk_ids:
+            # Determina il tronco mappato
+            if trunk_id == "Carousel":
+                mapped_trunk = "Carousel"
+                trunk_ref = "DbiTrunkLNCarousel"
+                trunk_num_display = "Carousel"
+                jog_trunk_num = carousel_trunk_position if carousel_trunk_position is not None else "Carousel"
+            else:
+                if trunk_id in trunk_scaling_mapping:
+                    mapped_trunk = trunk_scaling_mapping[trunk_id]
+                else:
+                    mapped_trunk = trunk_id
+                
+                if mapped_trunk == "Carousel":
+                    trunk_ref = "DbiTrunkLNCarousel"
+                    trunk_num_display = "Carousel"
+                    jog_trunk_num = carousel_trunk_position if carousel_trunk_position is not None else trunk_id
+                else:
+                    trunk_ref = f"DbiTrunkLN{mapped_trunk:02d}"
+                    trunk_num_display = mapped_trunk
+                    jog_trunk_num = trunk_id
+            
+            trunk_region = f"""
+    REGION Input TRUNK {trunk_num_display}
+        
+        "{trunk_ref}".Data.IN.DP_COM := false;
+        "{trunk_ref}".Data.IN.RESET := "DB_TEST_HMI".RESET;
+        "{trunk_ref}".Data.IN.SEL_AUT := NOT "DB_TEST_HMI".JOG_T{jog_trunk_num};
+        // "{trunk_ref}".Data.IN.EMG := NOT "SAFE_ZONE_DB".EmergencyOk.Zone1;
+        
+    END_REGION
+
+    
 
 """
-            dig_in_content_lines.append(carousel_line_region_content)
-
-    # NOTA: Le regioni CAROUSEL vengono generate DOPO i CONVEYOR (in fondo al file)
-    # Vedi dopo la generazione dei CONVEYOR per il codice completo
-
-    # Genera le regioni per i conveyor (PRIMA dei carousel - i carousel vanno in fondo)
+            dig_in_content_lines.append(trunk_region)
+    
+    dig_in_content_lines.append("END_REGION")
+    dig_in_content_lines.append("")
+    
+    # ============================================
+    # 5. REGION Input Conveyors
+    # ============================================
+    dig_in_content_lines.append("REGION Input Conveyors")
+    dig_in_content_lines.append("")
+    
+    # Genera le regioni per i conveyor
     if conveyor_data_for_dig_in:
         for data in conveyor_data_for_dig_in:
             item_id_custom_new = data['item_id_custom_new']
@@ -2008,142 +2219,117 @@ END_REGION
             dig_in_content_lines.append(region_content)
             dig_in_content_lines.append("") # Aggiunge una riga vuota tra le regioni
 
-    # Genera le regioni per i carousel (DOPO i CONVEYOR, in fondo al file)
-    print(f"DEBUG create_dig_in_file - carousel_data_for_dig_in: {carousel_data_for_dig_in}")
-    print(f"DEBUG create_dig_in_file - len(carousel_data_for_dig_in): {len(carousel_data_for_dig_in) if carousel_data_for_dig_in else 0}")
-    if carousel_data_for_dig_in and len(carousel_data_for_dig_in) > 0:
-        print(f"DEBUG create_dig_in_file - Entro nel blocco if per generare sezioni CAROUSEL")
-        for carousel_data in carousel_data_for_dig_in:
-            carousel_id = carousel_data['carousel_id']  # es. "Carousel1"
-            comment_name = carousel_data['comment_name']  # es. "CA11CA023"
-            motors = carousel_data['motors']
-            booking_pht01_ref = carousel_data['booking_pht01_ref']
-            booking_pht02_ref = carousel_data['booking_pht02_ref']
-            power_supply_breaker_status_ref = carousel_data['power_supply_breaker_status_ref']
-            motor_group_rotating_ref = carousel_data['motor_group_rotating_ref']
-            selected_cab_plc_val = carousel_data['selected_cab_plc']
+    dig_in_content_lines.append("END_REGION")
+    dig_in_content_lines.append("")
+    
+    # ============================================
+    # 6. REGION Input Datalogic
+    # ============================================
+    dig_in_content_lines.append("REGION Input Datalogic")
+    dig_in_content_lines.append("")
+    
+    # Cerca Datalogic items dal DataFrame
+    if df is not None:
+        datalogic_items = df[df['ITEM_ID_CUSTOM'].str.contains('SC|LC', case=False, na=False)]['ITEM_ID_CUSTOM'].unique()
+        for item_id in datalogic_items:
+            item_id_clean = str(item_id).replace('-', '_').upper()
+            # Determina il prefisso per questo Datalogic
+            datalogic_prefix = ordered_prefixes[0].upper() if ordered_prefixes else "CP21"
+            for prefix in ordered_prefixes:
+                if prefix.upper() in item_id_clean:
+                    datalogic_prefix = prefix.upper()
+                    break
             
-            # Costruisci la condizione IF per Profinet (OR per tutti i motori)
-            profinet_conditions = " OR ".join([f'"SV_DB_PROFINET_SA".FaultProfinet1[{motor["profinet_index"]}]' for motor in motors])
+            # Cerca segnali EOK dall'IO List
+            eok_signal = f"MCP{cab_prefix_upper}_150F1_230VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_ATR_CAMERA_{item_id_clean}"
+            if 'LC' in item_id_clean:
+                eok_signal = f"MCP{cab_prefix_upper}_150F2_230VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_ATR_BOTTOM_READER_{item_id_clean}"
             
-            # Costruisci le assegnazioni per ogni motore
-            drive_dataok_assignments_if = []
-            drive_dataok_assignments_else = []
-            busfault_assignments_if = []
-            busfault_assignments_else = []
-            safety_breaker_assignments = []
-            key_switch_assignments = []
-            motor_group_inserted_assignments = []
-            pitch_control_assignments = []
-            drive_eok_assignments = []
-            drive_telegram_assignments = []
+            # Determina il nome del Datalogic (SC vs LC)
+            is_lc = "LC" in item_id_clean
+            comment_text = "ATR Bottom" if is_lc else "ATR 360"
             
-            for motor in motors:
-                motor_num = motor['motor_number']
-                drive_dataok_assignments_if.append(f'        "{carousel_id}".Drive_{motor_num}.Data.In.DataOk := NOT "SV_DB_PROFINET_SA".FaultProfinet1[{motor["profinet_index"]}];')
-                drive_dataok_assignments_else.append(f'        "{carousel_id}".Drive_{motor_num}.Data.In.DataOk := TRUE;')
-                busfault_assignments_if.append(f'        "{carousel_id}".Carousel.Data.IN.BusFault{motor_num} := TRUE;')
-                busfault_assignments_else.append(f'        "{carousel_id}".Carousel.Data.IN.BusFault{motor_num} := FALSE;')
-                safety_breaker_assignments.append(f'    "{carousel_id}".Carousel.Data.IN.SafetyBreaker{motor_num} := NOT "{motor["safety_switch_ref"]}";')
-                key_switch_assignments.append(f'    "{carousel_id}".Carousel.Data.IN."KeySwitchLocalMode_{motor_num}" := "{motor["key_switch_ref"]}";')
-                motor_group_inserted_assignments.append(f'    "{carousel_id}".Carousel.Data.IN.MotorGroupInserted_{motor_num} := "{motor["motor_group_inserted_ref"]}";')
-                pitch_control_assignments.append(f'    "{carousel_id}".Carousel.Data.IN.PitchControl{motor_num} := "{motor["pitch_control_ref"]}";')
-                drive_eok_assignments.append(f'    "{carousel_id}".Drive_{motor_num}.Data.In.EOk := "{power_supply_breaker_status_ref}";')
-                drive_telegram_assignments.append(f'    "{carousel_id}".Drive_{motor_num}.Data.In.Telegram := "{motor["telegram_ref"]}";')
-            
-            # Costruisci i riferimenti PCE - usa il prefisso del carousel (es. "CA11" da "CA11CA023")
-            carousel_prefix_for_pce = comment_name[:4] if len(comment_name) >= 4 else ""
-            pce_refs = {
-                'maintenance': f"{carousel_prefix_for_pce}_OP501_100S1_MAINTENANCE",
-                'automatic': f"{carousel_prefix_for_pce}_OP501_100S1_AUTOMATIC",
-                'induction': f"{carousel_prefix_for_pce}_OP501_100S3_INDUCTION",
-                'start_stop': f"{carousel_prefix_for_pce}_OP501_100S4_START_STOP",
-                'speed_2': f"{carousel_prefix_for_pce}_OP501_100S2_SPEED_2",
-                'cycle_resume': f"{carousel_prefix_for_pce}_OP501_100S6_CYCLE_RESUME"
-            }
-            
-            carousel_region_content = f"""
-REGION Input CAROUSEL {carousel_id} ({comment_name})
-
+            datalogic_region = f"""
+    "Datalogic_{item_id_clean}".Data.IN.TriggerPht := false;
+    "Datalogic_{item_id_clean}".Data.IN.EOK := "{eok_signal}";
     
-
-    //    Profinet
-
-    
-
-    IF {profinet_conditions} THEN
-{chr(10).join(drive_dataok_assignments_if)}
-        
-{chr(10).join(busfault_assignments_if)}
-        
-        "{carousel_id}".Carousel.Pht01.Data.IN.BusFault := TRUE;
-        "{carousel_id}".Carousel.Pht02.Data.IN.BusFault := TRUE;
-        
-        "{carousel_id}".Encoder.Data.IN.BusFault := TRUE;
-    ELSE
-{chr(10).join(drive_dataok_assignments_else)}
-        
-{chr(10).join(busfault_assignments_else)}
-        
-        "{carousel_id}".Carousel.Pht01.Data.IN.BusFault := FALSE;
-        "{carousel_id}".Carousel.Pht02.Data.IN.BusFault := FALSE;
-        
-        "{carousel_id}".Encoder.Data.IN.BusFault := FALSE;
-    END_IF;
-    
-    //    Carousel Input
-    
-    "{carousel_id}".Carousel.Data.IN.PRS := FALSE;
-    "{carousel_id}".Carousel.Data.IN.Dir := TRUE;
-    "{carousel_id}".Carousel.Data.IN.ExternalFault := FALSE;
-    "{carousel_id}".Carousel.Data.IN.PFL := FALSE;
-    "{carousel_id}".Carousel.Data.IN.ASR := FALSE;
-    "{carousel_id}".Carousel.Data.IN.EnableBuffering := FALSE;
-{chr(10).join(safety_breaker_assignments)}
-{chr(10).join(key_switch_assignments)}
-    
-    
-{chr(10).join(motor_group_inserted_assignments)}
-    
-    "{carousel_id}".Carousel.Data.IN.MotorGroupRotating:= "{motor_group_rotating_ref}";
-    
-{chr(10).join(pitch_control_assignments)}
-    
-    "{carousel_id}".Carousel.Data.IN.SpeedSelector := "{pce_refs['speed_2']}";
-    
-    //Automatic mode is set when the switch is on AUTO and the cycle resume button is pressed once
-    "{carousel_id}".Carousel.Data.CMD.CMD_AUTO_MOD := NOT "{pce_refs['maintenance']}" AND
-    ("{carousel_id}".Carousel.Data.SA.ST_AUTOMATIC OR "{pce_refs['cycle_resume']}");
-    "{carousel_id}".Carousel.Data.CMD.CMD_MAN_MOD := "{pce_refs['maintenance']}";
-    "{carousel_id}".Carousel.Data.IN.StartStop_PB := ("{pce_refs['start_stop']}" AND NOT "{carousel_id}".Carousel.Data.SA.ST_AUTOMATIC) OR ("{pce_refs['cycle_resume']}" AND "{carousel_id}".Carousel.Data.SA.ST_AUTOMATIC);
-    "{carousel_id}".Carousel.Data.IN.CycleResume_PB := "{pce_refs['cycle_resume']}";
-    
-    //Informs the carousel of the status of the selector, in order to stop it if it's in the manual cycle mode active
-    "{carousel_id}".Carousel.Data.IN.Local_Sel_Auto := NOT "{pce_refs['maintenance']}";
-    
-    //    Booking Photocell Input
-    
-    "{carousel_id}".Carousel.Pht01.Data.IN.Photocell := NOT "{booking_pht01_ref}";
-    "{carousel_id}".Carousel.Pht02.Data.IN.Photocell := NOT "{booking_pht02_ref}";
-    
-    //    Drive Input
-    
-{chr(10).join(drive_eok_assignments)}
-
-{chr(10).join(drive_telegram_assignments)}
-    
-
-END_REGION
-
-REGION Input  SIDEINPUT Carousel
-
-    "Side_Input_{carousel_id}".DATA.IN.InjectionPB := "{pce_refs['induction']}";
-    "Side_Input_{carousel_id}".DATA.IN.CarouselManualMode := "{pce_refs['maintenance']}" AND NOT "{pce_refs['automatic']}";
-    
-END_REGION
 """
-            dig_in_content_lines.append(carousel_region_content)
-            dig_in_content_lines.append("") # Aggiunge una riga vuota tra le regioni
+            dig_in_content_lines.append(datalogic_region)
+    
+    dig_in_content_lines.append("END_REGION")
+    dig_in_content_lines.append("")
+    
+    # ============================================
+    # 7. REGION Input Oversize
+    # ============================================
+    dig_in_content_lines.append("REGION Input Oversize")
+    dig_in_content_lines.append("")
+    
+    # Cerca Oversize items dal DataFrame
+    if df is not None:
+        oversize_items = df[df['ITEM_ID_CUSTOM'].str.contains('OG', case=False, na=False)]['ITEM_ID_CUSTOM'].unique()
+        oversize_num = 1
+        for item_id in oversize_items:
+            item_id_clean = str(item_id).replace('-', '_').upper()
+            # Determina il prefisso per questo Oversize
+            oversize_prefix = ordered_prefixes[0].upper() if ordered_prefixes else "CP21"
+            for prefix in ordered_prefixes:
+                if prefix.upper() in item_id_clean:
+                    oversize_prefix = prefix.upper()
+                    break
+            
+            # Cerca segnali dall'IO List
+            reset_signal = f"{oversize_prefix}_MP101_100S1_OVERSIZE_ACKNOWLEDGMENT"
+            pht01_signal = None  # Da determinare dal contesto
+            pht02_signal = f"{oversize_prefix}_OG103_B7701_SIZE_CONTROL"
+            pht_stop_signal = None  # Da determinare dal contesto
+            
+            # Cerca segnali specifici dall'IO List
+            if io_list_file:
+                try:
+                    import pandas as pd
+                    xls_io = pd.ExcelFile(io_list_file)
+                    df_io = pd.read_excel(xls_io, sheet_name='IO List', header=None)
+                    id_col_idx = 4
+                    sw_tag_col_idx = 6
+                    
+                    for idx in range(3, len(df_io)):
+                        comp_id = str(df_io.iloc[idx, id_col_idx]) if pd.notna(df_io.iloc[idx, id_col_idx]) else ""
+                        sw_tag = str(df_io.iloc[idx, sw_tag_col_idx]) if pd.notna(df_io.iloc[idx, sw_tag_col_idx]) else ""
+                        comp_id_upper = comp_id.strip().upper()
+                        sw_tag_upper = sw_tag.strip().upper()
+                        
+                        if 'OVERSIZE' in comp_id_upper and 'ACKNOWLEDGMENT' in sw_tag_upper:
+                            reset_signal = sw_tag.strip()
+                        elif 'OG103' in comp_id_upper and 'SIZE_CONTROL' in sw_tag_upper:
+                            pht02_signal = sw_tag.strip()
+                except Exception as e:
+                    print(f"DEBUG - Errore durante la lettura dell'IO List per Oversize: {e}")
+            
+            # Trova il conveyor precedente per Pht01 e PhtStop
+            if conveyor_data_for_dig_in:
+                # Cerca il conveyor che precede questo Oversize
+                for conv_data in conveyor_data_for_dig_in:
+                    conv_id = conv_data['comment_name']
+                    if oversize_prefix in conv_id:
+                        # Usa il conveyor precedente per i riferimenti
+                        pht01_signal = f"{conv_id}_B1101_STOP_HEAD_PHOTOCELL"
+                        pht_stop_signal = f"{conv_id}_B1101_STOP_HEAD_PHOTOCELL"
+                        break
+            
+            oversize_region = f"""
+    "Oversize{oversize_num}".DATA.IN.Reset := "{reset_signal}" OR ("DB_TEST_HMI".RESET AND "DB_TEST_HMI".ENABLED);
+    "Oversize{oversize_num}".DATA.IN.Pht01 := NOT "{pht01_signal if pht01_signal else 'FALSE'}";
+    "Oversize{oversize_num}".DATA.IN.Pht02 := NOT "{pht02_signal}";
+    "Oversize{oversize_num}".DATA.IN.DriveSpeed := "Utenza{oversize_num}_{oversize_prefix}ST007".Drive.DriveSpeedYs;
+    "Oversize{oversize_num}".DATA.IN.PhtStop := NOT "{pht_stop_signal if pht_stop_signal else 'FALSE'}";
+    
+"""
+            dig_in_content_lines.append(oversize_region)
+            oversize_num += 1
+    
+    dig_in_content_lines.append("END_REGION")
+    dig_in_content_lines.append("")
 
     dig_in_content_lines.append("END_FUNCTION")
     
@@ -2191,21 +2377,13 @@ def create_dig_out_file(selected_cab_plc, output_base_folder, ordered_prefixes=N
             for prefix in ordered_prefixes:
                 prefix_upper = prefix.upper()
                 # Trova tutti i tronchi che appartengono a questo prefisso
-                prefix_items = df[df['ITEM_ID_CUSTOM'].str.startswith(prefix_upper, na=False)]
+                prefix_items = df[df['ITEM_ID_CUSTOM'].str.upper().str.startswith(prefix_upper, na=False)]
                 for trunk_id in prefix_items['ITEM_TRUNK'].unique():
                     if trunk_id not in trunk_to_prefix_mapping and trunk_id != "Carousel":
                         trunk_to_prefix_mapping[trunk_id] = prefix_upper
         
         # Carica la IO_LIST per trovare i segnali di output
-        io_list_folder = os.path.join('Input', 'IO_LIST')
-        io_list_file = None
-        cab_upper = str(selected_cab_plc).upper()
-        
-        if os.path.exists(io_list_folder):
-            for fn in os.listdir(io_list_folder):
-                if fn.endswith('.xlsx') and cab_upper in fn.upper():
-                    io_list_file = os.path.join(io_list_folder, fn)
-                    break
+        io_list_file = find_io_list_file(selected_cab_plc)
         
         # Dizionari per memorizzare i segnali trovati nella IO_LIST
         stack_light_signals = {}  # {trunk_num: {'running': tag, 'fault': tag, 'emergency': tag, 'buzzer': tag}}
@@ -2349,27 +2527,81 @@ def create_dig_out_file(selected_cab_plc, output_base_folder, ordered_prefixes=N
             except Exception as e:
                 print(f"AVVISO - Lettura IO_LIST per DigOut fallita: {e}")
         
+        # Raccogli tutti i tronchi dai file .db nella cartella di output (fonte più affidabile)
+        all_trunks = []
+        max_trunk_display = 0
+        
+        # Leggi i file .db dei tronchi dalla cartella di output
+        if os.path.exists(input_mng_folder):
+            try:
+                trunk_files = [f for f in os.listdir(input_mng_folder) if f.startswith('DbiTrunkLN') and f.endswith('.db')]
+                for trunk_file in trunk_files:
+                    trunk_name = trunk_file.replace('DbiTrunkLN', '').replace('.db', '')
+                    if trunk_name == 'Carousel':
+                        continue  # Salta Carousel per all_trunks
+                    else:
+                        try:
+                            trunk_num = int(trunk_name)
+                            if trunk_num not in all_trunks:
+                                all_trunks.append(trunk_num)
+                                if trunk_num > max_trunk_display:
+                                    max_trunk_display = trunk_num
+                        except ValueError:
+                            continue
+                print(f"DEBUG - create_dig_out_file: Tronchi dai file .db: {len(all_trunks)} tronchi trovati")
+            except Exception as e:
+                print(f"DEBUG - create_dig_out_file: Errore nel leggere file .db: {e}")
+        
+        # Se non abbiamo trovato tronchi dai file .db, usa trunk_to_line_mapping
+        if not all_trunks and trunk_to_line_mapping:
+            for trunk_id in sorted(trunk_to_line_mapping.keys()):
+                if trunk_id != "Carousel" and isinstance(trunk_id, (int, float)):
+                    trunk_int = int(trunk_id)
+                    if trunk_int not in all_trunks:
+                        all_trunks.append(trunk_int)
+                        if trunk_int > max_trunk_display:
+                            max_trunk_display = trunk_int
+            print(f"DEBUG - create_dig_out_file: Tronchi da trunk_to_line_mapping: {len(all_trunks)} tronchi")
+        
+        # Se ancora non abbiamo trovato tronchi, usa il DataFrame
+        if not all_trunks and df is not None:
+            try:
+                df_trunks = df['ITEM_TRUNK'].dropna().unique()
+                for trunk_id in df_trunks:
+                    if pd.notna(trunk_id):
+                        trunk_val = float(trunk_id)
+                        if trunk_val != 0:
+                            trunk_int = int(trunk_val)
+                            if trunk_int not in all_trunks:
+                                all_trunks.append(trunk_int)
+                                if trunk_int > max_trunk_display:
+                                    max_trunk_display = trunk_int
+                print(f"DEBUG - create_dig_out_file: Tronchi dal DataFrame: {len(all_trunks)} tronchi")
+            except Exception as e:
+                print(f"DEBUG - create_dig_out_file: Errore nel leggere tronchi dal DataFrame: {e}")
+        
+        # Se ancora non abbiamo trovato tronchi, usa un default
+        if not all_trunks:
+            max_trunk_display = 16
+            all_trunks = list(range(1, 17))
+            print(f"DEBUG - create_dig_out_file: Usando default: {len(all_trunks)} tronchi")
+        
+        # Ordina i tronchi
+        all_trunks = sorted(all_trunks)
+        
         # Crea mappatura di scalatura per i tronchi (come in create_conf_file)
         trunk_scaling_mapping = {}
-        if carousel_trunk_position is not None and trunk_to_line_mapping:
-            max_trunk = max(trunk_to_line_mapping.keys()) if trunk_to_line_mapping else 0
-            for trunk_idx in range(1, max_trunk + 1):
+        if carousel_trunk_position is not None:
+            for trunk_idx in all_trunks:
                 if trunk_idx == carousel_trunk_position:
                     continue  # Salta il carousel
                 elif trunk_idx > carousel_trunk_position:
                     trunk_scaling_mapping[trunk_idx] = trunk_idx - 1
                 else:
                     trunk_scaling_mapping[trunk_idx] = trunk_idx
-        
-        # Raccogli tutti i tronchi (escludendo Carousel)
-        all_trunks = []
-        if trunk_to_line_mapping:
-            for trunk_id in sorted(trunk_to_line_mapping.keys()):
-                if trunk_id != "Carousel" and isinstance(trunk_id, (int, float)):
-                    all_trunks.append(int(trunk_id))
-        
-        # Numero massimo di tronchi da generare (sempre 16)
-        max_trunk_display = 16
+        else:
+            for trunk_idx in all_trunks:
+                trunk_scaling_mapping[trunk_idx] = trunk_idx
         
         # Genera il contenuto DigOut
         dig_out_lines = []
@@ -2386,11 +2618,11 @@ def create_dig_out_file(selected_cab_plc, output_base_folder, ordered_prefixes=N
         dig_out_lines.append('    ')
         dig_out_lines.append('    //External emergency RED LED')
         
-        # External emergency: OR di tutti i tronchi ST_EMG (da 1 a 15 + Carousel se presente)
+        # External emergency: OR di tutti i tronchi ST_EMG (tutti i tronchi trovati + Carousel se presente)
         emergency_lines = []
-        # Include tutti i tronchi da 1 a 15 (incluso 03 anche se non ha TowerManager)
-        for trunk_display_num in range(1, 16):
-            trunk_ref = f"DbiTrunkLN{trunk_display_num:02d}"
+        # Include tutti i tronchi trovati (incluso 03 anche se non ha TowerManager)
+        for trunk_id in all_trunks:
+            trunk_ref = f"DbiTrunkLN{trunk_id:02d}"
             emergency_lines.append(f'            "{trunk_ref}".Data.SA.ST_EMG')
         # Aggiungi Carousel se presente
         if carousel_trunk_position is not None:
@@ -2707,13 +2939,14 @@ def create_dig_out_file(selected_cab_plc, output_base_folder, ordered_prefixes=N
         traceback.print_exc()
         return False
 
-def generate_zones_input_scl(selected_cab_plc):
+def generate_zones_input_scl(selected_cab_plc, use_fixed_zone=False):
     """
     Genera il file Zones_Input.scl nella cartella API0## basandosi sul file Excel
     Matrice_Zone_di_Emergenza_Nizza.xlsx e sui file di dettaglio linee.
     
     Args:
         selected_cab_plc (str): Il CAB_PLC selezionato.
+        use_fixed_zone (bool): Se True, usa sempre zona "1" invece di leggere dal file.
     """
     import re
     
@@ -2857,7 +3090,10 @@ def generate_zones_input_scl(selected_cab_plc):
     
     # Mappa i numeri delle zone
     for zone_name, data in zones_data.items():
-        if zone_name in zone_mapping:
+        if use_fixed_zone:
+            # Se use_fixed_zone è True, usa sempre zona "1"
+            data['zone_number'] = 1
+        elif zone_name in zone_mapping:
             data['zone_number'] = zone_mapping[zone_name]
         else:
             print(f"ATTENZIONE: Zona '{zone_name}' non trovata nel file di definizione zone")
@@ -3116,13 +3352,14 @@ def generate_zones_input_scl(selected_cab_plc):
         return False
 
 
-def generate_pce_input_scl(selected_cab_plc):
+def generate_pce_input_scl(selected_cab_plc, use_fixed_zone=False):
     """
     Genera il file PCE_Input.scl nella cartella API0## basandosi sul file Excel
     Matrice_Zone_di_Emergenza_Nizza.xlsx e sul file IO_LIST corrispondente.
     
     Args:
         selected_cab_plc (str): Il CAB_PLC selezionato.
+        use_fixed_zone (bool): Se True, usa sempre zona "1" invece di leggere dal file.
     """
     import re
 
@@ -3168,15 +3405,7 @@ def generate_pce_input_scl(selected_cab_plc):
     output_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
     
     # Trova il file IO_LIST corrispondente
-    io_list_folder = os.path.join('Input', 'IO_LIST')
-    io_list_file = None
-    if os.path.exists(io_list_folder):
-        # Cerca file che contiene il CAB_PLC nel nome
-        cab_plc_upper = selected_cab_plc.upper()
-        for filename in os.listdir(io_list_folder):
-            if filename.endswith('.xlsx') and cab_plc_upper in filename.upper():
-                io_list_file = os.path.join(io_list_folder, filename)
-                break
+    io_list_file = find_io_list_file(selected_cab_plc)
     
     if not io_list_file:
         print(f"ERRORE: File IO_LIST non trovato per CAB_PLC {selected_cab_plc}")
@@ -3264,8 +3493,35 @@ def generate_pce_input_scl(selected_cab_plc):
                 
                 # Estrai il nome del pulsante dal formato =NT23++CA11+EB001-100S1 -> CA11EB001
                 # Oppure potrebbe essere già nel formato corretto CA12EB00107A
+                # Oppure potrebbe essere un pulsante MCP con EMERGENCY_STOP_PUSH_BUTTON_CH1
                 pulsante_name = None
                 pulsante_base_pattern = None  # Pattern tipo CA##EB### per matching flessibile
+                
+                # Verifica se è un pulsante EMERGENCY_STOP_PUSH_BUTTON_CH1 (MCP)
+                # Controlla sia nella colonna ID LINE COMPONENT che nello SW TAG
+                is_emergency_button_in_raw = 'EMERGENCY_STOP_PUSH_BUTTON_CH1' in pulsante_raw.upper() if pulsante_raw else False
+                is_emergency_button_in_tag = 'EMERGENCY_STOP_PUSH_BUTTON_CH1' in sw_tag_norm if sw_tag else False
+                is_emergency_button = is_emergency_button_in_raw or is_emergency_button_in_tag
+                
+                if is_emergency_button:
+                    # Per pulsanti MCP con EMERGENCY_STOP_PUSH_BUTTON_CH1, usa il nome completo dal SW TAG o dal pulsante
+                    # Cerca pattern tipo MCPAC11_350S1_EMERGENCY_STOP_PUSH_BUTTON_CH1
+                    # Priorità: SW TAG se contiene MCP e EMERGENCY_STOP_PUSH_BUTTON_CH1, altrimenti pulsante_raw
+                    if sw_tag and 'MCP' in sw_tag_norm and 'EMERGENCY_STOP_PUSH_BUTTON_CH1' in sw_tag_norm:
+                        # Estrai il nome del pulsante dal SW TAG (es. MCPAC11_350S1_EMERGENCY_STOP_PUSH_BUTTON_CH1)
+                        pulsante_name = sw_tag.strip()
+                        print(f"DEBUG - Trovato pulsante MCP EMERGENCY nello SW TAG: {pulsante_name}")
+                    elif pulsante_raw and 'MCP' in pulsante_raw.upper() and is_emergency_button_in_raw:
+                        pulsante_name = pulsante_raw.strip()
+                        print(f"DEBUG - Trovato pulsante MCP EMERGENCY in ID LINE COMPONENT: {pulsante_name}")
+                    elif sw_tag and 'EMERGENCY_STOP_PUSH_BUTTON_CH1' in sw_tag_norm:
+                        # Usa lo SW TAG anche se non contiene MCP esplicitamente
+                        pulsante_name = sw_tag.strip()
+                        print(f"DEBUG - Trovato pulsante EMERGENCY nello SW TAG: {pulsante_name}")
+                    else:
+                        # Usa il pulsante raw se disponibile
+                        pulsante_name = pulsante_raw.strip() if pulsante_raw else sw_tag.strip()
+                        print(f"DEBUG - Trovato pulsante EMERGENCY (fallback): {pulsante_name}")
                 
                 if pulsante_raw and 'EB' in pulsante_raw:
                     if pulsante_raw.startswith('=') and '++' in pulsante_raw:
@@ -3357,12 +3613,45 @@ def generate_pce_input_scl(selected_cab_plc):
         traceback.print_exc()
         return False
     
-    # Leggi il file Excel Matrice
-    try:
-        xls = pd.ExcelFile(excel_path)
-    except Exception as e:
-        print(f"ERRORE durante l'apertura del file Excel: {e}")
-        return False
+    # Se use_fixed_zone è True, ignora completamente il file Matrice e usa solo l'IO List
+    if use_fixed_zone:
+        print("DEBUG - use_fixed_zone=True: Ignoro Matrice_Zone_di_Emergenza_Nizza.xlsx, uso solo IO List")
+        # Crea pulsanti basati solo su quello che troviamo nell'IO List
+        zone_buttons = {'1': []}  # Tutti i pulsanti vanno nella zona 1
+        
+        # Estrai tutti i pulsanti dall'IO List
+        processed_buttons = set()  # Per evitare duplicati
+        print(f"DEBUG - use_fixed_zone=True: Estraggo pulsanti da sw_tag_mapping (totale: {len(sw_tag_mapping)} chiavi)")
+        for pulsante_name in sw_tag_mapping.keys():
+            # Salta i pattern base duplicati (mantieni solo i nomi completi)
+            # Include sia pulsanti EB standard che pulsanti MCP con EMERGENCY_STOP_PUSH_BUTTON_CH1
+            pulsante_upper = pulsante_name.upper()
+            is_standard_eb = len(pulsante_name) <= 9 and re.match(r'^[A-Z]{2}\d{2}EB\d+$', pulsante_name)
+            is_emergency_mcp = 'EMERGENCY_STOP_PUSH_BUTTON_CH1' in pulsante_upper or ('MCP' in pulsante_upper and len(pulsante_name) > 9)
+            
+            if is_standard_eb or is_emergency_mcp:
+                if pulsante_name not in processed_buttons:
+                    # Usa il primo rack fault disponibile o quello associato al pulsante
+                    rack_fault = sw_tag_mapping[pulsante_name].get('rack_fault') or (list(rack_faults.keys())[0] if rack_faults else None)
+                    zone_buttons['1'].append({
+                        'button_name': pulsante_name,
+                        'rack_fault': rack_fault
+                    })
+                    processed_buttons.add(pulsante_name)
+                    print(f"DEBUG - use_fixed_zone=True: Aggiunto pulsante alla zona 1: {pulsante_name}")
+            else:
+                # Debug per capire perché alcuni pulsanti non vengono inclusi
+                if 'MCP' in pulsante_upper or 'EMERGENCY' in pulsante_upper:
+                    print(f"DEBUG - use_fixed_zone=True: Pulsante non incluso (is_standard_eb={is_standard_eb}, is_emergency_mcp={is_emergency_mcp}): {pulsante_name}")
+        
+        print(f"DEBUG - use_fixed_zone=True: Totale pulsanti aggiunti alla zona 1: {len(zone_buttons['1'])}")
+    else:
+        # Leggi il file Excel Matrice normalmente
+        try:
+            xls = pd.ExcelFile(excel_path)
+        except Exception as e:
+            print(f"ERRORE durante l'apertura del file Excel: {e}")
+            return False
     
     # Filtra fogli senza _reset
     sheets_to_process = [s for s in xls.sheet_names if '_reset' not in s.lower()]
@@ -3412,8 +3701,9 @@ def generate_pce_input_scl(selected_cab_plc):
             for row_idx in range(intervention_row_idx + 2, len(df)):  # Inizia dopo la riga delle zone
                 button_name_raw = str(df.iloc[row_idx, 0]) if pd.notna(df.iloc[row_idx, 0]) else ""
                 
-                # Verifica se è un pulsante (contiene EB o MCP e ha lunghezza > 5)
-                if button_name_raw and len(button_name_raw) > 5 and ('EB' in button_name_raw or 'MCP' in button_name_raw):
+                # Verifica se è un pulsante (contiene EB, MCP o EMERGENCY_STOP_PUSH_BUTTON_CH1 e ha lunghezza > 5)
+                is_emergency_button = 'EMERGENCY_STOP_PUSH_BUTTON_CH1' in button_name_raw.upper()
+                if button_name_raw and len(button_name_raw) > 5 and ('EB' in button_name_raw or 'MCP' in button_name_raw or is_emergency_button):
                     button_name = button_name_raw.strip()
                     
                     # Cerca X nelle colonne delle zone (a partire dalla colonna 2, indice 2)
@@ -3460,20 +3750,44 @@ def generate_pce_input_scl(selected_cab_plc):
         print("ATTENZIONE: Nessuna zona con pulsanti trovata")
         return False
     
-    # Ordina le zone per numero
-    # Per API004, ordina in modo che ZONE 4B venga prima di ZONE 5B
-    def zone_sort_key(x):
-        zone_name = x[0]
-        zone_num = zone_mapping.get(zone_name, 9999)
-        # Se è API004, metti 4B prima di 5B
-        if str(selected_cab_plc).upper() == 'API004':
-            if zone_name == '4B':
-                return (0, zone_num)  # Priorità massima per 4B
-            elif zone_name == '5B':
-                return (1, zone_num)  # Seconda priorità per 5B
-        return (2, zone_num)  # Altre zone dopo
+    # Se use_fixed_zone è True, usa solo zona 1
+    if use_fixed_zone:
+        # Imposta zone_mapping per zona 1
+        zone_mapping['1'] = 1
+        sorted_zones = [('1', zone_buttons_filtered.get('1', []))]
+    else:
+        # Ordina le zone per numero
+        # Per API004, ordina in modo che ZONE 4B venga prima di ZONE 5B
+        def zone_sort_key(x):
+            zone_name = x[0]
+            zone_num = zone_mapping.get(zone_name, 9999)
+            # Se è API004, metti 4B prima di 5B
+            if str(selected_cab_plc).upper() == 'API004':
+                if zone_name == '4B':
+                    return (0, zone_num)  # Priorità massima per 4B
+                elif zone_name == '5B':
+                    return (1, zone_num)  # Seconda priorità per 5B
+            return (2, zone_num)  # Altre zone dopo
+        
+        sorted_zones = sorted(zone_buttons_filtered.items(), key=zone_sort_key)
     
-    sorted_zones = sorted(zone_buttons_filtered.items(), key=zone_sort_key)
+    # Ordina i pulsanti all'interno di ogni zona: 
+    # 1) Prima quello con "MCP" e "EMERGENCY_STOP_PUSH_BUTTON_CH1"
+    # 2) Poi gli altri che iniziano con MCP
+    # 3) Infine gli altri alfabeticamente
+    def button_sort_key(button_info):
+        button_name = button_info['button_name']
+        button_upper = button_name.upper()
+        # Priorità massima: contiene sia MCP che EMERGENCY_STOP_PUSH_BUTTON_CH1
+        if 'MCP' in button_upper and 'EMERGENCY_STOP_PUSH_BUTTON_CH1' in button_upper:
+            return (0, button_name)  # Prima priorità assoluta
+        elif button_upper.startswith('MCP'):
+            return (1, button_name)  # Seconda priorità per MCP
+        else:
+            return (2, button_name)  # Terza priorità, ordinati alfabeticamente
+    
+    # Ordina i pulsanti in ogni zona
+    sorted_zones = [(zone_name, sorted(buttons, key=button_sort_key)) for zone_name, buttons in sorted_zones]
     
     # Genera il contenuto SCL
     scl_content = []
@@ -3513,7 +3827,11 @@ def generate_pce_input_scl(selected_cab_plc):
     summary_data = []  # Lista di dict con info sui pulsanti
     
     for zone_name, buttons in sorted_zones:
-        zone_number = zone_mapping.get(zone_name)
+        # Se use_fixed_zone è True, usa sempre zona 1
+        if use_fixed_zone:
+            zone_number = 1
+        else:
+            zone_number = zone_mapping.get(zone_name)
         
         if zone_number is None:
             print(f"ATTENZIONE: Zona '{zone_name}' non trovata nel file di definizione zone")
@@ -3522,7 +3840,9 @@ def generate_pce_input_scl(selected_cab_plc):
         if not buttons:
             continue
         
-        scl_content.append(f'	REGION ZONE {zone_name}')
+        # Se use_fixed_zone è True, usa sempre "1" come nome zona
+        zone_display_name = '1' if use_fixed_zone else zone_name
+        scl_content.append(f'	REGION ZONE {zone_display_name}')
         scl_content.append('	    ')
         
         buttons_added = False
@@ -3575,9 +3895,19 @@ def generate_pce_input_scl(selected_cab_plc):
                                         print(f"DEBUG - Match trovato con ricerca pattern troncato: {button_name} -> {key}")
                                 break
             
+            # Se non trovato nell'IO_LIST, verifica se contiene EMERGENCY_STOP_PUSH_BUTTON_CH1
             if not sw_tags:
-                print(f"ATTENZIONE: Pulsante '{button_name}' non trovato nel file IO_LIST (anche dopo troncamento a 9 caratteri)")
-                continue
+                if 'EMERGENCY_STOP_PUSH_BUTTON_CH1' in button_name.upper():
+                    # Crea i tag per questo pulsante di emergenza
+                    sw_tags = {
+                        'pb_pressed': button_name,
+                        'safe_channels_error': button_name.replace('_EMERGENCY_STOP_PUSH_BUTTON_CH1', '_SAFE_CHANNELS_ERROR') if '_EMERGENCY_STOP_PUSH_BUTTON_CH1' in button_name else f"{button_name}_SAFE_CHANNELS_ERROR",
+                        'rack_fault': rack_fault or (list(rack_faults.keys())[0] if rack_faults else "AE00+MCPCA12-340K1RackFault")
+                    }
+                    print(f"DEBUG - Pulsante di emergenza '{button_name}' riconosciuto (non trovato in IO_LIST, creato automaticamente)")
+                else:
+                    print(f"ATTENZIONE: Pulsante '{button_name}' non trovato nel file IO_LIST (anche dopo troncamento a 9 caratteri)")
+                    continue
             
             pb_pressed_tag = sw_tags['pb_pressed']
             safe_channels_error_tag = sw_tags['safe_channels_error']
@@ -3590,9 +3920,10 @@ def generate_pce_input_scl(selected_cab_plc):
             scl_content.append(f'	        "PCE_DB".Interface[{pce_counter}].In.PbPressed := NOT "{pb_pressed_tag}";')
             scl_content.append(f'	        "PCE_DB".Interface[{pce_counter}].In.SafeChannelsError := NOT "{safe_channels_error_tag}";')
             scl_content.append(f'	        "PCE_DB".Interface[{pce_counter}].In.CommunicationFault := #"{rack_fault_var}";')
-            # Imposta sempre ZONA 1 come richiesto
-            scl_content.append(f'	        "PCE_DB".Interface[{pce_counter}].In.AcknowledgeCmd := "SAFE_ZONE_DB".ResetAll.Zone1;')
-            scl_content.append(f'	        "PCE_DB".Interface[{pce_counter}].In.EmergencyActive := NOT "ESTOP_Z1".Q;')
+            # Usa zona 1 se use_fixed_zone è True, altrimenti usa la zona letta dal file
+            zone_to_use = 1 if use_fixed_zone else 1  # Per ora sempre 1, ma può essere modificato per usare zone_name
+            scl_content.append(f'	        "PCE_DB".Interface[{pce_counter}].In.AcknowledgeCmd := "SAFE_ZONE_DB".ResetAll.Zone{zone_to_use};')
+            scl_content.append(f'	        "PCE_DB".Interface[{pce_counter}].In.EmergencyActive := NOT "ESTOP_Z{zone_to_use}".Q;')
             scl_content.append(f'	        "PCE_DB".Interface[{pce_counter}].In.ResetAlarms := false;')
             scl_content.append('	    END_REGION ;')
             scl_content.append('	    ')
@@ -3602,7 +3933,7 @@ def generate_pce_input_scl(selected_cab_plc):
                 'pce_counter': pce_counter,
                 'button_name': button_name,
                 'zone_name': zone_name,
-                'zone_number': 1,
+                'zone_number': zone_to_use,
                 'pb_pressed_tag': pb_pressed_tag,
                 'safe_channels_error_tag': safe_channels_error_tag,
                 'rack_fault_var': rack_fault_var,
@@ -3774,10 +4105,14 @@ def generate_pce_input_scl(selected_cab_plc):
         traceback.print_exc()
         return False
 
-def generate_pce_output_scl(selected_cab_plc):
+def generate_pce_output_scl(selected_cab_plc, use_fixed_zone=False):
     """
     Genera il file PCE_Output.scl nella cartella API0##.
     Per API008 usa l'esempio validato per garantire corrispondenza 1:1.
+    
+    Args:
+        selected_cab_plc (str): Il CAB_PLC selezionato.
+        use_fixed_zone (bool): Se True, usa sempre zona "1" invece di leggere dal file.
     """
     api_folder = f'API0{selected_cab_plc[-2:]}'
     try:
@@ -3806,13 +4141,7 @@ def generate_pce_output_scl(selected_cab_plc):
         # Per altri CAB (es. API004), genera dinamicamente
         # 1) Ricava i pulsanti dalla IO_LIST come in PCE_Input
         import re
-        io_list_folder = os.path.join('Input', 'IO_LIST')
-        io_list_file = None
-        if os.path.exists(io_list_folder):
-            for filename in os.listdir(io_list_folder):
-                if filename.endswith('.xlsx') and cab_upper in filename.upper():
-                    io_list_file = os.path.join(io_list_folder, filename)
-                    break
+        io_list_file = find_io_list_file(selected_cab_plc)
         sw_tag_mapping = {}
         if io_list_file:
             try:
@@ -3927,7 +4256,10 @@ def generate_pce_output_scl(selected_cab_plc):
         lines.append('\tEND_REGION ;')
         lines.append('\t')
         lines.append('\tREGION EMERGENCY PUSHBUTTON LAMPS MANAGEMENT')
-        lines.append('\t    REGION')
+        if use_fixed_zone:
+            lines.append('\t    REGION ZONE 1')
+        else:
+            lines.append('\t    REGION')
 
         # Costruisci l'elenco ordinato dei pulsanti da mappare in output
         # Prova a recuperare l'ordine da PCE_Input se disponibile
@@ -3951,8 +4283,22 @@ def generate_pce_output_scl(selected_cab_plc):
             # Allinea esattamente agli indici di PCE_Input
             sorted_buttons = [(name, name) for name in ordered_inputs_from_pce]
         else:
-            # Fallback ordinato alfabeticamente
-            sorted_buttons = sorted(sw_tag_mapping.items(), key=lambda x: x[0])
+            # Fallback: ordina con la stessa logica di PCE_Input
+            # 1) Prima quello con "MCP" e "EMERGENCY_STOP_PUSH_BUTTON_CH1"
+            # 2) Poi gli altri che iniziano con MCP
+            # 3) Infine gli altri alfabeticamente
+            def button_sort_key_output(item):
+                button_name = item[0]
+                button_upper = button_name.upper()
+                # Priorità massima: contiene sia MCP che EMERGENCY_STOP_PUSH_BUTTON_CH1
+                if 'MCP' in button_upper and 'EMERGENCY_STOP_PUSH_BUTTON_CH1' in button_upper:
+                    return (0, button_name)  # Prima priorità assoluta
+                elif button_upper.startswith('MCP'):
+                    return (1, button_name)  # Seconda priorità per MCP
+                else:
+                    return (2, button_name)  # Terza priorità, ordinati alfabeticamente
+            
+            sorted_buttons = sorted(sw_tag_mapping.items(), key=button_sort_key_output)
         def compute_output_tags_from_input(pb_tag: str):
             tag = pb_tag.upper()
             outs = []
@@ -4472,4 +4818,5 @@ END_DATA_BLOCK
         return True
     except Exception as e:
         print(f"ERRORE durante la creazione dei file .db aggiuntivi: {e}")
+        return False
         return False

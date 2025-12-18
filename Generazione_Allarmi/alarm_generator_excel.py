@@ -97,6 +97,45 @@ class GeneratorThread(QThread):
 
     def generate_scl_region(self, object_type, alarm_texts, alm_word_index_value):
         """Genera il contenuto SCL per una regione di allarmi."""
+        # Special case: SV_DB_PANEL uses a fixed block instead of generated code
+        # Check for PANEL in various formats (SV_DB_PANEL, PANEL, etc.)
+        # Must check BEFORE removing SV_ prefix
+        object_type_upper = str(object_type).strip().upper()
+        object_type_clean_check = object_type.replace('SV_', '').replace('DB_', '').strip().upper()
+        if object_type_upper == 'SV_DB_PANEL' or object_type_upper == 'PANEL' or object_type_clean_check == 'PANEL':
+            # Return the fixed PANEL block as provided by the user
+            scl_content = """REGION PANEL Management - Compact Alarms in Words
+    #AlmBit := 0;
+    #AlmWord := 0;
+    
+        //Initialize auxiliaries array for alarms
+    #AuxArray.Alm0 := "SV_DB_PANEL_SA".MCP1.ALL_BUS_COM_GEN; //
+    #AuxArray.Alm1 := "SV_DB_PANEL_SA".MCP1.ALL_VENT; //Cabinet cooling fan fault
+    #AuxArray.Alm2 := "SV_DB_PANEL_SA".MCP1.ALL_TEMP; //Cabinet overtemperature failure
+    #AuxArray.Alm3 := "SV_DB_PANEL_SA".MCP1.ALL_EOK24; //Failure power supply 24Vdc cabinet
+    #AuxArray.Alm4 := "SV_DB_PANEL_SA".MCP1.ALL_EAL24; //Machine board 24Vdc power supply failure
+    #AuxArray.Alm5 := "SV_DB_PANEL_SA".MCP1.ALL_EAL24I; //Failure power supply input 24Vdc cabinet
+    #AuxArray.Alm6 := "SV_DB_PANEL_SA".MCP1.ALL_EAL24O; //Failure power supply output 24Vdc cabinet
+    #AuxArray.Alm7 := "SV_DB_PANEL_SA".MCP1.ALL_GEN; //General switch fuse intervention
+    #AuxArray.Alm8 := "DbGlobale".GlobalData.AlwFalse;
+    #AuxArray.Alm9 := "DbGlobale".GlobalData.AlwFalse;
+    #AuxArray.Alm10 := "DbGlobale".GlobalData.AlwFalse;
+    #AuxArray.Alm11 := "DbGlobale".GlobalData.AlwFalse;
+    #AuxArray.Alm12 := "DbGlobale".GlobalData.AlwFalse;
+    #AuxArray.Alm13 := "DbGlobale".GlobalData.AlwFalse;
+    #AuxArray.Alm14 := "DbGlobale".GlobalData.AlwFalse;
+    #AuxArray.Alm15 := "DbGlobale".GlobalData.AlwFalse;
+    //Compact Alarms in common DB
+    "LIB_Alarms_Compact"(Alarms := #AuxArray,
+                         UsedAlarms := 8,
+                         LastBitUsed := #AlmBit,
+                         LastWordIndex := #AlmWord,
+                         DBAlm := "DB_HMI_SafeCompactAlm".AlmWord);
+END_REGION ;
+
+"""
+            return scl_content
+        
         # Remove SV_ prefix if present and get clean name
         object_type_clean = object_type.replace('SV_', '')
         
@@ -126,7 +165,7 @@ class GeneratorThread(QThread):
             else:
                 # Fill remaining lines with AlwFalse
                 scl_content += f"""
-        #AuxArray.Alm{i} := "UpstreamDB-Globale".Global_Data.AlwFalse;"""
+        #AuxArray.Alm{i} := "DbGlobale".GlobalData.AlwFalse;"""
         
         # Aggiungi la chiamata alla funzione di compattazione
         scl_content += f"""

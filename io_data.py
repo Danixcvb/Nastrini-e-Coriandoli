@@ -1,6 +1,56 @@
 import os
+import re
 import pandas as pd
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
+
+
+def find_io_list_file(selected_cab_plc: str) -> Optional[str]:
+    """
+    Trova il file IO_LIST per il CAB_PLC specificato.
+    Se il CAB_PLC è APR001 e non trova il file, cerca anche API001 come fallback.
+    Cerca solo il file che corrisponde esattamente al CAB_PLC specificato.
+    
+    Args:
+        selected_cab_plc (str): Il CAB_PLC selezionato (es. 'APR001', 'API001')
+        
+    Returns:
+        Optional[str]: Il percorso del file IO_LIST trovato, o None se non trovato
+    """
+    io_list_folder = os.path.join('Input', 'IO_LIST')
+    if not os.path.exists(io_list_folder):
+        return None
+    
+    cab_upper = str(selected_cab_plc).upper()
+    
+    # Cerca prima con il CAB_PLC originale
+    # Cerca file che contengono esattamente il CAB_PLC nel nome (es. API001 in NT23_IO LIST API001_r3.xlsx)
+    for fn in os.listdir(io_list_folder):
+        if fn.endswith('.xlsx'):
+            fn_upper = fn.upper()
+            # Verifica che il CAB_PLC sia presente nel nome del file
+            # Cerca pattern tipo API001 o APR001 nel nome del file
+            if cab_upper in fn_upper:
+                # Verifica che non sia un altro CAB_PLC che contiene questo come substring
+                # Es. se cerco API001, non vogliamo trovare API0010 o API0011
+                # Cerca pattern tipo "API001" seguito da underscore, punto, o fine stringa
+                pattern = re.compile(r'\b' + re.escape(cab_upper) + r'(?:_|\.|$)', re.IGNORECASE)
+                if pattern.search(fn_upper):
+                    return os.path.join(io_list_folder, fn)
+    
+    # Se non trovato e il CAB_PLC è APR001, cerca API001 come fallback
+    if cab_upper == 'APR001':
+        fallback_cab = 'API001'
+        for fn in os.listdir(io_list_folder):
+            if fn.endswith('.xlsx'):
+                fn_upper = fn.upper()
+                if fallback_cab in fn_upper:
+                    # Verifica pattern esatto per API001
+                    pattern = re.compile(r'\b' + re.escape(fallback_cab) + r'(?:_|\.|$)', re.IGNORECASE)
+                    if pattern.search(fn_upper):
+                        print(f"DEBUG - File IO_LIST non trovato per APR001, uso API001 come fallback: {fn}")
+                        return os.path.join(io_list_folder, fn)
+    
+    return None
 
 
 def load_io_signals(selected_cab_plc: str) -> Tuple[List[Dict], List[Dict]]:
@@ -13,16 +63,7 @@ def load_io_signals(selected_cab_plc: str) -> Tuple[List[Dict], List[Dict]]:
     - Ignora righe unite senza contenuto
     Ritorna (inputs, outputs), ciascuno come lista di dict {'tag': str, 'id': str, 'dir': 'I'|'Q'}.
     """
-    io_list_folder = os.path.join('Input', 'IO_LIST')
-    if not os.path.exists(io_list_folder):
-        return [], []
-
-    cab_upper = str(selected_cab_plc).upper()
-    io_path = None
-    for fn in os.listdir(io_list_folder):
-        if fn.endswith('.xlsx') and cab_upper in fn.upper():
-            io_path = os.path.join(io_list_folder, fn)
-            break
+    io_path = find_io_list_file(selected_cab_plc)
     if not io_path:
         return [], []
 

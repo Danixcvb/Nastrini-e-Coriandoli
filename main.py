@@ -34,7 +34,13 @@ def check_and_install_packages(requirements_file):
               False if installation failed or was cancelled.
     """
     try:
-        import pkg_resources
+        # Use importlib.metadata instead of deprecated pkg_resources
+        try:
+            from importlib.metadata import version, PackageNotFoundError
+        except ImportError:
+            # Fallback for Python < 3.8
+            from importlib_metadata import version, PackageNotFoundError
+        
         with open(requirements_file, 'r') as f:
             packages = [line.strip() for line in f if line.strip() and not line.startswith('#')]
 
@@ -42,9 +48,10 @@ def check_and_install_packages(requirements_file):
         for package in packages:
             try:
                 # Use the base package name for checking (e.g., PyQt6 for PyQt6==x.y.z)
-                dist_name = package.split('==')[0].split('>=')[0].split('<=')[0].split('<')[0].split('>')[0]
-                pkg_resources.get_distribution(dist_name)
-            except pkg_resources.DistributionNotFound:
+                dist_name = package.split('==')[0].split('>=')[0].split('<=')[0].split('<')[0].split('>')[0].strip()
+                # Try to get version - raises PackageNotFoundError if not installed
+                version(dist_name)
+            except PackageNotFoundError:
                 missing_packages.append(package)
 
         if missing_packages:
@@ -276,7 +283,7 @@ def main():
              min-width: 20px;
              border-radius: 6px;
          }
-         QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+         QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal 
              width: 0px;
              background: none;
          }

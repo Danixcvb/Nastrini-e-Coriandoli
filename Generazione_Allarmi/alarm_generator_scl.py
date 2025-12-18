@@ -10,8 +10,7 @@ import traceback
 import json
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QLineEdit, QFileDialog, QMessageBox, QTableWidget, QTableWidgetItem,
-    QHeaderView, QSpinBox, QTextEdit, QApplication
+    QLineEdit, QFileDialog, QMessageBox, QTextEdit, QApplication, QFormLayout
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QPalette, QColor, QFont
@@ -59,6 +58,45 @@ class GeneratorThread(QThread):
         """Genera il contenuto SCL per una regione di allarmi.
         alarm_details is a list of dicts: [{'Name': '...', 'Description': '...'}] for alarms with text.
         """
+        # Special case: SV_DB_PANEL uses a fixed block instead of generated code
+        # Check for PANEL in various formats (SV_DB_PANEL, PANEL, etc.)
+        # Must check BEFORE removing SV_ prefix
+        object_type_upper = str(object_type_full).strip().upper()
+        object_type_clean_check = object_type_full.replace('SV_', '').replace('DB_', '').strip().upper()
+        if object_type_upper == 'SV_DB_PANEL' or object_type_upper == 'PANEL' or object_type_clean_check == 'PANEL':
+            # Return the fixed PANEL block as provided by the user (matching the corrected file format)
+            scl_content = """REGION PANEL Management - Compact Alarms in Words
+\t#AlmBit := 0;
+\t#AlmWord := 0;
+\t
+\t\t//Initialize auxiliaries array for alarms
+\t#AuxArray.Alm0 := "SV_DB_PANEL_SA".MCP1.ALL_BUS_COM_GEN; //
+\t#AuxArray.Alm1 := "SV_DB_PANEL_SA".MCP1.ALL_VENT; //Cabinet cooling fan fault
+\t#AuxArray.Alm2 := "SV_DB_PANEL_SA".MCP1.ALL_TEMP; //Cabinet overtemperature failure
+\t#AuxArray.Alm3 := "SV_DB_PANEL_SA".MCP1.ALL_EOK24; //Failure power supply 24Vdc cabinet
+\t#AuxArray.Alm4 := "SV_DB_PANEL_SA".MCP1.ALL_EAL24; //Machine board 24Vdc power supply failure
+\t#AuxArray.Alm5 := "SV_DB_PANEL_SA".MCP1.ALL_EAL24I; //Failure power supply input 24Vdc cabinet
+\t#AuxArray.Alm6 := "SV_DB_PANEL_SA".MCP1.ALL_EAL24O; //Failure power supply output 24Vdc cabinet
+\t#AuxArray.Alm7 := "SV_DB_PANEL_SA".MCP1.ALL_GEN; //General switch fuse intervention
+\t#AuxArray.Alm8 := "DbGlobale".GlobalData.AlwFalse;
+\t#AuxArray.Alm9 := "DbGlobale".GlobalData.AlwFalse;
+\t#AuxArray.Alm10 := "DbGlobale".GlobalData.AlwFalse;
+\t#AuxArray.Alm11 := "DbGlobale".GlobalData.AlwFalse;
+\t#AuxArray.Alm12 := "DbGlobale".GlobalData.AlwFalse;
+\t#AuxArray.Alm13 := "DbGlobale".GlobalData.AlwFalse;
+\t#AuxArray.Alm14 := "DbGlobale".GlobalData.AlwFalse;
+\t#AuxArray.Alm15 := "DbGlobale".GlobalData.AlwFalse;
+\t//Compact Alarms in common DB
+\t"LIB_Alarms_Compact"(Alarms := #AuxArray,
+\t\t\t\t\t\t\t\t UsedAlarms := 8,
+\t\t\t\t\t\t\t\t LastBitUsed := #AlmBit,
+\t\t\t\t\t\t\t\t LastWordIndex := #AlmWord,
+\t\t\t\t\t\t\t\t DBAlm := "DB_HMI_SafeCompactAlm".AlmWord);
+END_REGION ;
+
+"""
+            return scl_content
+        
         # Remove SV_ prefix if present and get clean name
         object_type_clean = object_type_full.replace('SV_', '')
         
@@ -92,7 +130,7 @@ class GeneratorThread(QThread):
                     desc_val_str = str(desc_val).strip() if pd.notna(desc_val) else ""
                     scl_content += f"\n\t\t#AuxArray.Alm{i} := \"SV_DB_{object_type_clean}_SA\".{object_type_clean}[#i].{name_val_str}; //{desc_val_str}"
                 else:
-                    scl_content += f"\n\t\t#AuxArray.Alm{i} := \"UpstreamDB-Globale\".Global_Data.AlwFalse;"
+                    scl_content += f"\n\t\t#AuxArray.Alm{i} := \"DbGlobale\".GlobalData.AlwFalse;"
             # Aggiungi la chiamata alla funzione di compattazione per il blocco corrente
             scl_content += f"""
 \t\t//Compact Alarms in common DB
@@ -269,7 +307,7 @@ class AlarmGeneratorWidget(QWidget):
         # Or use current working directory as fallback
         self.output_dir_path = os.path.join(os.getcwd(), "Output", "HMI_Alarms")
         self.object_types = {} # Dictionary to store {object_type: offset}
-        self.saved_instance_counts = {} # To store counts loaded from config
+        self.instance_counts_from_excel = {} # Dictionary to store {object_type: count} read from Excel Count column
         self.generator_thread = None
         self._init_ui()
         self._load_last_input_file()
@@ -277,58 +315,69 @@ class AlarmGeneratorWidget(QWidget):
     def _init_ui(self):
         """Initializes the UI elements for the widget."""
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(15, 0, 15, 15) # Reduced top margin to 0
-        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(15, 15, 15, 15) # Match margins with first column
+        main_layout.setSpacing(15) # Match spacing with first column
+
+        # Use FormLayout for better alignment
+        form_layout = QFormLayout()
+        form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        form_layout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+        form_layout.setHorizontalSpacing(12)
+        form_layout.setVerticalSpacing(15)
 
         # --- Input File Selection ---
         input_layout = QHBoxLayout()
+        input_layout.setSpacing(8)
         self.input_file_label = QLineEdit("Nessun file selezionato")
         self.input_file_label.setReadOnly(True)
+        self.input_file_label.setFont(QFont("Segoe UI", 10))
+        self.input_file_label.setMinimumHeight(32)
         self.input_file_button = QPushButton("Seleziona File Input (.xlsx)")
+        self.input_file_button.setFont(QFont("Segoe UI", 10))
+        self.input_file_button.setMinimumHeight(32)
+        self.input_file_button.setMinimumWidth(80)
         self.input_file_button.clicked.connect(self.select_input_file)
-        input_layout.addWidget(QLabel("File Master:"))
         input_layout.addWidget(self.input_file_label, 1) # Stretch line edit
         input_layout.addWidget(self.input_file_button)
-        main_layout.addLayout(input_layout)
-
-        # --- Object Types Table ---
-        self.table_label = QLabel("Tipi Oggetto e Numero Istanze:")
-        main_layout.addWidget(self.table_label)
-        self.object_table = QTableWidget()
-        self.object_table.setColumnCount(2)
-        self.object_table.setHorizontalHeaderLabels(["Tipo Oggetto", "Numero Istanze"])
-        self.object_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.object_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        # Ensure vertical header is not too wide
-        self.object_table.verticalHeader().setVisible(False)
-        self.object_table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
-        self.object_table.verticalHeader().setDefaultSectionSize(24) # Adjust row height
-        main_layout.addWidget(self.object_table)
+        form_layout.addRow("File Master:", input_layout)
 
         # --- Output Directory Selection ---
         output_layout = QHBoxLayout()
+        output_layout.setSpacing(8)
         self.output_dir_label = QLineEdit(self.output_dir_path)
         self.output_dir_label.setReadOnly(True)
+        self.output_dir_label.setFont(QFont("Segoe UI", 10))
+        self.output_dir_label.setMinimumHeight(32)
         self.output_dir_button = QPushButton("Seleziona Cartella Output")
+        self.output_dir_button.setFont(QFont("Segoe UI", 10))
+        self.output_dir_button.setMinimumHeight(32)
+        self.output_dir_button.setMinimumWidth(80)
         self.output_dir_button.clicked.connect(self.select_output_dir)
-        output_layout.addWidget(QLabel("Cartella Output:"))
         output_layout.addWidget(self.output_dir_label, 1)
         output_layout.addWidget(self.output_dir_button)
-        main_layout.addLayout(output_layout)
+        form_layout.addRow("Cartella Output:", output_layout)
+
+        main_layout.addLayout(form_layout)
+        main_layout.addSpacing(10)
 
         # --- Generate Button ---
         self.generate_button = QPushButton("Genera HMIAlarms.xlsx")
         self.generate_button.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        self.generate_button.setMinimumHeight(35)
+        self.generate_button.setMinimumHeight(42) # Match height with first column button
         self.generate_button.clicked.connect(self._request_generation)
         self.generate_button.setEnabled(False) # Disabled initially
-        main_layout.addWidget(self.generate_button, 0, Qt.AlignmentFlag.AlignCenter)
+        button_h_layout = QHBoxLayout()
+        button_h_layout.addStretch()
+        button_h_layout.addWidget(self.generate_button)
+        button_h_layout.addStretch()
+        main_layout.addLayout(button_h_layout)
+        main_layout.addStretch()  # Push content to top
 
-        # --- Log Area ---
+        # --- Log Area --- (will be extracted and moved to main window)
         self.log_text_edit = QTextEdit()
         self.log_text_edit.setReadOnly(True)
         self.log_text_edit.setFont(QFont("Consolas", 9)) # Monospaced font for logs
-        main_layout.addWidget(self.log_text_edit, 1)
+        # Don't add to layout here - will be extracted
 
     def _get_config_path(self):
         """Gets the path to the config file within the script's directory."""
@@ -337,17 +386,14 @@ class AlarmGeneratorWidget(QWidget):
         return os.path.join(script_dir, CONFIG_FILENAME)
 
     def _save_last_input_file(self, file_path):
-        """Saves the given file path and current instance counts to the config file."""
+        """Saves the given file path to the config file."""
         try:
-            # Get current instance counts before saving
-            current_instance_counts = self.get_instance_counts()
             config_data = {
-                'last_input_file': file_path,
-                'instance_counts': current_instance_counts
+                'last_input_file': file_path
             }
             with open(CONFIG_FILENAME, 'w') as f:
                 json.dump(config_data, f, indent=4)
-            self.log_message(f"Percorso file e conteggi istanze salvati: {file_path}")
+            self.log_message(f"Percorso file salvato: {file_path}")
         except IOError as e:
             self.log_message(f"Errore durante il salvataggio del percorso file ({CONFIG_FILENAME}): {e}")
 
@@ -363,18 +409,10 @@ class AlarmGeneratorWidget(QWidget):
                             self.input_file_path = file_path
                             self.input_file_label.setText(os.path.basename(file_path))
                             self.log_message(f"Caricato l'ultimo file master: {os.path.basename(file_path)}")
-                            # Load object types and then apply saved instance counts
+                            # Load object types (counts are read from Excel Count column)
                             self.load_object_types()
-                            
-                            if 'instance_counts' in config_data:
-                                self.saved_instance_counts = config_data['instance_counts']
-                                self.log_message("Caricati i conteggi delle istanze precedenti.")
-                                # Apply saved counts to table after object types are loaded
-                                self._apply_saved_instance_counts()
-                            else:
-                                self.saved_instance_counts = {}
 
-                            if self.object_table.rowCount() > 0:
+                            if len(self.instance_counts_from_excel) > 0:
                                 self.generate_button.setEnabled(True)
                             else:
                                 self.generate_button.setEnabled(False)
@@ -416,12 +454,9 @@ class AlarmGeneratorWidget(QWidget):
             self.input_file_label.setText(os.path.basename(file_path))
             self.log_message(f"File selezionato: {file_path}")
             self.load_object_types()
-            # Apply saved instance counts if available
-            if self.saved_instance_counts:
-                self._apply_saved_instance_counts()
             
             # Enable button only if types were loaded successfully
-            if self.object_table.rowCount() > 0:
+            if len(self.instance_counts_from_excel) > 0:
                  self.generate_button.setEnabled(True)
             else:
                  self.generate_button.setEnabled(False)
@@ -459,8 +494,8 @@ class AlarmGeneratorWidget(QWidget):
             QMessageBox.warning(self, "File Mancante", "Seleziona prima un file master valido.")
             return
 
-        self.object_table.setRowCount(0) # Clear existing rows
         self.object_types.clear()
+        self.instance_counts_from_excel.clear()
         self.log_message("Caricamento tipi oggetto dal file master...")
         QApplication.processEvents() # Allow UI update
 
@@ -474,26 +509,43 @@ class AlarmGeneratorWidget(QWidget):
                 df = xls.parse(sheet_name=summary_sheet_name)
                 # Find actual column names, ignoring leading/trailing spaces
                 actual_obj_type_col = self._find_actual_column_name(OBJECT_TYPE_COL, df.columns)
+                actual_count_col = self._find_actual_column_name('Count', df.columns)
 
                 # Check if columns were found
                 if actual_obj_type_col is None:
                     raise ValueError(f"Colonna '{OBJECT_TYPE_COL}' (o variante con spazi) non trovata nel primo foglio. Colonne trovate: {df.columns.tolist()}")
+                
+                if actual_count_col is None:
+                    raise ValueError(f"Colonna 'Count' non trovata nel primo foglio. Colonne trovate: {df.columns.tolist()}")
 
                 # Clear previous data
                 self.object_types.clear()
-                self.object_table.setRowCount(0)
+                self.instance_counts_from_excel.clear()
 
                 # Use the actual column names found
                 processed_types = set()
                 for index, row in df.iterrows():
                     # Use actual column names found earlier
                     obj_type = row[actual_obj_type_col]
+                    count_value = row[actual_count_col] if actual_count_col in row else None
 
                     # Check if object type is valid (not NaN, not empty)
                     if pd.notna(obj_type) and str(obj_type).strip():
                          obj_type_str = str(obj_type).strip()
                          if obj_type_str in processed_types:
                              continue # Already processed this type
+
+                         # Read count value from Excel (default to 0 if not found or invalid)
+                         count = 0
+                         if pd.notna(count_value):
+                             try:
+                                 count = int(count_value)
+                             except (ValueError, TypeError):
+                                 self.log_message(f"WARN: Valore Count non valido per '{obj_type_str}': {count_value}. Uso 0.")
+                                 count = 0
+                         
+                         # Store the count value
+                         self.instance_counts_from_excel[obj_type_str] = count
 
                          # Check if a sheet with this name exists
                          with pd.ExcelFile(self.input_file_path) as xls_check:
@@ -503,15 +555,14 @@ class AlarmGeneratorWidget(QWidget):
                             try:
                                 # Store the object type
                                 self.object_types[obj_type_str] = 0 # No offset needed here
-                                self.add_object_type_to_table(obj_type_str)
                                 processed_types.add(obj_type_str)
                             except ValueError:
                                  self.log_message(f"WARN: Errore durante l'elaborazione del tipo oggetto '{obj_type_str}', tipo ignorato.")
                          else:
                              self.log_message(f"INFO: Tipo oggetto '{obj_type_str}' trovato nel riepilogo, ma nessun foglio corrispondente trovato. Ignorato.")
 
-                self.log_message(f"Trovati {self.object_table.rowCount()} tipi oggetto validi con foglio corrispondente.")
-                self.generate_button.setEnabled(self.object_table.rowCount() > 0)
+                self.log_message(f"Trovati {len(processed_types)} tipi oggetto validi con foglio corrispondente.")
+                self.generate_button.setEnabled(len(processed_types) > 0)
 
         except FileNotFoundError:
             self.log_message(f"Errore: File non trovato: {self.input_file_path}")
@@ -524,32 +575,9 @@ class AlarmGeneratorWidget(QWidget):
             QMessageBox.critical(self, "Errore Caricamento", f"Errore imprevisto:\n{e}")
             self.log_message(traceback.format_exc())
 
-    def add_object_type_to_table(self, obj_type):
-        """Adds a row to the object types table."""
-        row_position = self.object_table.rowCount()
-        self.object_table.insertRow(row_position)
-
-        # Object Type Item (non-editable)
-        type_item = QTableWidgetItem(obj_type)
-        type_item.setFlags(type_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-        self.object_table.setItem(row_position, 0, type_item)
-
-        # Instance Count Item (SpinBox)
-        spin_box = QSpinBox()
-        spin_box.setRange(0, 999) # Set appropriate range
-        spin_box.setValue(0)
-        spin_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.object_table.setCellWidget(row_position, 1, spin_box)
-
     def get_instance_counts(self):
-        """Retrieves the instance counts from the table."""
-        counts = {}
-        for row in range(self.object_table.rowCount()):
-            type_item = self.object_table.item(row, 0)
-            spin_box = self.object_table.cellWidget(row, 1)
-            if type_item and spin_box:
-                counts[type_item.text()] = spin_box.value()
-        return counts
+        """Reads instance counts from the Excel file Count column."""
+        return self.instance_counts_from_excel.copy()
 
     def _request_generation(self):
         """Gathers data and emits the generation_requested signal."""
@@ -563,7 +591,7 @@ class AlarmGeneratorWidget(QWidget):
         instance_counts = self.get_instance_counts()
         if not instance_counts or all(v == 0 for v in instance_counts.values()):
             reply = QMessageBox.question(self, "Nessuna Istanza",
-                                           "Nessuna istanza selezionata per nessun tipo oggetto. Generare comunque un file vuoto (se possibile)?",
+                                           "Nessun tipo di oggetto con istanze > 0 trovato nella colonna 'Count' del file Excel. Generare comunque un file vuoto (se possibile)?",
                                            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                                            QMessageBox.StandardButton.No)
             if reply == QMessageBox.StandardButton.No:
@@ -588,17 +616,6 @@ class AlarmGeneratorWidget(QWidget):
     def enable_generate_button(self, enabled=True):
         """Slot to enable/disable the generate button from outside."""
         self.generate_button.setEnabled(enabled)
-
-    def _apply_saved_instance_counts(self):
-        """Applies saved instance counts to the table widgets."""
-        for row in range(self.object_table.rowCount()):
-            type_item = self.object_table.item(row, 0)
-            spin_box = self.object_table.cellWidget(row, 1)
-            if type_item and spin_box:
-                obj_type = type_item.text()
-                if obj_type in self.saved_instance_counts:
-                    spin_box.setValue(self.saved_instance_counts[obj_type])
-                    self.log_message(f"Applied saved count for {obj_type}: {self.saved_instance_counts[obj_type]}")
 
 # Example of how to use the widget standalone (for testing)
 if __name__ == '__main__':
