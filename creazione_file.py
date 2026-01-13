@@ -1210,7 +1210,7 @@ def create_conf_file(selected_cab_plc, df, output_folder, order, prefix_to_line_
     
     # Regione di configurazione generale
     content.append('	    REGION General Configuration')
-    content.append('	        "DbGlobale".GlobalData.MachineId := 4;')
+    content.append('	        "DbGlobale".GlobalData.MachineId := 8;')
     content.append('	    END_REGION')
     content.append('	    ')
     
