@@ -747,29 +747,32 @@ def create_main_file(trunk_number, valid_items, output_folder, last_valid_prev_i
                  
             content.append('	              START := #StartTronco,')
             content.append('	              TimeData := "DbGlobale".TimeData,')
-            content.append('	              Constants := "DB_Constants".Constants,')
-            content.append('	              GlobalData := "DbGlobale".GlobalData,) # Aggiunto DB_Globale')
+            content.append('	              Constants := "DbGlobale".Constants,')
+            content.append('	              GlobalData := "DbGlobale".GlobalData,') # Aggiunto DB_Globale')
             content.append(f'	              InterfaceTrunkUse := "DbiTrunkLN{trunk_num_formatted}".ComTrunkUse,') 
             
             panytocnv_num_to_use = current_number if current_number is not None else 0
-            content.append(f'	              PANYTOCNV_SA := "DbSvCarouselSa".CAROUSEL[{panytocnv_num_to_use}],') # Usa DbSvCarouselSa
-            content.append(f'	              PANYTOCNV_CMD := "DbSvCarouselCmd".CAROUSEL[{panytocnv_num_to_use}],') # Usa DbSvCarouselCmd
+            content.append(f'	              PANYTOCNV_SA := "SV_DB_CAROUSEL_SA".CAROUSEL[{panytocnv_num_to_use}],') 
+            content.append(f'	              PANYTOCNV_CMD := "SV_DB_CAROUSEL_CMD".CAROUSEL[{panytocnv_num_to_use}],') 
 
             content.append('	              DB_OBJ := "DBsObject".DbObj[1],')
-            content.append('	              "Ist-VidGenerator" := "Ist_Sub_VidGenerator",')
+            content.append('	              "Ist-VidGenerator" := "DbiVidGenerator",')
             content.append('	              EncoderInterface := #TempEncoderNotUsed,')
             # Drive per Carousel - verifica se ci sono 2 o 3 motori (CA CA = 2 motori, CA CA CA = 3 motori)
             ca_count = count_ca_occurrences(item_id_original)
-            content.append(f'	              Drive_1 := "{item_id_original}".Drive_1,') 
-            content.append(f'	              Drive_2 := "{item_id_original}".Drive_2,')
+            content.append(f'	              DriveInterface_1_IN := "{item_id_original}"_1_IN,') 
+            content.append(f'	              DriveInterface_1_OUT := "{item_id_original}"_1_OUT,')
+            content.append(f'	              DriveInterface_2_IN := "{item_id_original}"_2_IN,')
+            content.append(f'	              DriveInterface_2_OUT := "{item_id_original}"_2_OUT,')
             if ca_count >= 3:
-                content.append(f'	              Drive_3 := "{item_id_original}".Drive_3,')
+                content.append(f'	              DriveInterface_3_IN := "{item_id_original}"_3_IN,')
+                content.append(f'	              DriveInterface_3_OUT := "{item_id_original}"_3_OUT,')
 
-            content.append('	              "Ist-McpCreateChrMsg" := "Ist_Gtw_McpCreateChrMsg",')
-            content.append('	              "Ist-PcSocket" := "Ist_Gtw_PcSocket",')
-            content.append('	              "Ist-McpChrMsgBuffer" := "Ist_Gtw_MsgBuffer",')
-            content.append('	              "Ist-LogBuffer" := "Ist_GstLogBuffer",')
-            content.append('	              "Ist-Logger" := "Ist_GstLogger");')
+            content.append('	              "Ist-McpCreateChrMsg" := "DbiMcpCreateChrMsg",')
+            content.append('	              "Ist-PcSocket" := "DbiPcSocket",')
+            content.append('	              "Ist-McpChrMsgBuffer" := "DbiChrMsgBuffer",')
+            content.append('	              "Ist-LogBuffer" := "DbiLogBuffer",')
+            content.append('	              "Ist-Logger" := "DbiLogger");')
             content.append('	    ')
             # Usa DbiLineCarousel se la linea è carousel
             line_ref = "DbiLineCarousel" if associated_line_num == 'Carousel' else f"DbiLine{associated_line_num}"
