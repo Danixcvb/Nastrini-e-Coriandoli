@@ -508,7 +508,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path, us
 	        "{item_id_custom_new}".Conveyor.Data.CNF.EnableContaminationCheck := FALSE;      // [default=FALSE]
 	        "{item_id_custom_new}".Conveyor.Data.CNF.EnableSecurityStopCheck := FALSE;      // [default=FALSE]
 	        "{item_id_custom_new}".Conveyor.Data.CNF.DbObjectsNumber := 1;       // [default=1]
-	        "{item_id_custom_new}".Conveyor.Data.CNF.Conveyor_ID := {conveyor_id:04d};       // [default=0000]
+	        "{item_id_custom_new}".Conveyor.Data.CNF.Conveyor_ID := {int(utenza_number)};       // [default=0000]
 	        "{item_id_custom_new}".Conveyor.Data.CNF.UseTrunkNumber := {progressive_number};          // [default=1]
 	        "{item_id_custom_new}".Conveyor.Data.CNF.TimeEnergySaving := T#120s;      // [default=T#30S]
 	        "{item_id_custom_new}".Conveyor.Data.CNF.TimeEnergySavingAutotest := T#10S;      // [default=T#30S]
