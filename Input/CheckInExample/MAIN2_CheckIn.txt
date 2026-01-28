@@ -1,0 +1,117 @@
+
+
+REGION Gestione Richiesta Start Tronco
+    
+    IF #GlobalData.Start_All OR
+        #GlobalData.StartTronco2 OR
+        "DbiTrunkLN02".StartReqAutoFp
+    THEN
+        #StartTronco := TRUE;
+    END_IF;
+    
+END_REGION
+
+REGION Desk_AC11CC131 - DESK
+    
+    "Desk_AC11CC131"(TimeData := #TimeData,
+                     Com_Collector := "Utenza3_AC11ST005".Collector.DesksComm[1].COM_COLLECTOR,
+                     Com_Desk => "Utenza3_AC11ST005".Collector.DesksComm[1].COM_DESK,
+                     PANYTO_SV := "SV_DB_CHECKIN".DESK[31],
+                     InterfaceTrunkUse := #TrunkInterface,
+                     InterfaceLineTrunk := "DbiLine1".ComLineTrunk);
+END_REGION
+
+REGION Desk_AC11CC132 - DESK
+    
+    "Desk_AC11CC132"(TimeData := #TimeData,
+                     Com_Collector := "Utenza3_AC11ST005".Collector.DesksComm[2].COM_COLLECTOR,
+                     Com_Desk => "Utenza3_AC11ST005".Collector.DesksComm[2].COM_DESK,
+                     PANYTO_SV := "SV_DB_CHECKIN".DESK[32],
+                     InterfaceTrunkUse := #TrunkInterface,
+                     InterfaceLineTrunk := "DbiLine1".ComLineTrunk);
+END_REGION
+
+REGION Desk_AC11CC133 - DESK
+    
+    "Desk_AC11CC133"(TimeData := #TimeData,
+                     Com_Collector := "Utenza3_AC11ST005".Collector.DesksComm[3].COM_COLLECTOR,
+                     Com_Desk => "Utenza3_AC11ST005".Collector.DesksComm[3].COM_DESK,
+                     PANYTO_SV := "SV_DB_CHECKIN".DESK[33],
+                     InterfaceTrunkUse := #TrunkInterface,
+                     InterfaceLineTrunk := "DbiLine1".ComLineTrunk);
+END_REGION
+
+REGION Desk_AC11CC134 - DESK
+    
+    "Desk_AC11CC134"(TimeData := #TimeData,
+                     Com_Collector := "Utenza3_AC11ST005".Collector.DesksComm[4].COM_COLLECTOR,
+                     Com_Desk => "Utenza3_AC11ST005".Collector.DesksComm[4].COM_DESK,
+                     PANYTO_SV := "SV_DB_CHECKIN".DESK[34],
+                     InterfaceTrunkUse := #TrunkInterface,
+                     InterfaceLineTrunk := "DbiLine1".ComLineTrunk);
+END_REGION
+
+REGION Desk_AC11CC135 - DESK
+    
+    "Desk_AC11CC135"(TimeData := #TimeData,
+                     Com_Collector := "Utenza4_AC11ST007".Collector.DesksComm[1].COM_COLLECTOR,
+                     Com_Desk => "Utenza4_AC11ST007".Collector.DesksComm[1].COM_DESK,
+                     PANYTO_SV := "SV_DB_CHECKIN".DESK[35],
+                     InterfaceTrunkUse := #TrunkInterface,
+                     InterfaceLineTrunk := "DbiLine1".ComLineTrunk);
+END_REGION
+
+REGION Desk_AC11CC135 - DESK
+    
+    "Desk_AC11CC136"(TimeData := #TimeData,
+                     Com_Collector := "Utenza4_AC11ST007".Collector.DesksComm[2].COM_COLLECTOR,
+                     Com_Desk => "Utenza4_AC11ST007".Collector.DesksComm[2].COM_DESK,
+                     PANYTO_SV := "SV_DB_CHECKIN".DESK[36],
+                     InterfaceTrunkUse := #TrunkInterface,
+                     InterfaceLineTrunk := "DbiLine1".ComLineTrunk);
+END_REGION
+
+REGION Call SingleImpulsiveDamper (Damper_AC11SD131)
+    
+    "Damper_AC11SD131"(#TrunkInterface);
+    
+END_REGION
+
+REGION Call SingleImpulsiveDamper (Damper_AC11SD133)
+    
+    "Damper_AC11SD133"(#TrunkInterface);
+    
+END_REGION
+
+REGION Call SingleImpulsiveDamper (Damper_AC11SD135)
+    
+    "Damper_AC11SD135"(#TrunkInterface);
+    
+END_REGION
+
+REGION Call Collector_SEW_MOVIGEAR (AC11ST005)
+    
+    "Utenza3_AC11ST005"(START := #StartTronco,
+                        PREV := "Utenza2_AC11ST003"."Collector".Data.OUT,
+                        NEXT := "Utenza4_AC11ST007"."Collector".Data.OUT,
+                        TimeData := #TimeData,
+                        Constants := #Constants,
+                        TrunkInterface := #TrunkInterface,
+                        SupervisionSa := "SV_DB_COLLECTOR_SA".COLLECTOR[3],
+                        SupervisionCmd := "SV_DB_COLLECTOR_CMD".COLLECTOR[3],
+                        DB_OBJ := "DbsObject".DbObj[1]);
+    
+END_REGION
+
+REGION Call Collector_SEW_MOVIGEAR (AC11ST007)
+    
+    "Utenza4_AC11ST007"(START := #StartTronco,
+                        PREV := "Utenza3_AC11ST005"."Collector".Data.OUT,
+                        NEXT := "Side_Input_Utenza_4_to_5".Data.OUT_PREV,
+                        TimeData := #TimeData,
+                        Constants := #Constants,
+                        TrunkInterface := #TrunkInterface,
+                        SupervisionSa := "SV_DB_COLLECTOR_SA".COLLECTOR[4],
+                        SupervisionCmd := "SV_DB_COLLECTOR_CMD".COLLECTOR[4],
+                        DB_OBJ := "DbsObject".DbObj[1]);
+    

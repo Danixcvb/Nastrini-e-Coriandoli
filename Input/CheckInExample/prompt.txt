@@ -1,0 +1,50 @@
+Devo aggiungere nuove parti da generare: sono state aggiunte delle nuove informazioni nella cartella \Input\CheckInExample
+
+Di queste è presente un file excel "CHECK_IN_MISURATOR (version 1).xlsx" che contiente le misure che vanno associate alle varie configurazioni dei corrispettivi Desk e Collettori. Le prime due righe sono da ignorare in quanto intestazioni.
+
+Le info per le Desk sono comprese nelle colonne da A a F:
+A: nome del collettore associato al desk (nei primi 4 caratteri trovi anche la linea, per cui non va messo sempre "AC11" ma bensi il corrispettivo associato)
+B: indice del desk
+C: lunghezza del collettore
+D: posizione desk da inserire nel valore BknAreaPosition_Right nella CONF del Desk
+E: posizione desk da inserire nel valore BknAreaPosition_Left nella CONF del Desk
+
+Tieni in considerazione che ogni coppia di Desk ha una sola Damper associata: il numero della Damper è sempre un numero dispari, se la Desk ha indice pari, sarà il precedente numero dispari (ad esempio per 18 sarà 17, per 10 sarà 9). Considera che l'interfaccia Desk si aspetta sempre una Damper anche se è la stessa di un'altra Desk, perché la libreria originale gestiva una Damper per ciascun Desk. Stattene.
+
+
+Le info per i Collector sono comprese nelle colonne da G a L:
+H: lunghezza del Collector (considera che questa info è presente anche in machine table dunque puoi ignorarla)
+I: Valore Collector.PhtTracking01.Data.CNF.Position in direzione destra
+J: Valore Collector.PhtTracking02.Data.CNF.Position in direzione destra
+K: Valore Collector.PhtTracking01.Data.CNF.Position in direzione sinistra
+L: Valore Collector.PhtTracking02.Data.CNF.Position in direzione sinistra
+
+Considera che con direzione destra intendo quello che sta sotto a
+
+"
+REGION Config Collector_SEW_MOVIGEAR (xxxxx)
+    IF "xxxxx".Collector.Direction THEN
+        //Direction right
+"
+
+Mentre con direzione sinistra
+"
+    ELSE
+        //Direction left
+"
+
+Nella cartella trovi gli esempi per il tronco 2 delle Desk 31/32/33/34/35/36, le Damper 31/33/35 e i Collector relativi a quelle Desk e Damper
+
+Per evitare di sovrascrivere codice già generato e corretto ho necessità che la generazione sia fatta in file DigIn DigOut Conf_T# e MAIN# in una cartella separata (Output/CheckIn) in cui è presente solo la parte generata che interessa questo prompt (Desk, Damper e Collector). 
+
+Per capire a quale # (tronco) associare il codice devi confrontare il nome del collettore/nastro (per quello che ti interessa sono la stessa cosa) nella machine table AI come per la generazione del resto della roba
+
+Oltre a questo sempre nella stessa cartella ho bisogno che mi generi i DB istanza da importare in TIA Portal delle Desk e delle Damper, all'interno della cartella trovi gli esempi già generati per le Desk 31/32/33/34/35/36 e le Damper 31/33/35
+
+Questa generazione deve essere eseguita con un pulsante verde a parte nell'interfaccia grafica di nome "Generate CheckIn": questo pulsante da per scontato che il CAB_PLC selezionato sia sempre APR001
+
+È importante che nessun'altra parte del generatore già funzionante venga alterata
+
+Prima di iniziare a generare codice chiedimi delucidazioni su cosa possa risultarti ambiguo/dubbi/etc
+
+Una volta iniziata la generazione, esegui in autonomia delle generazioni e confrontale con gli esempi forniti nell'input (ovviamente non puoi usarli come input alla generazione, ma come esempio per capire se no non vale mi stai fregando)

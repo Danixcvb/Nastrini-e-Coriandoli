@@ -1,0 +1,194 @@
+
+    
+    REGION Output Check-in Dampers 31 & 32 (AC11SD131)
+        
+        "AC11_CDE31_501K1_UP_STOP_DOWN_STOP_ANTI_INTRUSION_DAMPER" := "Damper_AC11SD131".Data.Out.Signal;//"AC11_SD133_B7001_POSITION_UP";
+        "AC11_CDE31_501K5_ANOMALY_ANTI_INTRUSION_DAMPER" := "Damper_AC11SD131".Data.Out.Fault;
+        
+    END_REGION
+    
+    REGION Output Check-in Dampers 33 & 34 (AC11SD133)
+        
+        "AC11_CDE33_501K1_UP_STOP_DOWN_STOP_ANTI_INTRUSION_DAMPER" := "Damper_AC11SD133".Data.Out.Signal;//"AC11_SD133_B7001_POSITION_UP";
+        "AC11_CDE33_501K5_ANOMALY_ANTI_INTRUSION_DAMPER" := "Damper_AC11SD133".Data.Out.Fault;
+        
+    END_REGION
+    
+    REGION Output Check-in Dampers 35 & 36 (AC11SD135)
+        
+        "AC11_CDE35_501K1_UP_STOP_DOWN_STOP_ANTI_INTRUSION_DAMPER" := "Damper_AC11SD135".Data.Out.Signal;//"AC11_SD133_B7001_POSITION_UP";
+        "AC11_CDE35_501K5_ANOMALY_ANTI_INTRUSION_DAMPER" := "Damper_AC11SD135".Data.Out.Fault;
+        
+    END_REGION
+    
+    
+    
+    REGION Output Check-in Desk 31 (Desk_AC11CC131)
+        
+        //Service lamp must be flashing if DBA/OPEN are TRUE and CUSTOMER ENABLED is FALSE (or VICE-VERSA)
+        //Service lamp must be ON if DBA/OPEN are TRUE and CUSTOMER ENABLED is TRUE
+        #TempServiceLamp := FALSE;
+        #TempServiceLamp := #TempServiceLamp OR ("CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_31" AND "DbGlobale".TimeData.ClkLampeggioLento);
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8131_100S1_OPEN" AND "DbGlobale".TimeData.ClkLampeggioLento);
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8131_100S1_DBA" AND "DbGlobale".TimeData.ClkLampeggioLento);
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8131_100S1_OPEN" AND "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_31");
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8131_100S1_DBA" AND "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_31");
+        "AC11_OP8131_100P1_IN_SERVICE" := #TempServiceLamp;
+        
+        "AC11_OP8131_100P2_MAINTENANCE_ONGOING" := "Desk_AC11CC131".Data.SV.Desk.Maintenance;
+        
+        "AC11_OP8131_100P3_TECHNICAL_FAULT" := "Desk_AC11CC131".AVR;
+        "AC11_OP8231_100P1_OVERSIZE" := "Desk_AC11CC131".Data.OUT.Led_OverLenght OR "Desk_AC11CC131".Data.SV.Conveyor1.AlmPhotocell3;
+        
+        "AC11_OP8231_100S2_SEND_PB_LIGHT" := "Desk_AC11CC131".Data.OUT.Led_Move_3;
+        
+        //Conveyor 1
+        "AC11_CDE31_120Q1_START_FORWARD_WEIGHING_BELT_MOTOR_1" := "Desk_AC11CC131".Conveyor1.Data.CMD.CMD_FW;
+        "AC11_CDE31_120Q1_START_BACKWARD_WEIGHING_BELT_MOTOR_1" := "Desk_AC11CC131".Conveyor1.Data.CMD.CMD_RW;
+        //Conveyor 3
+        "AC11_CDE31_120Q2_START_FORWARD_LAUNCH_BELT_MOTOR_1" := "Desk_AC11CC131".Conveyor3.Data.CMD.CMD_FW;
+        
+        
+    END_REGION
+    
+    REGION Output Check-in Desk 32 (Desk_AC11CC132)
+        
+        //Service lamp must be flashing if DBA/OPEN are TRUE and CUSTOMER ENABLED is FALSE (or VICE-VERSA)
+        //Service lamp must be ON if DBA/OPEN are TRUE and CUSTOMER ENABLED is TRUE
+        #TempServiceLamp := FALSE;
+        #TempServiceLamp := #TempServiceLamp OR ("CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_32" AND "DbGlobale".TimeData.ClkLampeggioLento);
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8132_100S1_OPEN" AND "DbGlobale".TimeData.ClkLampeggioLento);
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8132_100S1_DBA" AND "DbGlobale".TimeData.ClkLampeggioLento);
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8132_100S1_OPEN" AND "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_32");
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8132_100S1_DBA" AND "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_32");
+        "AC11_OP8132_100P1_IN_SERVICE" := #TempServiceLamp;
+        
+        "AC11_OP8132_100P2_MAINTENANCE_ONGOING" := "Desk_AC11CC132".Data.SV.Desk.Maintenance;
+        
+        "AC11_OP8132_100P3_TECHNICAL_FAULT" := "Desk_AC11CC132".AVR;
+        "AC11_OP8232_100P1_OVERSIZE" := "Desk_AC11CC132".Data.OUT.Led_OverLenght OR "Desk_AC11CC132".Data.SV.Conveyor1.AlmPhotocell3;
+        
+        "AC11_OP8232_100S2_SEND_PB_LIGHT" := "Desk_AC11CC132".Data.OUT.Led_Move_3;
+        
+        //Conveyor 1
+        "AC11_CDE31_125Q1_START_FORWARD_WEIGHING_BELT_MOTOR_2" := "Desk_AC11CC132".Conveyor1.Data.CMD.CMD_FW;
+        "AC11_CDE31_125Q1_START_BACKWARD_WEIGHING_BELT_MOTOR_2" := "Desk_AC11CC132".Conveyor1.Data.CMD.CMD_RW;
+        //Conveyor 3
+        "AC11_CDE31_125Q2_START_FORWARD_LAUNCH_BELT_MOTOR_2" := "Desk_AC11CC132".Conveyor3.Data.CMD.CMD_FW;
+        
+        
+        
+    END_REGION
+    
+    REGION Output Check-in Desk 33 (Desk_AC11CC133)
+        
+        //Service lamp must be flashing if DBA/OPEN are TRUE and CUSTOMER ENABLED is FALSE (or VICE-VERSA)
+        //Service lamp must be ON if DBA/OPEN are TRUE and CUSTOMER ENABLED is TRUE
+        #TempServiceLamp := FALSE;
+        #TempServiceLamp := #TempServiceLamp OR ("CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_33" AND "DbGlobale".TimeData.ClkLampeggioLento);
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8133_100S1_OPEN" AND "DbGlobale".TimeData.ClkLampeggioLento);
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8133_100S1_DBA" AND "DbGlobale".TimeData.ClkLampeggioLento);
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8133_100S1_OPEN" AND "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_33");
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8133_100S1_DBA" AND "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_33");
+        "AC11_OP8133_100P1_IN_SERVICE" := #TempServiceLamp;
+        
+        "AC11_OP8133_100P2_MAINTENANCE_ONGOING" := "Desk_AC11CC133".Data.SV.Desk.Maintenance;
+        
+        "AC11_OP8133_100P3_TECHNICAL_FAULT" := "Desk_AC11CC133".AVR;
+        "AC11_OP8233_100P1_OVERSIZE" := "Desk_AC11CC133".Data.OUT.Led_OverLenght OR "Desk_AC11CC133".Data.SV.Conveyor1.AlmPhotocell3;
+        "AC11_OP8233_100S2_SEND_PB_LIGHT" := "Desk_AC11CC133".Data.OUT.Led_Move_3;
+        
+        //Conveyor 1
+        "AC11_CDE33_120Q1_START_FORWARD_WEIGHING_BELT_MOTOR_1" := "Desk_AC11CC133".Conveyor1.Data.CMD.CMD_FW;
+        "AC11_CDE33_120Q1_START_BACKWARD_WEIGHING_BELT_MOTOR_1" := "Desk_AC11CC133".Conveyor1.Data.CMD.CMD_RW;
+        //Conveyor 3
+        "AC11_CDE33_120Q2_START_FORWARD_LAUNCH_BELT_MOTOR_1" := "Desk_AC11CC133".Conveyor3.Data.CMD.CMD_FW;
+        
+    END_REGION
+    
+    
+    REGION Output Check-in Desk 34 (Desk_AC11CC134)
+        
+        //Service lamp must be flashing if DBA/OPEN are TRUE and CUSTOMER ENABLED is FALSE (or VICE-VERSA)
+        //Service lamp must be ON if DBA/OPEN are TRUE and CUSTOMER ENABLED is TRUE
+        #TempServiceLamp := FALSE;
+        #TempServiceLamp := #TempServiceLamp OR ("CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_34" AND "DbGlobale".TimeData.ClkLampeggioLento);
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8134_100S1_OPEN" AND "DbGlobale".TimeData.ClkLampeggioLento);
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8134_100S1_DBA" AND "DbGlobale".TimeData.ClkLampeggioLento);
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8134_100S1_OPEN" AND "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_34");
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8134_100S1_DBA" AND "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_34");
+        "AC11_OP8134_100P1_IN_SERVICE" := #TempServiceLamp;
+        
+        "AC11_OP8134_100P2_MAINTENANCE_ONGOING" := "Desk_AC11CC134".Data.SV.Desk.Maintenance;
+        
+        "AC11_OP8134_100P3_TECHNICAL_FAULT" := "Desk_AC11CC134".AVR;
+        
+        //Conveyor 1
+        "AC11_CDE33_125Q1_START_FORWARD_WEIGHING_BELT_MOTOR_2" := "Desk_AC11CC134".Conveyor1.Data.CMD.CMD_FW;
+        "AC11_CDE33_125Q1_START_BACKWARD_WEIGHING_BELT_MOTOR_2" := "Desk_AC11CC134".Conveyor1.Data.CMD.CMD_RW;
+        //Conveyor 3
+        "AC11_CDE33_125Q2_START_FORWARD_LAUNCH_BELT_MOTOR_2" := "Desk_AC11CC134".Conveyor3.Data.CMD.CMD_FW;
+        
+        "AC11_OP8234_100P1_OVERSIZE" := "Desk_AC11CC134".Data.OUT.Led_OverLenght OR "Desk_AC11CC134".Data.SV.Conveyor1.AlmPhotocell3;
+        
+        "AC11_CDE33_501K5_ANOMALY_ANTI_INTRUSION_DAMPER" := "Desk_AC11CC134".Damper.Data.SA.AlmFault;
+        "AC11_CDE33_210F1_ELECTRONIC_FUSE_24VDC_DISTRIBUTION_RESET" := "Desk_AC11CC134".Data.IN.PB_Reset;
+    END_REGION
+    
+    REGION Output Check-in Desk 35 (Desk_AC11CC135)
+        
+        //Service lamp must be flashing if DBA/OPEN are TRUE and CUSTOMER ENABLED is FALSE (or VICE-VERSA)
+        //Service lamp must be ON if DBA/OPEN are TRUE and CUSTOMER ENABLED is TRUE
+        #TempServiceLamp := FALSE;
+        #TempServiceLamp := #TempServiceLamp OR ("CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_35" AND "DbGlobale".TimeData.ClkLampeggioLento);
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8135_100S1_OPEN" AND "DbGlobale".TimeData.ClkLampeggioLento);
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8135_100S1_DBA" AND "DbGlobale".TimeData.ClkLampeggioLento);
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8135_100S1_OPEN" AND "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_35");
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8136_100S1_DBA" AND "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_35");
+        "AC11_OP8135_100P1_IN_SERVICE" := #TempServiceLamp;
+        
+        "AC11_OP8135_100P2_MAINTENANCE_ONGOING" := "Desk_AC11CC135".Data.SV.Desk.Maintenance;
+        
+        "AC11_OP8135_100P3_TECHNICAL_FAULT" := "Desk_AC11CC135".AVR;
+        
+        //Conveyor 1
+        "AC11_CDE35_120Q1_START_FORWARD_WEIGHING_BELT_MOTOR_1" := "Desk_AC11CC135".Conveyor1.Data.CMD.CMD_FW;
+        "AC11_CDE35_120Q1_START_BACKWARD_WEIGHING_BELT_MOTOR_1" := "Desk_AC11CC135".Conveyor1.Data.CMD.CMD_RW;
+        //Conveyor 3
+        "AC11_CDE35_120Q2_START_FORWARD_LAUNCH_BELT_MOTOR_1" := "Desk_AC11CC135".Conveyor3.Data.CMD.CMD_FW;
+        
+        "AC11_OP8235_100P1_OVERSIZE" := "Desk_AC11CC135".Data.OUT.Led_OverLenght OR "Desk_AC11CC135".Data.SV.Conveyor1.AlmPhotocell3;
+        "AC11_OP8235_100S2_SEND_PB_LIGHT" := "Desk_AC11CC135".Data.OUT.Led_Move_3;
+        
+        "AC11_CDE35_210F1_ELECTRONIC_FUSE_24VDC_DISTRIBUTION_RESET" := "Desk_AC11CC135".Data.IN.PB_Reset;
+    END_REGION
+    
+    REGION Output Check-in Desk 36 (Desk_AC11CC136)
+        
+        //Service lamp must be flashing if DBA/OPEN are TRUE and CUSTOMER ENABLED is FALSE (or VICE-VERSA)
+        //Service lamp must be ON if DBA/OPEN are TRUE and CUSTOMER ENABLED is TRUE
+        #TempServiceLamp := FALSE;
+        #TempServiceLamp := #TempServiceLamp OR ("CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_36" AND "DbGlobale".TimeData.ClkLampeggioLento);
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8136_100S1_OPEN" AND "DbGlobale".TimeData.ClkLampeggioLento);
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8136_100S1_DBA" AND "DbGlobale".TimeData.ClkLampeggioLento);
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8136_100S1_OPEN" AND "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_36");
+        #TempServiceLamp := #TempServiceLamp OR ("AC11_OP8136_100S1_DBA" AND "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_36");
+        "AC11_OP8136_100P1_IN_SERVICE" := #TempServiceLamp;
+        
+        "AC11_OP8136_100P2_MAINTENANCE_ONGOING" := "Desk_AC11CC136".Data.SV.Desk.Maintenance;
+        
+        "AC11_OP8136_100P3_TECHNICAL_FAULT" := "Desk_AC11CC136".AVR;
+        
+        //Conveyor 1
+        "AC11_CDE35_125Q1_START_FORWARD_WEIGHING_BELT_MOTOR_2" := "Desk_AC11CC136".Conveyor1.Data.CMD.CMD_FW;
+        "AC11_CDE35_125Q1_START_BACKWARD_WEIGHING_BELT_MOTOR_2" := "Desk_AC11CC136".Conveyor1.Data.CMD.CMD_RW;
+        //Conveyor 3
+        "AC11_CDE35_125Q2_START_FORWARD_LAUNCH_BELT_MOTOR_2" := "Desk_AC11CC136".Conveyor3.Data.CMD.CMD_FW;
+        
+        "AC11_OP8236_100P1_OVERSIZE" := "Desk_AC11CC136".Data.OUT.Led_OverLenght OR "Desk_AC11CC136".Data.SV.Conveyor1.AlmPhotocell3;
+        "AC11_OP8236_100S2_SEND_PB_LIGHT" := "Desk_AC11CC136".Data.OUT.Led_Move_3;
+        
+        "AC11_CDE35_210F1_ELECTRONIC_FUSE_24VDC_DISTRIBUTION_RESET" := "Desk_AC11CC136".Data.IN.PB_Reset;
+    END_REGION
+    
+    

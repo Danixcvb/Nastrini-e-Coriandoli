@@ -1,0 +1,824 @@
+REGION Config Desk (Desk_AC11CC131)
+    REGION Data
+        
+        "Desk_AC11CC131".Data.CNF.Belt_Number := 2;
+        "Desk_AC11CC131".Data.CNF.Id := 31;
+        "Desk_AC11CC131".Data.CNF.ScaleEn := TRUE;
+        "Desk_AC11CC131".Data.CNF.Pht1_1_En := TRUE;
+        "Desk_AC11CC131".Data.CNF.Pht1_1_Timeout := T#1s; //How long oversize back command enabled
+        "Desk_AC11CC131".Data.CNF.Pht1_2_En := TRUE;
+        "Desk_AC11CC131".Data.CNF.Pht1_2_Timeout := T#250ms;
+        "Desk_AC11CC131".Data.CNF.Pht3_1_En := TRUE;
+        "Desk_AC11CC131".Data.CNF.Pht3_1_Timeout := T#250ms;
+        "Desk_AC11CC131".Data.CNF.Pht1_1_JamTime := T#5s;
+        "Desk_AC11CC131".Data.CNF.Pht1_2_JamTime := T#5s;
+        "Desk_AC11CC131".Data.CNF.PhtOverHeight_JamTime := T#5s;
+        "Desk_AC11CC131".Data.CNF.Pht3_1_JamTime := T#8s;
+        "Desk_AC11CC131".Data.CNF.InjFailed_Delay := T#7s;
+        "Desk_AC11CC131".Data.CNF.BookingReqTimeoutH := T#1s;
+        IF "Utenza3_AC11ST005".Collector.Direction THEN
+            "Desk_AC11CC131".Data.CNF.BookingReqTimeoutHH := T#30s;
+        ELSE
+            "Desk_AC11CC131".Data.CNF.BookingReqTimeoutHH := T#50s;
+        END_IF;
+        "Desk_AC11CC131".Data.CNF.PhtOverHeight_En := TRUE;
+        "Desk_AC11CC131".Data.CNF.PhtOverHeight_Timeout := T#250ms;
+        "Desk_AC11CC131".Data.CNF.PhtRiseFilterThr := T#0ms;
+        "Desk_AC11CC131".Data.CNF.PhtFallFilterThr := T#0ms;
+        "Desk_AC11CC131".Data.CNF.LongResetPT := T#5s;
+        "Desk_AC11CC131".Data.CNF.BknSlotLenght := 1.75;
+        "Desk_AC11CC131".Data.CNF.BknAreaPosition_Left := 6.17;
+        "Desk_AC11CC131".Data.CNF.BknAreaPosition_Right := 1.56;
+        
+    END_REGION
+    REGION Conveyor1.Data
+        "Desk_AC11CC131".Conveyor1.Data.CNF.FB_TIMER := T#500ms;
+    END_REGION
+    REGION Conveyor3.Data
+        "Desk_AC11CC131".Conveyor3.Data.CNF.FB_TIMER := T#500ms;
+    END_REGION
+    REGION Damper.Data
+        "Desk_AC11CC131".Damper.Data.CNF.AutomaticCloseDelay_PT := T#4m;
+        "Desk_AC11CC131".Damper.Data.CNF.NotClosed_PT := t#15s;
+        "Desk_AC11CC131".Damper.Data.CNF.NotOpened_PT := t#15s;
+    END_REGION
+END_REGION
+
+REGION Config Desk (Desk_AC11CC132)
+    REGION Data
+        
+        "Desk_AC11CC132".Data.CNF.Belt_Number := 2;
+        "Desk_AC11CC132".Data.CNF.Id := 32;
+        "Desk_AC11CC132".Data.CNF.ScaleEn := TRUE;
+        "Desk_AC11CC132".Data.CNF.Pht1_1_En := TRUE;
+        "Desk_AC11CC132".Data.CNF.Pht1_1_Timeout := T#1s; //How long oversize back command enabled
+        "Desk_AC11CC132".Data.CNF.Pht1_2_En := TRUE;
+        "Desk_AC11CC132".Data.CNF.Pht1_2_Timeout := T#250ms;
+        "Desk_AC11CC132".Data.CNF.Pht3_1_En := TRUE;
+        "Desk_AC11CC132".Data.CNF.Pht3_1_Timeout := T#250ms;
+        "Desk_AC11CC132".Data.CNF.Pht1_1_JamTime := T#5s;
+        "Desk_AC11CC132".Data.CNF.Pht1_2_JamTime := T#5s;
+        "Desk_AC11CC132".Data.CNF.PhtOverHeight_JamTime := T#5s;
+        "Desk_AC11CC132".Data.CNF.Pht3_1_JamTime := T#8s;
+        "Desk_AC11CC132".Data.CNF.InjFailed_Delay := T#7s;
+        "Desk_AC11CC132".Data.CNF.BookingReqTimeoutH := T#1s;
+        IF "Utenza3_AC11ST005".Collector.Direction THEN
+            "Desk_AC11CC132".Data.CNF.BookingReqTimeoutHH := T#30s;
+        ELSE
+            "Desk_AC11CC132".Data.CNF.BookingReqTimeoutHH := T#50s;
+        END_IF;
+        "Desk_AC11CC132".Data.CNF.PhtOverHeight_En := TRUE;
+        "Desk_AC11CC132".Data.CNF.PhtOverHeight_Timeout := T#250ms;
+        "Desk_AC11CC132".Data.CNF.PhtRiseFilterThr := T#0ms;
+        "Desk_AC11CC132".Data.CNF.PhtFallFilterThr := T#0ms;
+        "Desk_AC11CC132".Data.CNF.LongResetPT := T#5s;
+        "Desk_AC11CC132".Data.CNF.BknSlotLenght := 1.75;
+        "Desk_AC11CC132".Data.CNF.BknAreaPosition_Left := 2.16;//5.57;
+        "Desk_AC11CC132".Data.CNF.BknAreaPosition_Right := 5.57;//2.16;
+        
+    END_REGION
+    REGION Conveyor1.Data
+        "Desk_AC11CC132".Conveyor1.Data.CNF.FB_TIMER := T#500ms;
+    END_REGION
+    REGION Conveyor3.Data
+        "Desk_AC11CC132".Conveyor3.Data.CNF.FB_TIMER := T#500ms;
+    END_REGION
+    REGION Damper.Data
+        "Desk_AC11CC132".Damper.Data.CNF.AutomaticCloseDelay_PT := T#4m;
+        "Desk_AC11CC132".Damper.Data.CNF.NotClosed_PT := t#15s;
+        "Desk_AC11CC132".Damper.Data.CNF.NotOpened_PT := t#15s;
+    END_REGION
+END_REGION
+
+REGION Config Desk (Desk_AC11CC133)
+    REGION Data
+        
+        "Desk_AC11CC133".Data.CNF.Belt_Number := 2;
+        "Desk_AC11CC133".Data.CNF.Id := 33;
+        "Desk_AC11CC133".Data.CNF.ScaleEn := TRUE;
+        "Desk_AC11CC133".Data.CNF.Pht1_1_En := TRUE;
+        "Desk_AC11CC133".Data.CNF.Pht1_1_Timeout := T#1s; //How long oversize back command enabled
+        "Desk_AC11CC133".Data.CNF.Pht1_2_En := TRUE;
+        "Desk_AC11CC133".Data.CNF.Pht1_2_Timeout := T#250ms;
+        "Desk_AC11CC133".Data.CNF.Pht3_1_En := TRUE;
+        "Desk_AC11CC133".Data.CNF.Pht3_1_Timeout := T#250ms;
+        "Desk_AC11CC133".Data.CNF.Pht1_1_JamTime := T#5s;
+        "Desk_AC11CC133".Data.CNF.Pht1_2_JamTime := T#5s;
+        "Desk_AC11CC133".Data.CNF.PhtOverHeight_JamTime := T#5s;
+        "Desk_AC11CC133".Data.CNF.Pht3_1_JamTime := T#8s;
+        "Desk_AC11CC133".Data.CNF.InjFailed_Delay := T#7s;
+        "Desk_AC11CC133".Data.CNF.BookingReqTimeoutH := T#1s;
+        IF "Utenza3_AC11ST005".Collector.Direction THEN
+            "Desk_AC11CC133".Data.CNF.BookingReqTimeoutHH := T#30s;
+        ELSE
+            "Desk_AC11CC133".Data.CNF.BookingReqTimeoutHH := T#50s;
+        END_IF;
+        "Desk_AC11CC133".Data.CNF.PhtOverHeight_En := TRUE;
+        "Desk_AC11CC133".Data.CNF.PhtOverHeight_Timeout := T#250ms;
+        "Desk_AC11CC133".Data.CNF.PhtRiseFilterThr := T#0ms;
+        "Desk_AC11CC133".Data.CNF.PhtFallFilterThr := T#0ms;
+        "Desk_AC11CC133".Data.CNF.LongResetPT := T#5s;
+        "Desk_AC11CC133".Data.CNF.BknSlotLenght := 1.75;
+        "Desk_AC11CC133".Data.CNF.BknAreaPosition_Left := 5.43;
+        "Desk_AC11CC133".Data.CNF.BknAreaPosition_Right := 2.31;
+        
+    END_REGION
+    REGION Conveyor1.Data
+        "Desk_AC11CC133".Conveyor1.Data.CNF.FB_TIMER := T#500ms;
+    END_REGION
+    REGION Conveyor3.Data
+        "Desk_AC11CC133".Conveyor3.Data.CNF.FB_TIMER := T#500ms;
+    END_REGION
+    REGION Damper.Data
+        "Desk_AC11CC133".Damper.Data.CNF.AutomaticCloseDelay_PT := T#4m;
+        "Desk_AC11CC133".Damper.Data.CNF.NotClosed_PT := t#15s;
+        "Desk_AC11CC133".Damper.Data.CNF.NotOpened_PT := t#15s;
+    END_REGION
+END_REGION
+
+REGION Config Desk (Desk_AC11CC134)
+    REGION Data      
+        "Desk_AC11CC134".Data.CNF.Belt_Number := 2;
+        "Desk_AC11CC134".Data.CNF.Id := 34;
+        "Desk_AC11CC134".Data.CNF.ScaleEn := TRUE;
+        "Desk_AC11CC134".Data.CNF.Pht1_1_En := TRUE;
+        "Desk_AC11CC134".Data.CNF.Pht1_1_Timeout := T#1s;
+        "Desk_AC11CC134".Data.CNF.Pht1_2_En := TRUE;
+        "Desk_AC11CC134".Data.CNF.Pht1_2_Timeout := T#250ms;
+        "Desk_AC11CC134".Data.CNF.Pht2_1_En := TRUE;
+        "Desk_AC11CC134".Data.CNF.Pht2_1_Timeout := T#250ms;
+        "Desk_AC11CC134".Data.CNF.Pht1_1_JamTime := T#5s;
+        "Desk_AC11CC134".Data.CNF.Pht1_2_JamTime := T#5s;
+        "Desk_AC11CC134".Data.CNF.Pht2_1_JamTime := T#5s;
+        "Desk_AC11CC134".Data.CNF.PhtOverHeight_JamTime := T#5s;
+        "Desk_AC11CC134".Data.CNF.Pht3_1_JamTime := T#8s;
+        "Desk_AC11CC134".Data.CNF.Pht3_1_En := TRUE;
+        "Desk_AC11CC134".Data.CNF.Pht3_1_Timeout := T#250ms;
+        "Desk_AC11CC134".Data.CNF.InjFailed_Delay := T#7s;
+        "Desk_AC11CC134".Data.CNF.BookingReqTimeoutH := T#1s;
+        IF "Utenza3_AC11ST005".Collector.Direction THEN
+            "Desk_AC11CC134".Data.CNF.BookingReqTimeoutHH := T#30s;
+        ELSE
+            "Desk_AC11CC134".Data.CNF.BookingReqTimeoutHH := T#50s;
+        END_IF;
+        "Desk_AC11CC134".Data.CNF.PhtOverHeight_En := TRUE;
+        "Desk_AC11CC134".Data.CNF.PhtOverHeight_Timeout := T#250ms;
+        "Desk_AC11CC134".Data.CNF.PhtRiseFilterThr := T#0ms;
+        "Desk_AC11CC134".Data.CNF.PhtFallFilterThr := T#0ms;
+        "Desk_AC11CC134".Data.CNF.LongResetPT := T#5s;
+        "Desk_AC11CC134".Data.CNF.BknSlotLenght := 1.75;
+        "Desk_AC11CC134".Data.CNF.BknAreaPosition_Left := 6.03;//1.7;
+        "Desk_AC11CC134".Data.CNF.BknAreaPosition_Right := 1.7;//6.03;
+    END_REGION
+    REGION Conveyor1.Data
+        "Desk_AC11CC134".Conveyor1.Data.CNF.FB_TIMER := T#500ms;
+    END_REGION
+    REGION Conveyor2.Data
+        "Desk_AC11CC134".Conveyor2.Data.CNF.FB_TIMER := T#500ms;
+    END_REGION
+    REGION Conveyor3.Data
+        "Desk_AC11CC134".Conveyor3.Data.CNF.FB_TIMER := T#500ms;
+    END_REGION
+    REGION Damper.Data
+        "Desk_AC11CC134".Damper.Data.CNF.AutomaticCloseDelay_PT := T#4m;
+        "Desk_AC11CC134".Damper.Data.CNF.NotClosed_PT := t#15s;
+        "Desk_AC11CC134".Damper.Data.CNF.NotOpened_PT := t#15s;
+    END_REGION
+END_REGION
+
+REGION Config Desk (Desk_AC11CC135)
+    REGION Data
+        "Desk_AC11CC135".Data.CNF.Belt_Number := 2;
+        "Desk_AC11CC135".Data.CNF.Id := 35;
+        "Desk_AC11CC135".Data.CNF.ScaleEn := TRUE;
+        "Desk_AC11CC135".Data.CNF.Pht1_1_En := TRUE;
+        "Desk_AC11CC135".Data.CNF.Pht1_1_Timeout := T#1s;
+        "Desk_AC11CC135".Data.CNF.Pht1_2_En := TRUE;
+        "Desk_AC11CC135".Data.CNF.Pht1_2_Timeout := T#1s;
+        "Desk_AC11CC135".Data.CNF.Pht2_1_En := TRUE;
+        "Desk_AC11CC135".Data.CNF.Pht2_1_Timeout := T#250ms;
+        "Desk_AC11CC135".Data.CNF.Pht3_1_En := TRUE;
+        "Desk_AC11CC135".Data.CNF.Pht3_1_Timeout := T#250ms;
+        "Desk_AC11CC135".Data.CNF.Pht1_1_JamTime := T#5s;
+        "Desk_AC11CC135".Data.CNF.Pht1_2_JamTime := T#5s;
+        "Desk_AC11CC135".Data.CNF.Pht2_1_JamTime := T#5s;
+        "Desk_AC11CC135".Data.CNF.PhtOverHeight_JamTime := T#5s;
+        "Desk_AC11CC135".Data.CNF.Pht3_1_JamTime := T#8s;
+        "Desk_AC11CC135".Data.CNF.InjFailed_Delay := T#7s;
+        "Desk_AC11CC135".Data.CNF.BookingReqTimeoutH := T#1s;
+        IF "Utenza3_AC11ST005".Collector.Direction THEN
+            "Desk_AC11CC135".Data.CNF.BookingReqTimeoutHH := T#10s;
+        ELSE
+            "Desk_AC11CC135".Data.CNF.BookingReqTimeoutHH := T#50s;
+        END_IF;
+        "Desk_AC11CC135".Data.CNF.PhtOverHeight_En := TRUE;
+        "Desk_AC11CC135".Data.CNF.PhtOverHeight_Timeout := T#250ms;
+        "Desk_AC11CC135".Data.CNF.PhtRiseFilterThr := T#0ms;
+        "Desk_AC11CC135".Data.CNF.PhtFallFilterThr := T#0ms;
+        "Desk_AC11CC135".Data.CNF.LongResetPT := T#5s;
+        "Desk_AC11CC135".Data.CNF.BknSlotLenght := 1.75;
+        "Desk_AC11CC135".Data.CNF.BknAreaPosition_Left := 1.5;
+        "Desk_AC11CC135".Data.CNF.BknAreaPosition_Right := 2.04;
+    END_REGION
+    REGION Conveyor1.Data
+        "Desk_AC11CC135".Conveyor1.Data.CNF.FB_TIMER := T#500ms;
+    END_REGION
+    REGION Conveyor2.Data
+        "Desk_AC11CC135".Conveyor2.Data.CNF.FB_TIMER := T#500ms;
+    END_REGION
+    REGION Conveyor3.Data
+        "Desk_AC11CC135".Conveyor3.Data.CNF.FB_TIMER := T#500ms;
+    END_REGION
+    REGION Damper.Data
+        "Desk_AC11CC135".Damper.Data.CNF.AutomaticCloseDelay_PT := T#4m;
+        "Desk_AC11CC135".Damper.Data.CNF.NotClosed_PT := t#15s;
+        "Desk_AC11CC135".Damper.Data.CNF.NotOpened_PT := t#15s;
+    END_REGION
+END_REGION
+
+REGION Config Desk (Desk_AC11CC136)
+    REGION Data
+        "Desk_AC11CC136".Data.CNF.Belt_Number := 2;
+        "Desk_AC11CC136".Data.CNF.Id := 36;
+        "Desk_AC11CC136".Data.CNF.ScaleEn := TRUE;
+        "Desk_AC11CC136".Data.CNF.Pht1_1_En := TRUE;
+        "Desk_AC11CC136".Data.CNF.Pht1_1_Timeout := T#1s;
+        "Desk_AC11CC136".Data.CNF.Pht1_2_En := TRUE;
+        "Desk_AC11CC136".Data.CNF.Pht1_2_Timeout := T#1s;
+        "Desk_AC11CC136".Data.CNF.Pht2_1_En := TRUE;
+        "Desk_AC11CC136".Data.CNF.Pht2_1_Timeout := T#250ms;
+        "Desk_AC11CC136".Data.CNF.Pht3_1_En := TRUE;
+        "Desk_AC11CC136".Data.CNF.Pht3_1_Timeout := T#250ms;
+        "Desk_AC11CC136".Data.CNF.Pht1_1_JamTime := T#5s;
+        "Desk_AC11CC136".Data.CNF.Pht1_2_JamTime := T#5s;
+        "Desk_AC11CC136".Data.CNF.Pht2_1_JamTime := T#5s;
+        "Desk_AC11CC136".Data.CNF.PhtOverHeight_JamTime := T#5s;
+        "Desk_AC11CC136".Data.CNF.Pht3_1_JamTime := T#8s;
+        "Desk_AC11CC136".Data.CNF.InjFailed_Delay := T#7s;
+        "Desk_AC11CC136".Data.CNF.BookingReqTimeoutH := T#1s;
+        IF "Utenza3_AC11ST005".Collector.Direction THEN
+            "Desk_AC11CC136".Data.CNF.BookingReqTimeoutHH := T#10s;
+        ELSE
+            "Desk_AC11CC136".Data.CNF.BookingReqTimeoutHH := T#50s;
+        END_IF;
+        "Desk_AC11CC136".Data.CNF.PhtOverHeight_En := TRUE;
+        "Desk_AC11CC136".Data.CNF.PhtOverHeight_Timeout := T#250ms;
+        "Desk_AC11CC136".Data.CNF.PhtRiseFilterThr := T#0ms;
+        "Desk_AC11CC136".Data.CNF.PhtFallFilterThr := T#0ms;
+        "Desk_AC11CC136".Data.CNF.LongResetPT := T#5s;
+        "Desk_AC11CC136".Data.CNF.BknSlotLenght := 1.75;
+        "Desk_AC11CC136".Data.CNF.BknAreaPosition_Left := 2.1;
+        "Desk_AC11CC136".Data.CNF.BknAreaPosition_Right := 1.4;
+        
+    END_REGION
+    REGION Conveyor1.Data
+        "Desk_AC11CC136".Conveyor1.Data.CNF.FB_TIMER := T#500ms;
+    END_REGION
+    REGION Conveyor2.Data
+        "Desk_AC11CC136".Conveyor2.Data.CNF.FB_TIMER := T#500ms;
+    END_REGION
+    REGION Conveyor3.Data
+        "Desk_AC11CC136".Conveyor3.Data.CNF.FB_TIMER := T#500ms;
+    END_REGION
+    REGION Damper.Data
+        "Desk_AC11CC136".Damper.Data.CNF.AutomaticCloseDelay_PT := T#4m;
+        "Desk_AC11CC136".Damper.Data.CNF.NotClosed_PT := t#15s;
+        "Desk_AC11CC136".Damper.Data.CNF.NotOpened_PT := t#15s;
+    END_REGION
+END_REGION
+
+REGION Config Damper (Damper_AC11SD131)
+    
+    "Damper_AC11SD131".Data.Cnf.Time_Off_Before_Retry := T#2s;
+    "Damper_AC11SD131".Data.Cnf.Time_Out_Cmd_On := T#15s;
+    "Damper_AC11SD131".Data.Cnf.RetryCnt := 3;
+    
+END_REGION
+
+REGION Config Damper (Damper_AC11SD133)
+    
+    "Damper_AC11SD133".Data.Cnf.Time_Off_Before_Retry := T#2s;
+    "Damper_AC11SD133".Data.Cnf.Time_Out_Cmd_On := T#15s;
+    "Damper_AC11SD133".Data.Cnf.RetryCnt := 3;
+    
+END_REGION
+
+REGION Config Damper (Damper_AC11SD135)
+    
+    "Damper_AC11SD135".Data.Cnf.Time_Off_Before_Retry := T#2s;
+    "Damper_AC11SD135".Data.Cnf.Time_Out_Cmd_On := T#15s;
+    "Damper_AC11SD135".Data.Cnf.RetryCnt := 3;
+    
+END_REGION
+
+REGION Config Collector_SEW_MOVIGEAR (AC11ST005)
+    IF "Utenza3_AC11ST005".Collector.Direction THEN
+        //Direction right
+        REGION Conveyor.BookingData
+            "Utenza3_AC11ST005".Collector.BookingData.CNF.DeskNumber := 4;
+            "Utenza3_AC11ST005".Collector.BookingData.CNF.SpeedOkThr := 1;
+            "Utenza3_AC11ST005".Collector.BookingData.CNF.BookingNoreq := T#30s;
+        END_REGION
+        
+        REGION Collector.Data.CNF
+            "Utenza3_AC11ST005".Collector.Data.CNF.Pht01En := TRUE;      // [default=TRUE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Pht02En := TRUE;       // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Pht03En := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Pht04En := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Pht01TrkEn := TRUE;      // [default=TRUE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Pht02TrkEn := TRUE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Pht03TrkEn := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Pht04TrkEn := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.SlowdownOnAsrEn := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.LinkedToNext := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.AdjToSpeedNext := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.ExtDeltaEncoderEn := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.HmiControlEn := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.AntiShadowingEn := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.StrictGapEn := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.JamStopReqEn := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.EnableContaminationCheck := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.EnableSecurityStopCheck := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.DbObjectsNumber := 1;       // [default=1]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Conveyor_ID := 0003;       // [default=0000]
+            "Utenza3_AC11ST005".Collector.Data.CNF.UseTrunkNumber := 1;          // [default=1]
+            "Utenza3_AC11ST005".Collector.Data.CNF.TimeEnergySaving := T#120s;      // [default=T#30S]
+            "Utenza3_AC11ST005".Collector.Data.CNF.TimeEnergySavingAutotest := T#10S;      // [default=T#30S]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Speed1 := "DB_TEST_HMI".BONUS_SPEED + 0.8; // [default=1.5] (m/s)
+            "Utenza3_AC11ST005".Collector.Data.CNF.Speed2 := 0.8;        // [default=0.0]
+            "Utenza3_AC11ST005".Collector.Data.CNF.SpeedLow := 0.0;        // [default=0.0]
+            "Utenza3_AC11ST005".Collector.Data.CNF.DriveMaxSpeed := 1.14;        // [default=1.15]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Acceleration := 2.5;        // [default=2.5]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Length := 7.8;       // [default=1600]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Gap := 0.4;        // [default=0.4]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Step := 0.0;        // [default=0.4]
+            "Utenza3_AC11ST005".Collector.Data.CNF.TrackingSlotLength := 0.04;       // [default=0.04]
+            "Utenza3_AC11ST005".Collector.Data.CNF.StopDistance := 0.6;        // [default=0.6]
+            "Utenza3_AC11ST005".Collector.Data.CNF.EndZone := 0.6;        // [default=0.6]
+            "Utenza3_AC11ST005".Collector.Data.CNF.ContaminationAreaLength := 0.15;        // [default=0.15]
+            
+        END_REGION
+        
+        REGION Collector.Pht01.Data.CNF
+            "Utenza3_AC11ST005".Collector.Pht01.Data.CNF.FlickeringMaxFp := 5;          // [default=5]
+            "Utenza3_AC11ST005".Collector.Pht01.Data.CNF.FlickeringTime := T#500MS;    // [default=T#500MS]
+            "Utenza3_AC11ST005".Collector.Pht01.Data.CNF.PhtRiseFilterThr := 0.04;       // [default=0.04]
+            "Utenza3_AC11ST005".Collector.Pht01.Data.CNF.PhtFallFilterThr := 0.04;       // [default=0.04]
+            "Utenza3_AC11ST005".Collector.Pht01.Data.CNF.JamLengthThr := 3;          // [default=3]
+        END_REGION
+        
+        REGION Collector.Pht02.Data.CNF
+            "Utenza3_AC11ST005".Collector.Pht02.Data.CNF.FlickeringMaxFp := 5;          // [default=5]
+            "Utenza3_AC11ST005".Collector.Pht02.Data.CNF.FlickeringTime := T#500MS;    // [default=T#500MS]
+            "Utenza3_AC11ST005".Collector.Pht02.Data.CNF.PhtRiseFilterThr := 0.04;       // [default=0.04]
+            "Utenza3_AC11ST005".Collector.Pht02.Data.CNF.PhtFallFilterThr := 0.04;       // [default=0.04]
+            "Utenza3_AC11ST005".Collector.Pht02.Data.CNF.JamLengthThr := 3;          // [default=3]
+        END_REGION
+        
+        
+        REGION Collector.PhtTracking01.Data.CNF
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.VidGenerationEn := TRUE;       // [default=TRUE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.ObjLengthUpdateDis := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.DisableSlipForward := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.DisableSlipBackward := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.DisableUnexpected := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.DisablePieceLost := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.DisableContaminationSlipForward := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.DisableContaminationSlipBackward := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.DisableContaminationPieceAppeared := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.DisableContaminationPieceLost := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.DisableContaminationLengthMismatch := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.MachineId := "DbGlobale".GlobalData.MachineId;          // [default=1]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.DecisionPointId := 0;          // [default=0]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.MaxLostPiecesForJam := 3;          // [default=3]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.Position := 7.32;        // [default=400]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.TrkCtrlTolerance := 0.40;       // [default=0.35] 
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.ObjLengthTolerance := 0.0;          // [default=0]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.SlipForwardTolerance := 0.0;          // [default=0]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.SlipBackwardTolerance := 0.0;          // [default=0]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.ContaminatioForwardThr := 0.0;          // [default=0]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.ContaminatioBackwardThr := 0.0;          // [default=0]
+            
+        END_REGION
+        
+        REGION Collector.PhtTracking02.Data.CNF
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.VidGenerationEn := TRUE;       // [default=TRUE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.ObjLengthUpdateDis := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.DisableSlipForward := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.DisableSlipBackward := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.DisableUnexpected := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.DisablePieceLost := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.DisableContaminationSlipForward := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.DisableContaminationSlipBackward := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.DisableContaminationPieceAppeared := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.DisableContaminationPieceLost := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.DisableContaminationLengthMismatch := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.MachineId := "DbGlobale".GlobalData.MachineId;          // [default=1]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.DecisionPointId := 0;          // [default=0]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.MaxLostPiecesForJam := 3;          // [default=3]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.Position := 0.4;         // [default=400]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.TrkCtrlTolerance := 0.35;       // [default=0.35]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.ObjLengthTolerance := 0.0;          // [default=0]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.SlipForwardTolerance := 0.0;          // [default=0]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.SlipBackwardTolerance := 0.0;          // [default=0]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.ContaminatioForwardThr := 0.0;          // [default=0]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.ContaminatioBackwardThr := 0.0;          // [default=0]
+        END_REGION
+        
+        
+        REGION Encoder.Data.CNF
+            "Utenza3_AC11ST005".Encoder.Data.CNF.K_pulse := 0.0;        // [default=0.0]
+            "Utenza3_AC11ST005".Encoder.Data.CNF.SpeedTolerance := 0.0;        // [default=0.0]
+        END_REGION
+        
+        REGION Drive.Par
+            "Utenza3_AC11ST005".Drive.Data.Par.Direction := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Drive.Data.Par.UseDriveSpeedYs := TRUE;       // [default=TRUE]
+            "Utenza3_AC11ST005".Drive.Data.Par.HwAddr := 0;          // [default=0]
+            "Utenza3_AC11ST005".Drive.Data.Par.MaxSpeed := 1.14;        // [default=1.15]
+            "Utenza3_AC11ST005".Drive.Data.Par.FeedbackTime := T#500MS;    // [default=T#500MS]
+        END_REGION
+    ELSE
+        //Direction left
+        REGION Conveyor.BookingData
+            "Utenza3_AC11ST005".Collector.BookingData.CNF.DeskNumber := 4;
+            "Utenza3_AC11ST005".Collector.BookingData.CNF.SpeedOkThr := 1;
+            "Utenza3_AC11ST005".Collector.BookingData.CNF.BookingNoreq := T#30s;
+        END_REGION
+        
+        REGION Collector.Data.CNF
+            "Utenza3_AC11ST005".Collector.Data.CNF.Pht01En := TRUE;      // [default=TRUE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Pht02En := TRUE;       // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Pht03En := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Pht04En := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Pht01TrkEn := TRUE;      // [default=TRUE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Pht02TrkEn := TRUE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Pht03TrkEn := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Pht04TrkEn := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.SlowdownOnAsrEn := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.LinkedToNext := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.AdjToSpeedNext := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.ExtDeltaEncoderEn := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.HmiControlEn := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.AntiShadowingEn := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.StrictGapEn := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.JamStopReqEn := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.EnableContaminationCheck := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.EnableSecurityStopCheck := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.Data.CNF.DbObjectsNumber := 1;       // [default=1]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Conveyor_ID := 0003;       // [default=0000]
+            "Utenza3_AC11ST005".Collector.Data.CNF.UseTrunkNumber := 1;          // [default=1]
+            "Utenza3_AC11ST005".Collector.Data.CNF.TimeEnergySaving := T#120s;      // [default=T#30S]
+            "Utenza3_AC11ST005".Collector.Data.CNF.TimeEnergySavingAutotest := T#10S;      // [default=T#30S]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Speed1 := "DB_TEST_HMI".BONUS_SPEED + 0.8; // [default=1.5] (m/s)
+            "Utenza3_AC11ST005".Collector.Data.CNF.Speed2 := 0.8;        // [default=0.0]
+            "Utenza3_AC11ST005".Collector.Data.CNF.SpeedLow := 0.0;        // [default=0.0]
+            "Utenza3_AC11ST005".Collector.Data.CNF.DriveMaxSpeed := 1.14;        // [default=1.15]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Acceleration := 2.5;        // [default=2.5]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Length := 7.8;       // [default=1600]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Gap := 0.4;        // [default=0.4]
+            "Utenza3_AC11ST005".Collector.Data.CNF.Step := 0.0;        // [default=0.4]
+            "Utenza3_AC11ST005".Collector.Data.CNF.TrackingSlotLength := 0.04;       // [default=0.04]
+            "Utenza3_AC11ST005".Collector.Data.CNF.StopDistance := 0.6;        // [default=0.6]
+            "Utenza3_AC11ST005".Collector.Data.CNF.EndZone := 0.6;        // [default=0.6]
+            "Utenza3_AC11ST005".Collector.Data.CNF.ContaminationAreaLength := 0.15;        // [default=0.15]
+            
+        END_REGION
+        
+        REGION Collector.Pht01.Data.CNF
+            "Utenza3_AC11ST005".Collector.Pht01.Data.CNF.FlickeringMaxFp := 5;          // [default=5]
+            "Utenza3_AC11ST005".Collector.Pht01.Data.CNF.FlickeringTime := T#500MS;    // [default=T#500MS]
+            "Utenza3_AC11ST005".Collector.Pht01.Data.CNF.PhtRiseFilterThr := 0.04;       // [default=0.04]
+            "Utenza3_AC11ST005".Collector.Pht01.Data.CNF.PhtFallFilterThr := 0.04;       // [default=0.04]
+            "Utenza3_AC11ST005".Collector.Pht01.Data.CNF.JamLengthThr := 3;          // [default=3]
+        END_REGION
+        
+        REGION Collector.Pht02.Data.CNF
+            "Utenza3_AC11ST005".Collector.Pht02.Data.CNF.FlickeringMaxFp := 5;          // [default=5]
+            "Utenza3_AC11ST005".Collector.Pht02.Data.CNF.FlickeringTime := T#500MS;    // [default=T#500MS]
+            "Utenza3_AC11ST005".Collector.Pht02.Data.CNF.PhtRiseFilterThr := 0.04;       // [default=0.04]
+            "Utenza3_AC11ST005".Collector.Pht02.Data.CNF.PhtFallFilterThr := 0.04;       // [default=0.04]
+            "Utenza3_AC11ST005".Collector.Pht02.Data.CNF.JamLengthThr := 3;          // [default=3]
+        END_REGION
+        
+        
+        REGION Collector.PhtTracking01.Data.CNF
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.VidGenerationEn := TRUE;       // [default=TRUE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.ObjLengthUpdateDis := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.DisableSlipForward := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.DisableSlipBackward := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.DisableUnexpected := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.DisablePieceLost := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.DisableContaminationSlipForward := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.DisableContaminationSlipBackward := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.DisableContaminationPieceAppeared := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.DisableContaminationPieceLost := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.DisableContaminationLengthMismatch := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.MachineId := "DbGlobale".GlobalData.MachineId;          // [default=1]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.DecisionPointId := 0;          // [default=0]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.MaxLostPiecesForJam := 3;          // [default=3]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.Position := 0.4;        // [default=400]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.TrkCtrlTolerance := 0.40;       // [default=0.35] 
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.ObjLengthTolerance := 0.0;          // [default=0]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.SlipForwardTolerance := 0.0;          // [default=0]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.SlipBackwardTolerance := 0.0;          // [default=0]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.ContaminatioForwardThr := 0.0;          // [default=0]
+            "Utenza3_AC11ST005".Collector.PhtTracking01.Data.CNF.ContaminatioBackwardThr := 0.0;          // [default=0]
+            
+        END_REGION
+        
+        REGION Collector.PhtTracking02.Data.CNF
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.VidGenerationEn := TRUE;       // [default=TRUE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.ObjLengthUpdateDis := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.DisableSlipForward := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.DisableSlipBackward := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.DisableUnexpected := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.DisablePieceLost := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.DisableContaminationSlipForward := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.DisableContaminationSlipBackward := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.DisableContaminationPieceAppeared := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.DisableContaminationPieceLost := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.DisableContaminationLengthMismatch := FALSE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.MachineId := "DbGlobale".GlobalData.MachineId;          // [default=1]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.DecisionPointId := 0;          // [default=0]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.MaxLostPiecesForJam := 3;          // [default=3]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.Position := 7.32;         // [default=400]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.TrkCtrlTolerance := 0.35;       // [default=0.35]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.ObjLengthTolerance := 0.0;          // [default=0]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.SlipForwardTolerance := 0.0;          // [default=0]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.SlipBackwardTolerance := 0.0;          // [default=0]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.ContaminatioForwardThr := 0.0;          // [default=0]
+            "Utenza3_AC11ST005".Collector.PhtTracking02.Data.CNF.ContaminatioBackwardThr := 0.0;          // [default=0]
+        END_REGION
+        
+        
+        REGION Encoder.Data.CNF
+            "Utenza3_AC11ST005".Encoder.Data.CNF.K_pulse := 0.0;        // [default=0.0]
+            "Utenza3_AC11ST005".Encoder.Data.CNF.SpeedTolerance := 0.0;        // [default=0.0]
+        END_REGION
+        
+        REGION Drive.Par
+            "Utenza3_AC11ST005".Drive.Data.Par.Direction := TRUE;      // [default=FALSE]
+            "Utenza3_AC11ST005".Drive.Data.Par.UseDriveSpeedYs := TRUE;       // [default=TRUE]
+            "Utenza3_AC11ST005".Drive.Data.Par.HwAddr := 0;          // [default=0]
+            "Utenza3_AC11ST005".Drive.Data.Par.MaxSpeed := 1.14;        // [default=1.15]
+            "Utenza3_AC11ST005".Drive.Data.Par.FeedbackTime := T#500MS;    // [default=T#500MS]
+        END_REGION
+        
+    END_IF;
+END_REGION
+
+REGION Config Collector_SEW_MOVIGEAR (AC11ST007)
+    IF "Utenza4_AC11ST007".Collector.Direction THEN
+        //Direction right
+        REGION Conveyor.BookingData
+            "Utenza4_AC11ST007".Collector.BookingData.CNF.DeskNumber := 2;
+            "Utenza4_AC11ST007".Collector.BookingData.CNF.SpeedOkThr := 1;
+            "Utenza4_AC11ST007".Collector.BookingData.CNF.BookingNoreq := T#30s;
+        END_REGION
+        REGION Collector.Data.CNF
+            "Utenza4_AC11ST007".Collector.Data.CNF.Pht01En := TRUE;      // [default=TRUE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Pht02En := TRUE;       // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Pht03En := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Pht04En := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Pht01TrkEn := TRUE;      // [default=TRUE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Pht02TrkEn := TRUE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Pht03TrkEn := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Pht04TrkEn := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.SlowdownOnAsrEn := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.LinkedToNext := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.AdjToSpeedNext := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.ExtDeltaEncoderEn := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.HmiControlEn := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.AntiShadowingEn := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.StrictGapEn := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.JamStopReqEn := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.EnableContaminationCheck := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.EnableSecurityStopCheck := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.DbObjectsNumber := 1;       // [default=1]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Conveyor_ID := 0004;       // [default=0000]
+            "Utenza4_AC11ST007".Collector.Data.CNF.UseTrunkNumber := 2;          // [default=1]
+            "Utenza4_AC11ST007".Collector.Data.CNF.TimeEnergySaving := T#120s;      // [default=T#30S]
+            "Utenza4_AC11ST007".Collector.Data.CNF.TimeEnergySavingAutotest := T#10S;      // [default=T#30S]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Speed1 := "DB_TEST_HMI".BONUS_SPEED + 0.8; // [default=1.5] (m/s)
+            "Utenza4_AC11ST007".Collector.Data.CNF.Speed2 := 0.8;        // [default=0.0]
+            "Utenza4_AC11ST007".Collector.Data.CNF.SpeedLow := 0.0;        // [default=0.0]
+            "Utenza4_AC11ST007".Collector.Data.CNF.DriveMaxSpeed := 1.14;        // [default=1.15]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Acceleration := 2.5;        // [default=2.5]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Length := 3.6;       // [default=1600]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Gap := 0.4;        // [default=0.4]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Step := 0.0;        // [default=0.4]
+            "Utenza4_AC11ST007".Collector.Data.CNF.TrackingSlotLength := 0.04;       // [default=0.04]
+            "Utenza4_AC11ST007".Collector.Data.CNF.StopDistance := 0.6;        // [default=0.6]
+            "Utenza4_AC11ST007".Collector.Data.CNF.EndZone := 0.6;        // [default=0.6]
+            "Utenza4_AC11ST007".Collector.Data.CNF.ContaminationAreaLength := 0.15;        // [default=0.15]
+            
+        END_REGION
+        
+        REGION Collector.Pht01.Data.CNF
+            "Utenza4_AC11ST007".Collector.Pht01.Data.CNF.FlickeringMaxFp := 5;          // [default=5]
+            "Utenza4_AC11ST007".Collector.Pht01.Data.CNF.FlickeringTime := T#500MS;    // [default=T#500MS]
+            "Utenza4_AC11ST007".Collector.Pht01.Data.CNF.PhtRiseFilterThr := 0.04;       // [default=0.04]
+            "Utenza4_AC11ST007".Collector.Pht01.Data.CNF.PhtFallFilterThr := 0.04;       // [default=0.04]
+            "Utenza4_AC11ST007".Collector.Pht01.Data.CNF.JamLengthThr := 3;          // [default=3]
+        END_REGION
+        
+        REGION Collector.Pht02.Data.CNF
+            "Utenza4_AC11ST007".Collector.Pht02.Data.CNF.FlickeringMaxFp := 5;          // [default=5]
+            "Utenza4_AC11ST007".Collector.Pht02.Data.CNF.FlickeringTime := T#500MS;    // [default=T#500MS]
+            "Utenza4_AC11ST007".Collector.Pht02.Data.CNF.PhtRiseFilterThr := 0.04;       // [default=0.04]
+            "Utenza4_AC11ST007".Collector.Pht02.Data.CNF.PhtFallFilterThr := 0.04;       // [default=0.04]
+            "Utenza4_AC11ST007".Collector.Pht02.Data.CNF.JamLengthThr := 3;          // [default=3]
+        END_REGION
+        
+        
+        REGION Collector.PhtTracking01.Data.CNF
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.VidGenerationEn := TRUE;       // [default=TRUE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.ObjLengthUpdateDis := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.DisableSlipForward := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.DisableSlipBackward := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.DisableUnexpected := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.DisablePieceLost := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.DisableContaminationSlipForward := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.DisableContaminationSlipBackward := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.DisableContaminationPieceAppeared := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.DisableContaminationPieceLost := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.DisableContaminationLengthMismatch := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.MachineId := "DbGlobale".GlobalData.MachineId;          // [default=1]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.DecisionPointId := 0;          // [default=0]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.MaxLostPiecesForJam := 3;          // [default=3]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.Position := "Utenza4_AC11ST007".Collector.Data.CNF.Length - 0.4;        // [default=400]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.TrkCtrlTolerance := 0.40;       // [default=0.35] 
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.ObjLengthTolerance := 0.0;          // [default=0]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.SlipForwardTolerance := 0.0;          // [default=0]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.SlipBackwardTolerance := 0.0;          // [default=0]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.ContaminatioForwardThr := 0.0;          // [default=0]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.ContaminatioBackwardThr := 0.0;          // [default=0]
+            
+        END_REGION
+        
+        REGION Collector.PhtTracking02.Data.CNF
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.VidGenerationEn := TRUE;       // [default=TRUE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.ObjLengthUpdateDis := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.DisableSlipForward := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.DisableSlipBackward := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.DisableUnexpected := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.DisablePieceLost := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.DisableContaminationSlipForward := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.DisableContaminationSlipBackward := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.DisableContaminationPieceAppeared := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.DisableContaminationPieceLost := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.DisableContaminationLengthMismatch := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.MachineId := "DbGlobale".GlobalData.MachineId;          // [default=1]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.DecisionPointId := 0;          // [default=0]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.MaxLostPiecesForJam := 3;          // [default=3]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.Position := 0.4;         // [default=400]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.TrkCtrlTolerance := 0.35;       // [default=0.35]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.ObjLengthTolerance := 0.0;          // [default=0]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.SlipForwardTolerance := 0.0;          // [default=0]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.SlipBackwardTolerance := 0.0;          // [default=0]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.ContaminatioForwardThr := 0.0;          // [default=0]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.ContaminatioBackwardThr := 0.0;          // [default=0]
+        END_REGION
+        
+        
+        REGION Encoder.Data.CNF
+            "Utenza4_AC11ST007".Encoder.Data.CNF.K_pulse := 0.0;        // [default=0.0]
+            "Utenza4_AC11ST007".Encoder.Data.CNF.SpeedTolerance := 0.0;        // [default=0.0]
+        END_REGION
+        
+        REGION Drive.Par
+            "Utenza4_AC11ST007".Drive.Data.Par.Direction := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Drive.Data.Par.UseDriveSpeedYs := TRUE;       // [default=TRUE]
+            "Utenza4_AC11ST007".Drive.Data.Par.HwAddr := 0;          // [default=0]
+            "Utenza4_AC11ST007".Drive.Data.Par.MaxSpeed := 1.14;        // [default=1.15]
+            "Utenza4_AC11ST007".Drive.Data.Par.FeedbackTime := T#500MS;    // [default=T#500MS]
+        END_REGION
+        
+    ELSE
+        //Direction right
+        REGION Conveyor.BookingData
+            "Utenza4_AC11ST007".Collector.BookingData.CNF.DeskNumber := 2;
+            "Utenza4_AC11ST007".Collector.BookingData.CNF.SpeedOkThr := 1;
+            "Utenza4_AC11ST007".Collector.BookingData.CNF.BookingNoreq := T#30s;
+        END_REGION
+        REGION Collector.Data.CNF
+            "Utenza4_AC11ST007".Collector.Data.CNF.Pht01En := TRUE;      // [default=TRUE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Pht02En := TRUE;       // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Pht03En := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Pht04En := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Pht01TrkEn := TRUE;      // [default=TRUE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Pht02TrkEn := TRUE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Pht03TrkEn := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Pht04TrkEn := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.SlowdownOnAsrEn := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.LinkedToNext := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.AdjToSpeedNext := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.ExtDeltaEncoderEn := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.HmiControlEn := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.AntiShadowingEn := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.StrictGapEn := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.JamStopReqEn := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.EnableContaminationCheck := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.EnableSecurityStopCheck := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.Data.CNF.DbObjectsNumber := 1;       // [default=1]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Conveyor_ID := 0004;       // [default=0000]
+            "Utenza4_AC11ST007".Collector.Data.CNF.UseTrunkNumber := 2;          // [default=1]
+            "Utenza4_AC11ST007".Collector.Data.CNF.TimeEnergySaving := T#120s;      // [default=T#30S]
+            "Utenza4_AC11ST007".Collector.Data.CNF.TimeEnergySavingAutotest := T#10S;      // [default=T#30S]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Speed1 := "DB_TEST_HMI".BONUS_SPEED + 0.8; // [default=1.5] (m/s)
+            "Utenza4_AC11ST007".Collector.Data.CNF.Speed2 := 0.8;        // [default=0.0]
+            "Utenza4_AC11ST007".Collector.Data.CNF.SpeedLow := 0.0;        // [default=0.0]
+            "Utenza4_AC11ST007".Collector.Data.CNF.DriveMaxSpeed := 1.14;        // [default=1.15]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Acceleration := 2.5;        // [default=2.5]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Length := 3.6;       // [default=1600]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Gap := 0.4;        // [default=0.4]
+            "Utenza4_AC11ST007".Collector.Data.CNF.Step := 0.0;        // [default=0.4]
+            "Utenza4_AC11ST007".Collector.Data.CNF.TrackingSlotLength := 0.04;       // [default=0.04]
+            "Utenza4_AC11ST007".Collector.Data.CNF.StopDistance := 0.6;        // [default=0.6]
+            "Utenza4_AC11ST007".Collector.Data.CNF.EndZone := 0.6;        // [default=0.6]
+            "Utenza4_AC11ST007".Collector.Data.CNF.ContaminationAreaLength := 0.15;        // [default=0.15]
+            
+        END_REGION
+        
+        REGION Collector.Pht01.Data.CNF
+            "Utenza4_AC11ST007".Collector.Pht01.Data.CNF.FlickeringMaxFp := 5;          // [default=5]
+            "Utenza4_AC11ST007".Collector.Pht01.Data.CNF.FlickeringTime := T#500MS;    // [default=T#500MS]
+            "Utenza4_AC11ST007".Collector.Pht01.Data.CNF.PhtRiseFilterThr := 0.04;       // [default=0.04]
+            "Utenza4_AC11ST007".Collector.Pht01.Data.CNF.PhtFallFilterThr := 0.04;       // [default=0.04]
+            "Utenza4_AC11ST007".Collector.Pht01.Data.CNF.JamLengthThr := 3;          // [default=3]
+        END_REGION
+        
+        REGION Collector.Pht02.Data.CNF
+            "Utenza4_AC11ST007".Collector.Pht02.Data.CNF.FlickeringMaxFp := 5;          // [default=5]
+            "Utenza4_AC11ST007".Collector.Pht02.Data.CNF.FlickeringTime := T#500MS;    // [default=T#500MS]
+            "Utenza4_AC11ST007".Collector.Pht02.Data.CNF.PhtRiseFilterThr := 0.04;       // [default=0.04]
+            "Utenza4_AC11ST007".Collector.Pht02.Data.CNF.PhtFallFilterThr := 0.04;       // [default=0.04]
+            "Utenza4_AC11ST007".Collector.Pht02.Data.CNF.JamLengthThr := 3;          // [default=3]
+        END_REGION
+        
+        
+        REGION Collector.PhtTracking01.Data.CNF
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.VidGenerationEn := TRUE;       // [default=TRUE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.ObjLengthUpdateDis := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.DisableSlipForward := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.DisableSlipBackward := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.DisableUnexpected := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.DisablePieceLost := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.DisableContaminationSlipForward := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.DisableContaminationSlipBackward := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.DisableContaminationPieceAppeared := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.DisableContaminationPieceLost := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.DisableContaminationLengthMismatch := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.MachineId := "DbGlobale".GlobalData.MachineId;          // [default=1]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.DecisionPointId := 0;          // [default=0]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.MaxLostPiecesForJam := 3;          // [default=3]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.Position := 0.4;        // [default=400]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.TrkCtrlTolerance := 0.40;       // [default=0.35] 
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.ObjLengthTolerance := 0.0;          // [default=0]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.SlipForwardTolerance := 0.0;          // [default=0]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.SlipBackwardTolerance := 0.0;          // [default=0]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.ContaminatioForwardThr := 0.0;          // [default=0]
+            "Utenza4_AC11ST007".Collector.PhtTracking01.Data.CNF.ContaminatioBackwardThr := 0.0;          // [default=0]
+            
+        END_REGION
+        
+        REGION Collector.PhtTracking02.Data.CNF
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.VidGenerationEn := TRUE;       // [default=TRUE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.ObjLengthUpdateDis := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.DisableSlipForward := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.DisableSlipBackward := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.DisableUnexpected := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.DisablePieceLost := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.DisableContaminationSlipForward := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.DisableContaminationSlipBackward := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.DisableContaminationPieceAppeared := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.DisableContaminationPieceLost := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.DisableContaminationLengthMismatch := FALSE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.MachineId := "DbGlobale".GlobalData.MachineId;          // [default=1]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.DecisionPointId := 0;          // [default=0]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.MaxLostPiecesForJam := 3;          // [default=3]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.Position :="Utenza4_AC11ST007".Collector.Data.CNF.Length - 0.4;         // [default=400]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.TrkCtrlTolerance := 0.35;       // [default=0.35]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.ObjLengthTolerance := 0.0;          // [default=0]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.SlipForwardTolerance := 0.0;          // [default=0]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.SlipBackwardTolerance := 0.0;          // [default=0]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.ContaminatioForwardThr := 0.0;          // [default=0]
+            "Utenza4_AC11ST007".Collector.PhtTracking02.Data.CNF.ContaminatioBackwardThr := 0.0;          // [default=0]
+        END_REGION
+        
+        
+        REGION Encoder.Data.CNF
+            "Utenza4_AC11ST007".Encoder.Data.CNF.K_pulse := 0.0;        // [default=0.0]
+            "Utenza4_AC11ST007".Encoder.Data.CNF.SpeedTolerance := 0.0;        // [default=0.0]
+        END_REGION
+        
+        REGION Drive.Par
+            "Utenza4_AC11ST007".Drive.Data.Par.Direction := TRUE;      // [default=FALSE]
+            "Utenza4_AC11ST007".Drive.Data.Par.UseDriveSpeedYs := TRUE;       // [default=TRUE]
+            "Utenza4_AC11ST007".Drive.Data.Par.HwAddr := 0;          // [default=0]
+            "Utenza4_AC11ST007".Drive.Data.Par.MaxSpeed := 1.14;        // [default=1.15]
+            "Utenza4_AC11ST007".Drive.Data.Par.FeedbackTime := T#500MS;    // [default=T#500MS]
+        END_REGION
+    END_IF;
+END_REGION

@@ -201,6 +201,37 @@ class NastriApp(QMainWindow):
         button_h_layout.addWidget(self.generate_config_button)
         button_h_layout.addStretch()
         config_group_layout.addLayout(button_h_layout)
+        
+        # CheckIn Generate Button (Green)
+        self.generate_checkin_button = QPushButton("Generate CheckIn")
+        self.generate_checkin_button.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        self.generate_checkin_button.setMinimumHeight(42)
+        self.generate_checkin_button.setStyleSheet("""
+            QPushButton {
+                background-color: #2ECC71; /* Green */
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+            }
+            QPushButton:disabled {
+                background-color: #A9DFBF; /* Lighter green when disabled */
+                color: #F2F2F2;
+            }
+            QPushButton:hover {
+                 background-color: #27AE60;
+            }
+            QPushButton:pressed {
+                 background-color: #229954;
+            }
+        """)
+        self.generate_checkin_button.clicked.connect(self._start_checkin_generation)
+        checkin_button_h_layout = QHBoxLayout()
+        checkin_button_h_layout.addStretch()
+        checkin_button_h_layout.addWidget(self.generate_checkin_button)
+        checkin_button_h_layout.addStretch()
+        config_group_layout.addLayout(checkin_button_h_layout)
+        
         config_group_layout.addStretch()  # Push content to top
 
         # Add config section widget to columns layout
@@ -364,6 +395,12 @@ class NastriApp(QMainWindow):
 
         # self.generate_config_button.setEnabled(can_generate_config and not process_running)
         self.generate_config_button.setEnabled(can_generate_config)
+        
+        # CheckIn Generation Button State (always enabled if file exists, assumes APR001)
+        checkin_excel_path = os.path.join('Input', 'CheckInExample', 'CHECK_IN_MISURATOR (version 1).xlsx')
+        checkin_file_exists = os.path.exists(checkin_excel_path)
+        if hasattr(self, 'generate_checkin_button'):
+            self.generate_checkin_button.setEnabled(checkin_file_exists)
 
         # Enable/disable alarm gen button
         if hasattr(self, 'alarm_gen_widget') and hasattr(self.alarm_gen_widget, 'generate_button'): # Added check for generate_button
@@ -484,6 +521,53 @@ class NastriApp(QMainWindow):
             self.status_bar.showMessage(f"Errore durante la generazione: {e}", 5000)
             import traceback
             print(traceback.format_exc()) # Log traceback for debugging
+
+    def _start_checkin_generation(self):
+        """Avvia il processo di generazione CheckIn."""
+        checkin_excel_path = os.path.join('Input', 'CheckInExample', 'CHECK_IN_MISURATOR (version 1).xlsx')
+        machine_table_path = os.path.join('Input', 'Machine_Table_per_tool_AI.xlsx')
+        output_folder = 'Output/CheckIn'
+        
+        if not os.path.exists(checkin_excel_path):
+            QMessageBox.warning(self, "File Mancante", f"File Excel CheckIn non trovato:\n{checkin_excel_path}")
+            return
+        
+        if not os.path.exists(machine_table_path):
+            QMessageBox.warning(self, "File Mancante", f"File Machine Table non trovato:\n{machine_table_path}")
+            return
+        
+        # Update button text to indicate processing
+        self.generate_checkin_button.setText("Generazione CheckIn in corso...")
+        self.generate_checkin_button.setEnabled(False)
+        self.status_bar.showMessage("Generazione CheckIn in corso...", 0)
+        QApplication.processEvents()
+        
+        try:
+            from generazione_checkin import generate_checkin_files
+            
+            success = generate_checkin_files(
+                checkin_excel_path=checkin_excel_path,
+                machine_table_path=machine_table_path,
+                output_folder=output_folder,
+                cab_plc='APR001'
+            )
+            
+            if success:
+                self.status_bar.showMessage("Generazione CheckIn completata!", 5000)
+                QMessageBox.information(self, "Completato", f"Generazione CheckIn completata con successo!\n\nFile salvati in: {output_folder}")
+            else:
+                QMessageBox.critical(self, "Errore Generazione", "Errore durante la generazione dei file CheckIn. Controlla il log per i dettagli.")
+                self.status_bar.showMessage("Errore durante la generazione CheckIn", 5000)
+        
+        except Exception as e:
+            QMessageBox.critical(self, "Errore Generazione", f"Errore durante la generazione dei file CheckIn:\n{e}")
+            self.status_bar.showMessage(f"Errore durante la generazione CheckIn: {e}", 5000)
+            import traceback
+            print(traceback.format_exc())
+        finally:
+            # Restore button text and state
+            self.generate_checkin_button.setText("Generate CheckIn")
+            self._update_button_states()
 
     def _handle_alarm_generation_request(self, input_file, output_dir, instance_counts):
         """Starts the alarm generation threads for both Excel and SCL."""

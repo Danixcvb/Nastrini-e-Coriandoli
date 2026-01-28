@@ -1,0 +1,413 @@
+
+   
+    REGION Input Desk 31 (Desk_AC11CC131)
+        
+        //From ACA - check in enabling signal
+        "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_31" := TRUE;
+        
+        "Desk_AC11CC131".Data.IN.Maintenance := FALSE;// NOT "AC11_OP8131_100S1_CLOSED"; //Da verificare
+        "Desk_AC11CC131".Data.IN.KeyActive_Ouvert := "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_31" AND "AC11_OP8131_100S1_OPEN";
+        "Desk_AC11CC131".Data.IN.KeyActive_DBA := "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_31" AND "AC11_OP8131_100S1_DBA";
+        "Desk_AC11CC131".Data.IN.PB_Check := "AC11_OP8231_100S1_FORWARD";
+        "Desk_AC11CC131".Data.IN.PB_Move_3 := "AC11_OP8231_100S2_SEND";
+        "Desk_AC11CC131".Data.IN.PB_Recul := "AC11_OP8231_100S1_BACKWARD";
+        "Desk_AC11CC131".Data.IN.PB_Reset := "DB_TEST_HMI".RESET; //Da modificare
+        "Desk_AC11CC131".Data.IN.Pht1_1 := NOT "AC11_CC131_B1101_STOP_HEAD_PHOTOCELL";
+        "Desk_AC11CC131".Data.IN.Pht1_2 := NOT "AC11_CC131_B1201_STOP_TAIL_PHOTOCELL";
+        "Desk_AC11CC131".Data.IN.Pht3_1 := NOT "AC11_CC231_B1101_STOP_HEAD_PHOTOCELL";
+        "Desk_AC11CC131".Data.IN.PhtOverHeight := NOT "AC11_CC131_B7701_SIZE_CONTROL";
+        "Desk_AC11CC131".Data.IN.EMG := FALSE; // NOT "ESTOP_Z1".Q;
+        "Desk_AC11CC131".Data.IN.BusFault := "SV_DB_PROFINET_SA".FaultProfinet1[28];
+        
+        "Desk_AC11CC131".Data.IN.ExternalFault := FALSE;
+        "Desk_AC11CC131".Data.IN.ExternalFault := "Desk_AC11CC131".Data.IN.ExternalFault OR NOT "AC11_CC131_M0001_WEIGHING_BELT_MOTOR_1_OVERTEMPERATURE";
+        "Desk_AC11CC131".Data.IN.ExternalFault := "Desk_AC11CC131".Data.IN.ExternalFault OR NOT "AC11_CC231_M0001_LAUNCH_BELT_MOTOR_1_OVERTEMPERATURE";
+        "Desk_AC11CC131".Data.IN.ExternalFault := "Desk_AC11CC131".Data.IN.ExternalFault OR NOT "AC11_CDE31_210F1_ELECTRONIC_FUSES_STATUS";
+        //"Desk_AC11CC131".Data.IN.ExternalFault := "Desk_AC11CC131".Data.IN.ExternalFault OR NOT "AC11_CDE33_450B1_OVERTEMPERATURE";
+        
+        "Desk_AC11CC131".Data.IN.SafetyBreaker := "AC11_CDE31_100Q1_MAIN_SWITCH_CLOSED" AND NOT "AC11_CDE31_100Q1_MAIN_SWITCH_TRIPPED";
+        "Desk_AC11CC131".Data.IN.EOK400VAC := "AC11_CDE31_120F1_400VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_BENCH_MOTORS_31";
+        "Desk_AC11CC131".Data.IN.EOK230VAC := "AC11_CDE31_102Q1_230VAC_UPS_MAIN_SWITCH_CLOSED" AND "AC11_CDE31_121F1_230VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_BENCH_SOCKET_31";
+        "Desk_AC11CC131".Data.IN.EOK24VDCConveyors := "AC11_CDE31_200F1_230VAC_UPS_CIRCUIT_BREAKER_STATUS_POWER_SUPPLY_24VDC";
+        "Desk_AC11CC131".Data.IN.EOK24VDCShutter := "AC11_CDE31_200F1_230VAC_UPS_CIRCUIT_BREAKER_STATUS_POWER_SUPPLY_24VDC";
+        //Conveyor 1
+        "Desk_AC11CC131".Conveyor1.Data.IN.FAULT := NOT "AC11_CDE31_120Q1_FAULT_WEIGHING_BELT_MOTOR_1";
+        "Desk_AC11CC131".Conveyor1.Data.IN.RESET := "DB_TEST_HMI".RESET;
+        "Desk_AC11CC131".Conveyor1.Data.IN.Maintenance_FW := "AC11_OP8231_100S1_FORWARD";
+        "Desk_AC11CC131".Conveyor1.Data.IN.Maintenance_RW := "AC11_OP8231_100S1_BACKWARD";
+        //Conveyor 3
+        "Desk_AC11CC131".Conveyor3.Data.IN.FAULT := NOT "AC11_CDE31_120Q2_FAULT_LAUNCH_BELT_MOTOR_1";
+        "Desk_AC11CC131".Conveyor3.Data.IN.RESET := "DB_TEST_HMI".RESET;
+        "Desk_AC11CC131".Conveyor3.Data.IN.Maintenance_FW := "AC11_OP8231_100S1_FORWARD";
+        "Desk_AC11CC131".Conveyor3.Data.IN.Maintenance_RW := "AC11_OP8231_100S1_BACKWARD";
+        
+        //Damper
+        "Desk_AC11CC131".Damper.Data.IN.Fault := FALSE; 
+        "Desk_AC11CC131".Damper.Data.IN.Opened := "AC11_SD131_B7001_POSITION_UP";
+        "Desk_AC11CC131".Damper.Data.IN.Closed := "AC11_SD131_B7101_POSITION_DOWN";
+        
+    END_REGION
+    
+    
+    REGION Input Desk 32 (Desk_AC11CC132)
+        
+        //From ACA - check in enabling signal
+        "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_32" := TRUE;
+        
+        "Desk_AC11CC132".Data.IN.Maintenance := FALSE;//NOT "AC11_OP8132_100S1_CLOSED"; //Da verificare
+        "Desk_AC11CC132".Data.IN.KeyActive_Ouvert := "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_32" AND "AC11_OP8132_100S1_OPEN";
+        "Desk_AC11CC132".Data.IN.KeyActive_DBA := "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_32" AND "AC11_OP8132_100S1_DBA";
+        "Desk_AC11CC132".Data.IN.PB_Check := "AC11_OP8232_100S1_FORWARD";
+        "Desk_AC11CC132".Data.IN.PB_Move_3 := "AC11_OP8232_100S2_SEND";
+        "Desk_AC11CC132".Data.IN.PB_Recul := "AC11_OP8232_100S1_BACKWARD";
+        "Desk_AC11CC132".Data.IN.PB_Reset := "DB_TEST_HMI".RESET; //Da modificare
+        "Desk_AC11CC132".Data.IN.Pht1_1 := NOT "AC11_CC132_B1101_STOP_HEAD_PHOTOCELL";
+        "Desk_AC11CC132".Data.IN.Pht1_2 := NOT "AC11_CC132_B1201_STOP_TAIL_PHOTOCELL";
+        "Desk_AC11CC132".Data.IN.Pht3_1 := NOT "AC11_CC232_B1101_STOP_HEAD_PHOTOCELL";
+        "Desk_AC11CC132".Data.IN.PhtOverHeight := NOT "AC11_CC132_B7701_SIZE_CONTROL";
+        "Desk_AC11CC132".Data.IN.EMG := FALSE; // NOT "ESTOP_Z1".Q;
+        "Desk_AC11CC132".Data.IN.BusFault := "SV_DB_PROFINET_SA".FaultProfinet1[28];
+        
+        "Desk_AC11CC132".Data.IN.ExternalFault := FALSE;
+        "Desk_AC11CC132".Data.IN.ExternalFault := "Desk_AC11CC132".Data.IN.ExternalFault OR NOT "AC11_CC132_M0001_WEIGHING_BELT_MOTOR_2_OVERTEMPERATURE";
+        "Desk_AC11CC132".Data.IN.ExternalFault := "Desk_AC11CC132".Data.IN.ExternalFault OR NOT "AC11_CC232_M0001_LAUNCH_BELT_MOTOR_2_OVERTEMPERATURE";
+        "Desk_AC11CC132".Data.IN.ExternalFault := "Desk_AC11CC132".Data.IN.ExternalFault OR NOT "AC11_CDE31_210F1_ELECTRONIC_FUSES_STATUS";
+        //"Desk_AC11CC132".Data.IN.ExternalFault := "Desk_AC11CC132".Data.IN.ExternalFault OR NOT "AC11_CDE33_450B1_OVERTEMPERATURE";
+        
+        "Desk_AC11CC132".Data.IN.SafetyBreaker := "AC11_CDE31_100Q1_MAIN_SWITCH_CLOSED" AND NOT "AC11_CDE31_100Q1_MAIN_SWITCH_TRIPPED";
+        "Desk_AC11CC132".Data.IN.EOK400VAC := "AC11_CDE31_120F1_400VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_BENCH_MOTORS_31";
+        "Desk_AC11CC132".Data.IN.EOK230VAC := "AC11_CDE31_102Q1_230VAC_UPS_MAIN_SWITCH_CLOSED" AND "AC11_CDE31_121F1_230VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_BENCH_SOCKET_31";
+        "Desk_AC11CC132".Data.IN.EOK24VDCConveyors := "AC11_CDE31_200F1_230VAC_UPS_CIRCUIT_BREAKER_STATUS_POWER_SUPPLY_24VDC";
+        "Desk_AC11CC132".Data.IN.EOK24VDCShutter := "AC11_CDE31_200F1_230VAC_UPS_CIRCUIT_BREAKER_STATUS_POWER_SUPPLY_24VDC";
+        //Conveyor 1
+        "Desk_AC11CC132".Conveyor1.Data.IN.FAULT := NOT "AC11_CDE31_120Q1_FAULT_WEIGHING_BELT_MOTOR_1";
+        "Desk_AC11CC132".Conveyor1.Data.IN.RESET := "DB_TEST_HMI".RESET;
+        "Desk_AC11CC132".Conveyor1.Data.IN.Maintenance_FW := "AC11_OP8232_100S1_FORWARD";
+        "Desk_AC11CC132".Conveyor1.Data.IN.Maintenance_RW := "AC11_OP8232_100S1_BACKWARD";
+        //Conveyor 3
+        "Desk_AC11CC132".Conveyor3.Data.IN.FAULT := NOT "AC11_CDE31_120Q2_FAULT_LAUNCH_BELT_MOTOR_1";
+        "Desk_AC11CC132".Conveyor3.Data.IN.RESET := "DB_TEST_HMI".RESET;
+        "Desk_AC11CC132".Conveyor3.Data.IN.Maintenance_FW := "AC11_OP8232_100S1_FORWARD";
+        "Desk_AC11CC132".Conveyor3.Data.IN.Maintenance_RW := "AC11_OP8232_100S1_BACKWARD";
+        
+        //Damper
+        "Desk_AC11CC132".Damper.Data.IN.Fault := FALSE; 
+        "Desk_AC11CC132".Damper.Data.IN.Opened := "AC11_SD131_B7001_POSITION_UP";
+        "Desk_AC11CC132".Damper.Data.IN.Closed :=  "AC11_SD131_B7101_POSITION_DOWN";
+
+    END_REGION
+    
+    
+    REGION Input Desk 33 (Desk_AC11CC133)
+        
+        //From ACA - check in enabling signal
+        "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_33" := TRUE;
+        
+        "Desk_AC11CC133".Data.IN.Maintenance := FALSE;//NOT "AC11_OP8133_100S1_CLOSED"; //Da verificare
+        "Desk_AC11CC133".Data.IN.KeyActive_Ouvert := "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_33" AND "AC11_OP8133_100S1_OPEN";
+        "Desk_AC11CC133".Data.IN.KeyActive_DBA := "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_33" AND "AC11_OP8133_100S1_DBA";
+        "Desk_AC11CC133".Data.IN.PB_Check := "AC11_OP8233_100S1_FORWARD";
+        "Desk_AC11CC133".Data.IN.PB_Move_3 := "AC11_OP8233_100S2_SEND";
+        "Desk_AC11CC133".Data.IN.PB_Recul := "AC11_OP8233_100S1_BACKWARD";
+        "Desk_AC11CC133".Data.IN.PB_Reset := "DB_TEST_HMI".RESET; //Da modificare
+        "Desk_AC11CC133".Data.IN.Pht1_1 := NOT "AC11_CC133_B1101_STOP_HEAD_PHOTOCELL";
+        "Desk_AC11CC133".Data.IN.Pht1_2 := NOT "AC11_CC133_B1201_STOP_TAIL_PHOTOCELL";
+        "Desk_AC11CC133".Data.IN.Pht3_1 := NOT "AC11_CC233_B1101_STOP_HEAD_PHOTOCELL";
+        "Desk_AC11CC133".Data.IN.PhtOverHeight := NOT "AC11_CC133_B7701_SIZE_CONTROL";
+        "Desk_AC11CC133".Data.IN.EMG := FALSE; // NOT "ESTOP_Z1".Q;
+        "Desk_AC11CC133".Data.IN.BusFault := "SV_DB_PROFINET_SA".FaultProfinet1[28];
+        
+        "Desk_AC11CC133".Data.IN.ExternalFault := FALSE;
+        "Desk_AC11CC133".Data.IN.ExternalFault := "Desk_AC11CC133".Data.IN.ExternalFault OR NOT "AC11_CC133_M0001_WEIGHING_BELT_MOTOR_1_OVERTEMPERATURE";
+        "Desk_AC11CC133".Data.IN.ExternalFault := "Desk_AC11CC133".Data.IN.ExternalFault OR NOT "AC11_CC233_M0001_LAUNCH_BELT_MOTOR_1_OVERTEMPERATURE";
+        "Desk_AC11CC133".Data.IN.ExternalFault := "Desk_AC11CC133".Data.IN.ExternalFault OR NOT "AC11_CDE33_210F1_ELECTRONIC_FUSES_STATUS";
+        //"Desk_AC11CC133".Data.IN.ExternalFault := "Desk_AC11CC133".Data.IN.ExternalFault OR NOT "AC11_CDE33_450B1_OVERTEMPERATURE";
+        
+        "Desk_AC11CC133".Data.IN.SafetyBreaker := "AC11_CDE33_100Q1_MAIN_SWITCH_CLOSED" AND NOT "AC11_CDE33_100Q1_MAIN_SWITCH_TRIPPED";
+        "Desk_AC11CC133".Data.IN.EOK400VAC := "AC11_CDE33_120F1_400VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_BENCH_MOTORS_33";
+        "Desk_AC11CC133".Data.IN.EOK230VAC := "AC11_CDE33_102Q1_230VAC_UPS_MAIN_SWITCH_CLOSED" AND "AC11_CDE33_121F1_230VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_BENCH_SOCKET_33";
+        "Desk_AC11CC133".Data.IN.EOK24VDCConveyors := "AC11_CDE33_200F1_230VAC_UPS_CIRCUIT_BREAKER_STATUS_POWER_SUPPLY_24VDC";
+        "Desk_AC11CC133".Data.IN.EOK24VDCShutter := "AC11_CDE33_200F1_230VAC_UPS_CIRCUIT_BREAKER_STATUS_POWER_SUPPLY_24VDC";
+        //Conveyor 1
+        "Desk_AC11CC133".Conveyor1.Data.IN.FAULT := NOT "AC11_CDE33_120Q1_FAULT_WEIGHING_BELT_MOTOR_1";
+        "Desk_AC11CC133".Conveyor1.Data.IN.RESET := "DB_TEST_HMI".RESET;
+        "Desk_AC11CC133".Conveyor1.Data.IN.Maintenance_FW := "AC11_OP8233_100S1_FORWARD";
+        "Desk_AC11CC133".Conveyor1.Data.IN.Maintenance_RW := "AC11_OP8233_100S1_BACKWARD";
+        //Conveyor 3
+        "Desk_AC11CC133".Conveyor3.Data.IN.FAULT := NOT "AC11_CDE33_120Q2_FAULT_LAUNCH_BELT_MOTOR_1";
+        "Desk_AC11CC133".Conveyor3.Data.IN.RESET := "DB_TEST_HMI".RESET;
+        "Desk_AC11CC133".Conveyor3.Data.IN.Maintenance_FW := "AC11_OP8233_100S1_FORWARD";
+        "Desk_AC11CC133".Conveyor3.Data.IN.Maintenance_RW := "AC11_OP8233_100S1_BACKWARD";
+        
+        //Damper
+        "Desk_AC11CC133".Damper.Data.IN.Fault := FALSE;
+        "Desk_AC11CC133".Damper.Data.IN.Opened := "AC11_SD133_B7001_POSITION_UP";
+        "Desk_AC11CC133".Damper.Data.IN.Closed := "AC11_SD133_B7101_POSITION_DOWN";
+        
+    END_REGION
+    
+    
+    REGION Input Desk 34 (Desk_AC11CC134)
+        
+        //From ACA - check in enabling signal
+        "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_34" := TRUE;
+      
+        "Desk_AC11CC134".Data.IN.Maintenance := "AC11_OP8134_100S1_CLOSED"; //Da verificare
+        "Desk_AC11CC134".Data.IN.KeyActive_Ouvert := "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_34" AND "AC11_OP8134_100S1_OPEN";
+        "Desk_AC11CC134".Data.IN.KeyActive_DBA := "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_34" AND "AC11_OP8134_100S1_DBA";
+        "Desk_AC11CC134".Data.IN.PB_Check := "AC11_OP8234_100S1_FORWARD";
+        "Desk_AC11CC134".Data.IN.PB_Move_3 := "AC11_OP8234_100S2_SEND";
+        "Desk_AC11CC134".Data.IN.PB_Recul := "AC11_OP8234_100S1_BACKWARD";
+        "Desk_AC11CC134".Data.IN.PB_Reset := "DB_TEST_HMI".RESET; //Da modificare
+        "Desk_AC11CC134".Data.IN.Pht1_1 := NOT "AC11_CC134_B1101_STOP_HEAD_PHOTOCELL";
+        "Desk_AC11CC134".Data.IN.Pht1_2 := NOT "AC11_CC134_B1201_STOP_TAIL_PHOTOCELL";
+        "Desk_AC11CC134".Data.IN.Pht3_1 := NOT "AC11_CC234_B1101_STOP_HEAD_PHOTOCELL";
+        "Desk_AC11CC134".Data.IN.PhtOverHeight := NOT "AC11_CC134_B7701_SIZE_CONTROL";
+        "Desk_AC11CC134".Data.IN.EMG := FALSE; //NOT "ESTOP_Z1".Q;
+        "Desk_AC11CC134".Data.IN.BusFault := "SV_DB_PROFINET_SA".FaultProfinet1[28];
+        
+        "Desk_AC11CC134".Data.IN.ExternalFault := FALSE;
+        "Desk_AC11CC134".Data.IN.ExternalFault := "Desk_AC11CC134".Data.IN.ExternalFault OR "AC11_CC134_M0001_WEIGHING_BELT_MOTOR_2_OVERTEMPERATURE";
+        "Desk_AC11CC134".Data.IN.ExternalFault := "Desk_AC11CC134".Data.IN.ExternalFault OR "AC11_CC234_M0001_LAUNCH_BELT_MOTOR_2_OVERTEMPERATURE";
+        "Desk_AC11CC134".Data.IN.ExternalFault := "Desk_AC11CC134".Data.IN.ExternalFault OR "AC11_CDE33_210F1_ELECTRONIC_FUSES_STATUS";
+        "Desk_AC11CC134".Data.IN.ExternalFault := "Desk_AC11CC134".Data.IN.ExternalFault OR "AC11_CDE33_450B1_OVERTEMPERATURE";
+        
+        "Desk_AC11CC134".Data.IN.SafetyBreaker := "AC11_CDE33_100Q1_MAIN_SWITCH_CLOSED" AND NOT "AC11_CDE35_100Q1_MAIN_SWITCH_TRIPPED";
+        "Desk_AC11CC134".Data.IN.EOK400VAC := "AC11_CDE33_125F1_400VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_BENCH_MOTORS_34";
+        "Desk_AC11CC134".Data.IN.EOK230VAC := "AC11_CDE33_102Q1_230VAC_UPS_MAIN_SWITCH_CLOSED" AND "AC11_CDE33_126F1_230VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_BENCH_SOCKET_34";
+        "Desk_AC11CC134".Data.IN.EOK24VDCConveyors := "AC11_CDE33_200F1_230VAC_UPS_CIRCUIT_BREAKER_STATUS_POWER_SUPPLY_24VDC";
+        "Desk_AC11CC134".Data.IN.EOK24VDCShutter := "AC11_CDE33_200F1_230VAC_UPS_CIRCUIT_BREAKER_STATUS_POWER_SUPPLY_24VDC";
+        
+        //Conveyor 1
+        "Desk_AC11CC134".Conveyor1.Data.IN.FAULT := "AC11_CDE33_125Q1_FAULT_WEIGHING_BELT_MOTOR_2";
+        "Desk_AC11CC134".Conveyor1.Data.IN.RESET := "DB_TEST_HMI".RESET AND NOT "Desk_AC11CC134".Conveyor1.Data.SA.Occupied;
+        "Desk_AC11CC134".Conveyor1.Data.IN.Maintenance_FW := "AC11_OP8234_100S1_FORWARD";
+        "Desk_AC11CC134".Conveyor1.Data.IN.Maintenance_RW := "AC11_OP8234_100S1_BACKWARD";
+        
+        //Conveyor 3
+        "Desk_AC11CC134".Conveyor3.Data.IN.FAULT := "AC11_CDE33_125Q2_FAULT_LAUNCH_BELT_MOTOR_2";
+        "Desk_AC11CC134".Conveyor3.Data.IN.RESET := "DB_TEST_HMI".RESET AND NOT "Desk_AC11CC134".Conveyor3.Data.SA.Occupied;
+        "Desk_AC11CC134".Conveyor3.Data.IN.Maintenance_FW := "AC11_OP8234_100S1_FORWARD";
+        "Desk_AC11CC134".Conveyor3.Data.IN.Maintenance_RW := "AC11_OP8234_100S1_BACKWARD";
+        
+        //Damper
+        "Desk_AC11CC134".Damper.Data.IN.Fault := FALSE; 
+        "Desk_AC11CC134".Damper.Data.IN.Opened := "AC11_SD133_B7001_POSITION_UP";
+        "Desk_AC11CC134".Damper.Data.IN.Closed := "AC11_SD133_B7101_POSITION_DOWN";
+
+    END_REGION
+    
+    
+    REGION Input Desk 35 (Desk_AC11CC135)
+        
+        //From ACA - check in enabling signal
+        "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_35" := TRUE;
+        
+        "Desk_AC11CC135".Data.IN.Maintenance := FALSE;//NOT "AC11_OP8135_100S1_CLOSED"; //Da verificare
+        "Desk_AC11CC135".Data.IN.KeyActive_Ouvert := "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_35" AND "AC11_OP8135_100S1_OPEN";
+        "Desk_AC11CC135".Data.IN.KeyActive_DBA := "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_35" AND "AC11_OP8135_100S1_DBA";
+        "Desk_AC11CC135".Data.IN.PB_Check := "AC11_OP8235_100S1_FORWARD";
+        "Desk_AC11CC135".Data.IN.PB_Move_3 := "AC11_OP8235_100S2_SEND";
+        "Desk_AC11CC135".Data.IN.PB_Recul := "AC11_OP8235_100S1_BACKWARD";
+        "Desk_AC11CC135".Data.IN.PB_Reset := "DB_TEST_HMI".RESET; //Da modificare
+        "Desk_AC11CC135".Data.IN.Pht1_1 := NOT "AC11_CC135_B1101_STOP_HEAD_PHOTOCELL";
+        "Desk_AC11CC135".Data.IN.Pht1_2 := NOT "AC11_CC135_B1201_STOP_TAIL_PHOTOCELL";
+        "Desk_AC11CC135".Data.IN.Pht3_1 := NOT "AC11_CC235_B1101_STOP_HEAD_PHOTOCELL";
+        "Desk_AC11CC135".Data.IN.PhtOverHeight := NOT "AC11_CC135_B7701_SIZE_CONTROL";
+        "Desk_AC11CC135".Data.IN.EMG := FALSE; // NOT "ESTOP_Z1".Q;
+        "Desk_AC11CC135".Data.IN.BusFault := "SV_DB_PROFINET_SA".FaultProfinet1[28];
+        
+        "Desk_AC11CC135".Data.IN.ExternalFault := FALSE;
+        "Desk_AC11CC135".Data.IN.ExternalFault := "Desk_AC11CC135".Data.IN.ExternalFault OR NOT "AC11_CC135_M0001_WEIGHING_BELT_MOTOR_1_OVERTEMPERATURE";
+        "Desk_AC11CC135".Data.IN.ExternalFault := "Desk_AC11CC135".Data.IN.ExternalFault OR NOT "AC11_CC235_M0001_LAUNCH_BELT_MOTOR_1_OVERTEMPERATURE";
+        "Desk_AC11CC135".Data.IN.ExternalFault := "Desk_AC11CC135".Data.IN.ExternalFault OR NOT "AC11_CDE35_210F1_ELECTRONIC_FUSES_STATUS";
+        //"Desk_AC11CC135".Data.IN.ExternalFault := "Desk_AC11CC135".Data.IN.ExternalFault OR NOT "AC11_CDE33_450B1_OVERTEMPERATURE";
+        
+        "Desk_AC11CC135".Data.IN.SafetyBreaker := "AC11_CDE35_100Q1_MAIN_SWITCH_CLOSED" AND NOT "AC11_CDE31_100Q1_MAIN_SWITCH_TRIPPED";
+        "Desk_AC11CC135".Data.IN.EOK400VAC := "AC11_CDE31_120F1_400VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_BENCH_MOTORS_31";
+        "Desk_AC11CC135".Data.IN.EOK230VAC := "AC11_CDE31_102Q1_230VAC_UPS_MAIN_SWITCH_CLOSED" AND "AC11_CDE31_121F1_230VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_BENCH_SOCKET_31";
+        "Desk_AC11CC135".Data.IN.EOK24VDCConveyors := "AC11_CDE31_200F1_230VAC_UPS_CIRCUIT_BREAKER_STATUS_POWER_SUPPLY_24VDC";
+        "Desk_AC11CC135".Data.IN.EOK24VDCShutter := "AC11_CDE31_200F1_230VAC_UPS_CIRCUIT_BREAKER_STATUS_POWER_SUPPLY_24VDC";
+        //Conveyor 1
+        "Desk_AC11CC135".Conveyor1.Data.IN.FAULT := NOT "AC11_CDE31_120Q1_FAULT_WEIGHING_BELT_MOTOR_1";
+        "Desk_AC11CC135".Conveyor1.Data.IN.RESET := "DB_TEST_HMI".RESET;
+        "Desk_AC11CC135".Conveyor1.Data.IN.Maintenance_FW := "AC11_OP8235_100S1_FORWARD";
+        "Desk_AC11CC135".Conveyor1.Data.IN.Maintenance_RW := "AC11_OP8235_100S1_BACKWARD";
+        //Conveyor 3
+        "Desk_AC11CC135".Conveyor3.Data.IN.FAULT := NOT "AC11_CDE31_120Q2_FAULT_LAUNCH_BELT_MOTOR_1";
+        "Desk_AC11CC135".Conveyor3.Data.IN.RESET := "DB_TEST_HMI".RESET;
+        "Desk_AC11CC135".Conveyor3.Data.IN.Maintenance_FW := "AC11_OP8235_100S1_FORWARD";
+        "Desk_AC11CC135".Conveyor3.Data.IN.Maintenance_RW := "AC11_OP8235_100S1_BACKWARD";
+        
+        //Damper
+        "Desk_AC11CC135".Damper.Data.IN.Fault := FALSE; 
+        "Desk_AC11CC135".Damper.Data.IN.Opened :="AC11_SD135_B7001_POSITION_UP"; 
+        "Desk_AC11CC135".Damper.Data.IN.Closed := "AC11_SD135_B7101_POSITION_DOWN"; 
+        
+    END_REGION
+    
+    
+    REGION Input Desk 36 (Desk_AC11CC136)
+        
+        //From ACA - check in enabling signal
+        "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_36" := TRUE;
+        
+        "Desk_AC11CC136".Data.IN.Maintenance := FALSE;//NOT "AC11_OP8136_100S1_CLOSED"; //Da verificare
+        "Desk_AC11CC136".Data.IN.KeyActive_Ouvert := "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_36" AND "AC11_OP8136_100S1_OPEN";
+        "Desk_AC11CC136".Data.IN.KeyActive_DBA := "CUSTOMER_VARIOUS_CHECKIN_JB_ENABLED_CHECK_IN_BENCH_36" AND "AC11_OP8136_100S1_DBA";
+        "Desk_AC11CC136".Data.IN.PB_Check := "AC11_OP8236_100S1_FORWARD";
+        "Desk_AC11CC136".Data.IN.PB_Move_3 := "AC11_OP8236_100S2_SEND";
+        "Desk_AC11CC136".Data.IN.PB_Recul := "AC11_OP8236_100S1_BACKWARD";
+        "Desk_AC11CC136".Data.IN.PB_Reset := "DB_TEST_HMI".RESET; //Da modificare
+        "Desk_AC11CC136".Data.IN.Pht1_1 := NOT "AC11_CC136_B1101_STOP_HEAD_PHOTOCELL";
+        "Desk_AC11CC136".Data.IN.Pht1_2 := NOT "AC11_CC136_B1201_STOP_TAIL_PHOTOCELL";
+        "Desk_AC11CC136".Data.IN.Pht3_1 := NOT "AC11_CC236_B1101_STOP_HEAD_PHOTOCELL";
+        "Desk_AC11CC136".Data.IN.PhtOverHeight := NOT "AC11_CC136_B7701_SIZE_CONTROL";
+        "Desk_AC11CC136".Data.IN.EMG := FALSE; // NOT "ESTOP_Z1".Q;
+        "Desk_AC11CC136".Data.IN.BusFault := "SV_DB_PROFINET_SA".FaultProfinet1[28];
+        
+        "Desk_AC11CC136".Data.IN.ExternalFault := FALSE;
+        "Desk_AC11CC136".Data.IN.ExternalFault := "Desk_AC11CC136".Data.IN.ExternalFault OR NOT "AC11_CC136_M0001_WEIGHING_BELT_MOTOR_2_OVERTEMPERATURE";
+        "Desk_AC11CC136".Data.IN.ExternalFault := "Desk_AC11CC136".Data.IN.ExternalFault OR NOT "AC11_CC236_M0001_LAUNCH_BELT_MOTOR_2_OVERTEMPERATURE";
+        "Desk_AC11CC136".Data.IN.ExternalFault := "Desk_AC11CC136".Data.IN.ExternalFault OR NOT "AC11_CDE35_210F1_ELECTRONIC_FUSES_STATUS";
+        //"Desk_AC11CC136".Data.IN.ExternalFault := "Desk_AC11CC136".Data.IN.ExternalFault OR NOT "AC11_CDE33_450B1_OVERTEMPERATURE";
+        
+        "Desk_AC11CC136".Data.IN.SafetyBreaker := "AC11_CDE35_100Q1_MAIN_SWITCH_CLOSED" AND NOT "AC11_CDE31_100Q1_MAIN_SWITCH_TRIPPED";
+        "Desk_AC11CC136".Data.IN.EOK400VAC := "AC11_CDE31_120F1_400VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_BENCH_MOTORS_31";
+        "Desk_AC11CC136".Data.IN.EOK230VAC := "AC11_CDE31_102Q1_230VAC_UPS_MAIN_SWITCH_CLOSED" AND "AC11_CDE31_121F1_230VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_BENCH_SOCKET_31";
+        "Desk_AC11CC136".Data.IN.EOK24VDCConveyors := "AC11_CDE31_200F1_230VAC_UPS_CIRCUIT_BREAKER_STATUS_POWER_SUPPLY_24VDC";
+        "Desk_AC11CC136".Data.IN.EOK24VDCShutter := "AC11_CDE31_200F1_230VAC_UPS_CIRCUIT_BREAKER_STATUS_POWER_SUPPLY_24VDC";
+        
+        //Conveyor 1
+        "Desk_AC11CC136".Conveyor1.Data.IN.FAULT := NOT "AC11_CDE31_120Q1_FAULT_WEIGHING_BELT_MOTOR_1";
+        "Desk_AC11CC136".Conveyor1.Data.IN.RESET := "DB_TEST_HMI".RESET;
+        "Desk_AC11CC136".Conveyor1.Data.IN.Maintenance_FW := "AC11_OP8236_100S1_FORWARD";
+        "Desk_AC11CC136".Conveyor1.Data.IN.Maintenance_RW := "AC11_OP8236_100S1_BACKWARD";
+        
+        //Conveyor 3
+        "Desk_AC11CC136".Conveyor3.Data.IN.FAULT := NOT "AC11_CDE31_120Q2_FAULT_LAUNCH_BELT_MOTOR_1";
+        "Desk_AC11CC136".Conveyor3.Data.IN.RESET := "DB_TEST_HMI".RESET;
+        "Desk_AC11CC136".Conveyor3.Data.IN.Maintenance_FW := "AC11_OP8236_100S1_FORWARD";
+        "Desk_AC11CC136".Conveyor3.Data.IN.Maintenance_RW := "AC11_OP8236_100S1_BACKWARD";
+        
+        //Damper
+        "Desk_AC11CC136".Damper.Data.IN.Fault := FALSE;
+        "Desk_AC11CC136".Damper.Data.IN.Opened := "AC11_SD135_B7001_POSITION_UP";
+        "Desk_AC11CC136".Damper.Data.IN.Closed := "AC11_SD135_B7101_POSITION_DOWN"; 
+        
+    END_REGION
+    
+    
+    REGION Input Damper Interface (Damper_AC11SD131) - Desk 31/32
+        
+        "Damper_AC11SD131".Data.In.Damper1Data := "Desk_AC11CC131".Damper.Data;
+        "Damper_AC11SD131".Data.In.Damper2Data := "Desk_AC11CC132".Damper.Data;
+        
+    END_REGION
+    
+    
+    REGION Input Damper Interface (Damper_AC11SD133) - Desk 33/34
+        
+        "Damper_AC11SD133".Data.In.Damper1Data := "Desk_AC11CC133".Damper.Data;
+        "Damper_AC11SD133".Data.In.Damper2Data := "Desk_AC11CC134".Damper.Data;
+        
+    END_REGION
+    
+    
+    REGION Input Damper Interface (Damper_AC11SD135) - Desk 35/36
+        
+        "Damper_AC11SD135".Data.In.Damper1Data := "Desk_AC11CC135".Damper.Data;
+        "Damper_AC11SD135".Data.In.Damper2Data := "Desk_AC11CC136".Damper.Data;
+        
+    END_REGION
+    
+    
+    REGION Input Collector Utenza3_AC11ST005 (AC11ST005)
+        ///
+        //    Profinet
+        //   ---------------------------------------------------------------------------------
+        
+        IF "SV_DB_PROFINET_SA".FaultProfinet1[11] THEN
+            "Utenza3_AC11ST005".Drive.Data.In.DataOk := FALSE;
+            "Utenza3_AC11ST005".Collector.Data.IN.BusFault := TRUE;
+            "Utenza3_AC11ST005".Collector.Pht01.Data.IN.BusFault := TRUE;
+            "Utenza3_AC11ST005".Encoder.Data.IN.BusFault := TRUE;
+        ELSE
+            "Utenza3_AC11ST005".Drive.Data.In.DataOk := TRUE;
+            "Utenza3_AC11ST005".Collector.Data.IN.BusFault := FALSE;
+            "Utenza3_AC11ST005".Collector.Pht01.Data.IN.BusFault := FALSE;
+            "Utenza3_AC11ST005".Encoder.Data.IN.BusFault := FALSE;
+        END_IF;
+        
+        
+        //    Conveyor Input
+        //   ---------------------------------------------------------------------------------
+        "Utenza3_AC11ST005".Collector.Data.IN.PRS := NOT "DbiTrunkLN01".Data.SA.ST_AUTOMATIC;
+        "Utenza3_AC11ST005".Collector.Data.IN.Dir := TRUE;
+        "Utenza3_AC11ST005".Collector.Data.IN.ExternalFault := FALSE;
+        "Utenza3_AC11ST005".Collector.Data.IN.PFL := FALSE;
+        "Utenza3_AC11ST005".Collector.Data.IN.ASR := FALSE;
+        "Utenza3_AC11ST005".Collector.Data.IN.EnableBuffering := FALSE;
+        "Utenza3_AC11ST005".Collector.Data.IN.SafetyBreaker := FALSE; // NOT "ENR55CV0100_SBR";
+        "Utenza3_AC11ST005".Collector.Data.IN.EMG := FALSE; // For Emulation := NOT "ENR55_EMG_ZONE1";
+        ///
+        //    Photocell Input
+        //   ---------------------------------------------------------------------------------
+
+        "Utenza3_AC11ST005".Collector.Pht01.Data.IN.Photocell := NOT "AC11_ST005_B1201_STOP_TAIL_PHOTOCELL";
+        "Utenza3_AC11ST005".Collector.Pht02.Data.IN.Photocell := NOT "AC11_ST005_B1101_STOP_HEAD_PHOTOCELL"; //NOT "ENR55CV0100_B2";
+        
+        //    Drive Input
+        //   ---------------------------------------------------------------------------------
+        
+        "Utenza3_AC11ST005".Drive.Data.In.EOk := TRUE; // for emu TRUE; // for emu "ENR55_CRIO1_172Q1";// "ENR30351Q1_FLT" AND ("ENR30100Q1_FLT" OR "ENR30100Q2_FLT");
+        "Utenza3_AC11ST005".Drive.Data.In.Telegram := "AC11ST005_IN";
+        
+        
+        
+    END_REGION ;
+    
+    
+    REGION Input Collector Utenza4_AC11ST007 (AC11ST007)
+        
+        //    Profinet
+        
+        IF "SV_DB_PROFINET_SA".FaultProfinet1[11] THEN
+            "Utenza4_AC11ST007".Drive.Data.In.DataOk := FALSE;
+            "Utenza4_AC11ST007".Collector.Data.IN.BusFault := TRUE;
+            "Utenza4_AC11ST007".Collector.Pht01.Data.IN.BusFault := TRUE;
+            "Utenza4_AC11ST007".Encoder.Data.IN.BusFault := TRUE;
+        ELSE
+            "Utenza4_AC11ST007".Drive.Data.In.DataOk := TRUE;
+            "Utenza4_AC11ST007".Collector.Data.IN.BusFault := FALSE;
+            "Utenza4_AC11ST007".Collector.Pht01.Data.IN.BusFault := FALSE;
+            "Utenza4_AC11ST007".Encoder.Data.IN.BusFault := FALSE;
+        END_IF;
+        
+        ///
+        //    Collector Input
+        //   ---------------------------------------------------------------------------------
+        //
+        
+        "Utenza4_AC11ST007".Collector.Data.IN.PRS := FALSE;
+        "Utenza4_AC11ST007".Collector.Data.IN.Dir := TRUE;
+        "Utenza4_AC11ST007".Collector.Data.IN.ExternalFault := FALSE;
+        // "Utenza4_AC11ST007".Collector.Data.IN.PFL := "PFL_NCE1".DATA.OUT.PFL_Req;
+        "Utenza4_AC11ST007".Collector.Data.IN.ASR := FALSE;
+        "Utenza4_AC11ST007".Collector.Data.IN.EnableBuffering := FALSE;
+        "Utenza4_AC11ST007".Collector.Data.IN.SafetyBreaker := NOT "AC11_ST007_T0001_SAFETY_SWITCH_POWER_SUPPLY_400V";
+        "Utenza4_AC11ST007".Collector.Data.IN.KeySwitchLocalMode := "AC11_ST007_T0001_KEY_SWITCH_LOCAL_MODE";
+        
+        //    Photocell Input
+        
+        "Utenza4_AC11ST007".Collector.Pht01.Data.IN.Photocell := FALSE;
+        "Utenza4_AC11ST007".Collector.Pht02.Data.IN.Photocell := NOT "AC11_ST007_B1101_STOP_HEAD_PHOTOCELL";
+        
+        //    Drive Input
+        
+        "Utenza4_AC11ST007".Drive.Data.In.EOk := "MCPAC11_130F1_400VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_INVERTER_ST001_ST013";
+        "Utenza4_AC11ST007".Drive.Data.In.Telegram := "AC11ST007_IN";
+        
+    END_REGION
+    
+    
