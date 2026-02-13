@@ -17,9 +17,8 @@ def create_txt_files(df, selected_cab_plc, order):
         selected_cab_plc: CAB_PLC selezionato
         order: Ordine selezionato per la generazione dei file
     """
-    # Crea una directory API0## - all files go directly here
-    api_folder = f'API0{selected_cab_plc[-2:]}'
-    linee_folder = f'Configurazioni/{selected_cab_plc}/{api_folder}'
+    # Crea una directory nella nuova struttura Output/Configurazioni/{CAB_PLC}
+    linee_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
     if not os.path.exists(linee_folder):
         os.makedirs(linee_folder)
     
@@ -331,8 +330,7 @@ def create_linea_files(df, selected_cab_plc, line_type_mapping, ordered_prefixes
         line_type_mapping (dict): Dizionario per mappare i numeri di linea ai loro tipi (es. 'Carousel').
         ordered_prefixes (list): Lista ordinata dei prefissi selezionati.
     """
-    api_folder = f'API0{selected_cab_plc[-2:]}'
-    linee_folder = f'Configurazioni/{selected_cab_plc}/{api_folder}'
+    linee_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
     os.makedirs(linee_folder, exist_ok=True)
     
     # Elimina file .scl vecchi di DbiLine e DbiTrunkLN prima di generare i nuovi .db
@@ -1165,9 +1163,8 @@ def create_main_structure_file(output_folder, num_lines, selected_cab_plc, trunk
     content.append('END_ORGANIZATION_BLOCK')
     content.append('')
 
-    # Crea il percorso completo includendo il CAB_PLC - all files in API0## folder
-    api_folder = f'API0{selected_cab_plc[-2:]}'
-    output_path = os.path.join('Configurazioni', selected_cab_plc, api_folder, 'Main.scl')
+    # Crea il percorso completo includendo il CAB_PLC
+    output_path = os.path.join('Output', 'Configurazioni', selected_cab_plc, 'Main.scl')
     print(f"Percorso file: {os.path.abspath(output_path)}")
     
     # Crea la cartella se non esiste
@@ -1442,8 +1439,7 @@ def generate_gen_line_file(df, selected_cab_plc, line_type_mapping, ordered_pref
     """
     print(f"DEBUG - Generazione di GenLine.scl per {selected_cab_plc}...")
     
-    api_folder = f'API0{selected_cab_plc[-2:]}'
-    output_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
+    output_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
     os.makedirs(output_folder, exist_ok=True)
     
     gen_line_content = []
@@ -1498,8 +1494,7 @@ def generate_gen_line_file(df, selected_cab_plc, line_type_mapping, ordered_pref
 
     # Ottieni tutti i trunk_numbers disponibili per il CAB_PLC corrente
     trunk_files = []
-    api_folder = f'API0{selected_cab_plc[-2:]}'
-    trunk_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
+    trunk_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
     if os.path.exists(trunk_folder):
         trunk_files = [f for f in os.listdir(trunk_folder) if f.startswith("DbiTrunkLN") and f.endswith(".db")]
     
@@ -1612,8 +1607,7 @@ def create_badge_reader_db(selected_cab_plc, output_base_folder):
         selected_cab_plc (str): Il CAB_PLC selezionato.
         output_base_folder (str): La cartella base dove creare i file (es. 'Configurazioni').
     """
-    api_folder = f'API0{selected_cab_plc[-2:]}'
-    output_folder = os.path.join(output_base_folder, selected_cab_plc, api_folder)
+    output_folder = os.path.join(output_base_folder, selected_cab_plc)
     os.makedirs(output_folder, exist_ok=True)
     
     badge_reader_content = """DATA_BLOCK "BadgeReader1"
@@ -1650,12 +1644,11 @@ def create_dig_in_file(selected_cab_plc, output_base_folder, conveyor_data_for_d
         df (DataFrame): DataFrame con i dati della machine table per trovare Datalogic, Oversize, SMITHS, ecc.
     """
     # Se sono disponibili esempi validati per API008, usa quelli per garantire conformità
-    api_folder = f'API0{selected_cab_plc[-2:]}'
     try:
         if str(selected_cab_plc).upper() == 'API008':
             example_path = os.path.join('ESEMPI_PER_LAVORO_IO_LIST_API008', 'DigIn.scl')
             if os.path.exists(example_path):
-                input_mng_folder = os.path.join(output_base_folder, selected_cab_plc, api_folder)
+                input_mng_folder = os.path.join(output_base_folder, selected_cab_plc)
                 os.makedirs(input_mng_folder, exist_ok=True)
                 dest_path = os.path.join(input_mng_folder, 'DigIn.scl')
                 with open(example_path, 'r', encoding='utf-8') as src, open(dest_path, 'w', encoding='utf-8') as dst:
@@ -1665,7 +1658,7 @@ def create_dig_in_file(selected_cab_plc, output_base_folder, conveyor_data_for_d
     except Exception as e:
         print(f"AVVISO - Copia esempio DigIn fallita, si procede con generazione standard: {e}")
 
-    input_mng_folder = os.path.join(output_base_folder, selected_cab_plc, api_folder)
+    input_mng_folder = os.path.join(output_base_folder, selected_cab_plc)
     os.makedirs(input_mng_folder, exist_ok=True)
     
     dig_in_content_lines = [
@@ -1681,8 +1674,7 @@ def create_dig_in_file(selected_cab_plc, output_base_folder, conveyor_data_for_d
     # 1. REGION HMI Test (con tutti i JOG per i tronchi)
     # ============================================
     # Determina tutti i tronchi leggendo i file .db nella cartella di output (fonte più affidabile)
-    api_folder = f'API0{selected_cab_plc[-2:]}'
-    output_folder = os.path.join(output_base_folder, selected_cab_plc, api_folder)
+    output_folder = os.path.join(output_base_folder, selected_cab_plc)
     
     all_trunks_for_hmi = []
     max_trunk_num = 0
@@ -2048,8 +2040,7 @@ END_REGION
     all_trunk_ids = []
     
     # Prima prova a leggere i file .db dei tronchi dalla cartella di output
-    api_folder = f'API0{selected_cab_plc[-2:]}'
-    output_folder = os.path.join(output_base_folder, selected_cab_plc, api_folder)
+    output_folder = os.path.join(output_base_folder, selected_cab_plc)
     
     if os.path.exists(output_folder):
         try:
@@ -2355,9 +2346,8 @@ def create_dig_out_file(selected_cab_plc, output_base_folder, ordered_prefixes=N
     """
     import re
     
-    api_folder = f'API0{selected_cab_plc[-2:]}'
     try:
-        input_mng_folder = os.path.join(output_base_folder, selected_cab_plc, api_folder)
+        input_mng_folder = os.path.join(output_base_folder, selected_cab_plc)
         os.makedirs(input_mng_folder, exist_ok=True)
 
         # Usa l'esempio se disponibile per API008
@@ -2954,11 +2944,10 @@ def generate_zones_input_scl(selected_cab_plc, use_fixed_zone=False):
     import re
     
     # Percorsi dei file
-    api_folder = f'API0{selected_cab_plc[-2:]}'
     excel_path = os.path.join('Input', 'Matrice_Zone_di_Emergenza_Nizza.xlsx')
     zone_def_path = os.path.join('Input', 'Definizione numero zone di emergenza.txt')
-    detail_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
-    output_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
+    detail_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
+    output_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
     
     # Verifica che i file esistano
     if not os.path.exists(excel_path):
@@ -3367,10 +3356,9 @@ def generate_pce_input_scl(selected_cab_plc, use_fixed_zone=False):
     import re
 
     # Per API008, usa direttamente l'esempio validato
-    api_folder = f'API0{selected_cab_plc[-2:]}'
     try:
         if str(selected_cab_plc).upper() == 'API008':
-            output_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
+            output_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
             os.makedirs(output_folder, exist_ok=True)
             example_path = os.path.join('ESEMPI_PER_LAVORO_IO_LIST_API008', 'PCE_Input.scl')
             if os.path.exists(example_path):
@@ -3381,7 +3369,7 @@ def generate_pce_input_scl(selected_cab_plc, use_fixed_zone=False):
                 return True
         # Per API004, usa gli esempi dedicati se presenti per garantire corrispondenza di indici
         if str(selected_cab_plc).upper() == 'API004':
-            output_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
+            output_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
             os.makedirs(output_folder, exist_ok=True)
             example_path = os.path.join('ESEMPI_PCE_API004', 'PCE_Input.scl')
             if os.path.exists(example_path):
@@ -3405,7 +3393,7 @@ def generate_pce_input_scl(selected_cab_plc, use_fixed_zone=False):
     # Percorsi dei file
     excel_path = os.path.join('Input', 'Matrice_Zone_di_Emergenza_Nizza.xlsx')
     zone_def_path = os.path.join('Input', 'Definizione numero zone di emergenza.txt')
-    output_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
+    output_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
     
     # Trova il file IO_LIST corrispondente
     io_list_file = find_io_list_file(selected_cab_plc)
@@ -4117,9 +4105,8 @@ def generate_pce_output_scl(selected_cab_plc, use_fixed_zone=False):
         selected_cab_plc (str): Il CAB_PLC selezionato.
         use_fixed_zone (bool): Se True, usa sempre zona "1" invece di leggere dal file.
     """
-    api_folder = f'API0{selected_cab_plc[-2:]}'
     try:
-        output_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
+        output_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
         os.makedirs(output_folder, exist_ok=True)
 
         cab_upper = str(selected_cab_plc).upper()
@@ -4484,8 +4471,7 @@ def generate_logger_config_files(selected_cab_plc):
     if str(selected_cab_plc).upper() != 'API004':
         return True
     
-    api_folder = f'API0{selected_cab_plc[-2:]}'
-    output_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
+    output_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
     os.makedirs(output_folder, exist_ok=True)
     
     # ConfLogger1.scl
@@ -4677,8 +4663,7 @@ def generate_puls_line_scl(selected_cab_plc):
     if str(selected_cab_plc).upper() != 'API004':
         return True
     
-    api_folder = f'API0{selected_cab_plc[-2:]}'
-    output_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
+    output_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
     os.makedirs(output_folder, exist_ok=True)
     
     puls_line_content = """FUNCTION "PulsLine" : Void
@@ -4716,8 +4701,7 @@ def generate_additional_db_files(selected_cab_plc):
     if str(selected_cab_plc).upper() != 'API004':
         return True
     
-    api_folder = f'API0{selected_cab_plc[-2:]}'
-    output_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
+    output_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
     os.makedirs(output_folder, exist_ok=True)
     
     try:

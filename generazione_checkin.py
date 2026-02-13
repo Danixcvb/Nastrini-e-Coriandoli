@@ -8,6 +8,39 @@ import pandas as pd
 import re
 from typing import Dict, List, Tuple, Optional
 
+# Mappatura fissa collettore -> numero utenza
+COLLECTOR_TO_UTENZA_MAP = {
+    'AC11ST001': 1, 'AC11ST003': 2, 'AC11ST005': 3, 'AC11ST007': 4, 'AC11ST009': 5,
+    'AC11ST011': 6, 'AC11ST013': 7, 'AC11ST017': 8, 'AC11ST019': 9, 'AC11ST021': 10,
+    'AC11ST027': 11, 'AC11ST029': 12, 'AC11ST031': 13, 'AC11ST033': 14, 'AC11ST035': 15,
+    'AC11CN037': 16, 'AC11ST039': 17, 'AC11ST041': 18, 'AC11CN043': 19, 'AC11ST045': 20,
+    'AC11ST047': 21, 'AC11ST049': 22, 'AC11CN051': 23, 'AC11DV053': 0,  # Diverter
+    'AC11ST055': 25, 'AC11ST057': 26, 'AC11CN059': 27, 'AC11ST061': 28,
+    'AC21ST001': 29, 'AC21ST003': 30, 'AC21ST005': 31, 'AC21ST007': 32, 'AC21ST009': 33,
+    'AC21ST011': 34, 'AC21ST013': 35, 'AC21ST017': 36, 'AC21ST019': 37, 'AC21ST021': 38,
+    'AC21ST027': 39, 'AC21ST029': 40, 'AC21ST031': 41, 'AC21ST033': 42, 'AC21ST035': 43,
+    'AC21ST037': 44, 'AC21ST039': 45, 'AC21ST041': 46, 'AC21ST043': 47, 'AC21ST045': 48,
+    'AC21ST047': 49, 'AC21ST049': 50, 'AC21ST051': 51, 'AC21ST053': 52, 'AC21ST055': 53,
+    'AC21CN057': 54, 'AC21ST059': 55, 'AC21ST061': 56, 'AC21ST063': 57,
+    'AC31ST001': 58, 'AC31ST003': 59, 'AC31ST005': 60, 'AC31ST007': 61, 'AC31ST009': 62,
+    'AC31ST011': 63, 'AC31ST015': 64, 'AC31ST017': 65, 'AC31ST019': 66, 'AC31ST025': 67,
+    'AC31ST027': 68, 'AC31ST029': 69, 'AC31ST031': 70,
+    'AC41ST001': 71, 'CP23ST003': 72, 'CP23ST005': 73,
+}
+
+def get_utenza_number(collector_name: str) -> int:
+    """
+    Restituisce il numero di utenza per un collettore basandosi sulla mappatura fissa.
+    
+    Args:
+        collector_name: Nome del collettore (es. 'AC11ST001')
+        
+    Returns:
+        Numero di utenza (default: 1 se non trovato)
+    """
+    collector_upper = collector_name.strip().upper()
+    return COLLECTOR_TO_UTENZA_MAP.get(collector_upper, 1)
+
 
 def read_checkin_excel(excel_path: str) -> pd.DataFrame:
     """
@@ -191,8 +224,8 @@ def generate_desk_conf(desk_data: Dict, collector_info: Dict) -> str:
     # Determina il tronco dal collettore
     trunk_number = collector_info.get('trunk_number', 1)
     
-    # Trova il nome dell'utenza per il collettore
-    utenza_num = collector_info.get('utenza_number', 1)
+    # Trova il nome dell'utenza per il collettore usando la mappatura fissa
+    utenza_num = get_utenza_number(collector_name)
     utenza_name = f"Utenza{utenza_num}_{collector_name}"
     
     conf_lines = [
@@ -300,7 +333,8 @@ def generate_collector_conf(collector_data: Dict, collector_info: Dict, desk_cou
         Stringa SCL con la configurazione del Collector
     """
     collector_name = collector_data.get('Collector_Name', '')
-    utenza_num = collector_info.get('utenza_number', 1)
+    # Usa la mappatura fissa invece di quella dalla machine table
+    utenza_num = get_utenza_number(collector_name)
     utenza_name = f"Utenza{utenza_num}_{collector_name}"
     
     # Valori dal file Excel (sono in mm, convertiamo in metri dividendo per 1000)
@@ -611,6 +645,14 @@ def generate_desk_dbin(desk_data: Dict, collector_info: Dict) -> str:
     # CDE è legato alla Damper (numero dispari), non alla Desk singola
     damper_number = get_damper_number(desk_index)
     
+    # Determina se la desk è pari (indice % 2 == 0) per usare valori diversi
+    is_even_desk = (desk_index % 2 == 0)
+    motor_suffix = "_2" if is_even_desk else "_1"
+    f1_suffix = "125F1" if is_even_desk else "120F1"
+    f1_socket_suffix = "126F1" if is_even_desk else "121F1"
+    q1_suffix = "125Q1" if is_even_desk else "120Q1"
+    q2_suffix = "125Q2" if is_even_desk else "120Q2"
+    
     digin_lines = [
         f'    REGION Input Desk {desk_index} ({desk_name})',
         '        ',
@@ -632,23 +674,23 @@ def generate_desk_dbin(desk_data: Dict, collector_info: Dict) -> str:
         f'        "{desk_name}".Data.IN.BusFault := "SV_DB_PROFINET_SA".FaultProfinet1[28];',
         '        ',
         f'        "{desk_name}".Data.IN.ExternalFault := FALSE;',
-        f'        "{desk_name}".Data.IN.ExternalFault := "{desk_name}".Data.IN.ExternalFault OR NOT "{prefix}_CC1{desk_index%100:02d}_M0001_WEIGHING_BELT_MOTOR_1_OVERTEMPERATURE";',
-        f'        "{desk_name}".Data.IN.ExternalFault := "{desk_name}".Data.IN.ExternalFault OR NOT "{prefix}_CC2{desk_index%100:02d}_M0001_LAUNCH_BELT_MOTOR_1_OVERTEMPERATURE";',
-        f'        "{desk_name}".Data.IN.ExternalFault := "{desk_name}".Data.IN.ExternalFault OR NOT "{prefix}_CDE{damper_number}_210F1_ELECTRONIC_FUSES_STATUS";',
-        f'        //"{desk_name}".Data.IN.ExternalFault := "{desk_name}".Data.IN.ExternalFault OR NOT "{prefix}_CDE{damper_number}_450B1_OVERTEMPERATURE";',
+        f'        "{desk_name}".Data.IN.ExternalFault := "{desk_name}".Data.IN.ExternalFault OR NOT "{prefix}_CC1{desk_index%100:02d}_M0001_WEIGHING_BELT_MOTOR{motor_suffix}_OVERTEMPERATURE";',
+        f'        "{desk_name}".Data.IN.ExternalFault := "{desk_name}".Data.IN.ExternalFault OR NOT "{prefix}_CC2{desk_index%100:02d}_M0001_LAUNCH_BELT_MOTOR{motor_suffix}_OVERTEMPERATURE";',
+        f'        "{desk_name}".Data.IN.ExternalFault := "{desk_name}".Data.IN.ExternalFault OR NOT "{prefix}_CDE{damper_number:02d}_210F1_ELECTRONIC_FUSES_STATUS";',
+        f'        //"{desk_name}".Data.IN.ExternalFault := "{desk_name}".Data.IN.ExternalFault OR NOT "{prefix}_CDE{damper_number:02d}_450B1_OVERTEMPERATURE";',
         '        ',
-        f'        "{desk_name}".Data.IN.SafetyBreaker := "{prefix}_CDE{damper_number}_100Q1_MAIN_SWITCH_CLOSED" AND NOT "{prefix}_CDE{damper_number}_100Q1_MAIN_SWITCH_TRIPPED";',
-        f'        "{desk_name}".Data.IN.EOK400VAC := "{prefix}_CDE{damper_number}_120F1_400VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_BENCH_MOTORS_{desk_index}";',
-        f'        "{desk_name}".Data.IN.EOK230VAC := "{prefix}_CDE{damper_number}_102Q1_230VAC_UPS_MAIN_SWITCH_CLOSED" AND "{prefix}_CDE{damper_number}_121F1_230VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_BENCH_SOCKET_{desk_index}";',
-        f'        "{desk_name}".Data.IN.EOK24VDCConveyors := "{prefix}_CDE{damper_number}_200F1_230VAC_UPS_CIRCUIT_BREAKER_STATUS_POWER_SUPPLY_24VDC";',
-        f'        "{desk_name}".Data.IN.EOK24VDCShutter := "{prefix}_CDE{damper_number}_200F1_230VAC_UPS_CIRCUIT_BREAKER_STATUS_POWER_SUPPLY_24VDC";',
+        f'        "{desk_name}".Data.IN.SafetyBreaker := "{prefix}_CDE{damper_number:02d}_100Q1_MAIN_SWITCH_CLOSED" AND NOT "{prefix}_CDE{damper_number:02d}_100Q1_MAIN_SWITCH_TRIPPED";',
+        f'        "{desk_name}".Data.IN.EOK400VAC := "{prefix}_CDE{damper_number:02d}_{f1_suffix}_400VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_BENCH_MOTORS_{desk_index}";',
+        f'        "{desk_name}".Data.IN.EOK230VAC := "{prefix}_CDE{damper_number:02d}_102Q1_230VAC_UPS_MAIN_SWITCH_CLOSED" AND "{prefix}_CDE{damper_number:02d}_{f1_socket_suffix}_230VAC_POWER_SUPPLY_CIRCUIT_BREAKER_STATUS_BENCH_SOCKET_{desk_index}";',
+        f'        "{desk_name}".Data.IN.EOK24VDCConveyors := "{prefix}_CDE{damper_number:02d}_200F1_230VAC_UPS_CIRCUIT_BREAKER_STATUS_POWER_SUPPLY_24VDC";',
+        f'        "{desk_name}".Data.IN.EOK24VDCShutter := "{prefix}_CDE{damper_number:02d}_200F1_230VAC_UPS_CIRCUIT_BREAKER_STATUS_POWER_SUPPLY_24VDC";',
         '        //Conveyor 1',
-        f'        "{desk_name}".Conveyor1.Data.IN.FAULT := NOT "{prefix}_CDE{damper_number}_120Q1_FAULT_WEIGHING_BELT_MOTOR_1";',
+        f'        "{desk_name}".Conveyor1.Data.IN.FAULT := NOT "{prefix}_CDE{damper_number:02d}_{q1_suffix}_FAULT_WEIGHING_BELT_MOTOR{motor_suffix}";',
         f'        "{desk_name}".Conveyor1.Data.IN.RESET := "DB_TEST_HMI".RESET;',
         f'        "{desk_name}".Conveyor1.Data.IN.Maintenance_FW := "{prefix}_OP82{desk_index%100:02d}_100S1_FORWARD";',
         f'        "{desk_name}".Conveyor1.Data.IN.Maintenance_RW := "{prefix}_OP82{desk_index%100:02d}_100S1_BACKWARD";',
         '        //Conveyor 3',
-        f'        "{desk_name}".Conveyor3.Data.IN.FAULT := NOT "{prefix}_CDE{damper_number}_120Q2_FAULT_LAUNCH_BELT_MOTOR_1";',
+        f'        "{desk_name}".Conveyor3.Data.IN.FAULT := NOT "{prefix}_CDE{damper_number:02d}_{q2_suffix}_FAULT_LAUNCH_BELT_MOTOR{motor_suffix}";',
         f'        "{desk_name}".Conveyor3.Data.IN.RESET := "DB_TEST_HMI".RESET;',
         f'        "{desk_name}".Conveyor3.Data.IN.Maintenance_FW := "{prefix}_OP82{desk_index%100:02d}_100S1_FORWARD";',
         f'        "{desk_name}".Conveyor3.Data.IN.Maintenance_RW := "{prefix}_OP82{desk_index%100:02d}_100S1_BACKWARD";',
@@ -685,8 +727,9 @@ def generate_damper_dbin(damper_number: int, collector_name: str, desk_indices: 
     """
     prefix = collector_name[:4].upper()
     damper_name = f"Damper_{prefix}SD1{damper_number%100:02d}"
-    desk1_name = f"Desk_{prefix}CC{desk_indices[0]:03d}"
-    desk2_name = f"Desk_{prefix}CC{desk_indices[1]:03d}"
+    # Le desk hanno +100 sull'indice nella nomenclatura
+    desk1_name = f"Desk_{prefix}CC1{(desk_indices[0] + 100) % 100:02d}"
+    desk2_name = f"Desk_{prefix}CC1{(desk_indices[1] + 100) % 100:02d}"
     
     digin_lines = [
         f'    REGION Input Damper Interface ({damper_name}) - Desk {desk_indices[0]}/{desk_indices[1]}',
@@ -713,7 +756,8 @@ def generate_collector_dbin(collector_data: Dict, collector_info: Dict) -> str:
         Stringa SCL con la sezione DigIn del Collector
     """
     collector_name = collector_data.get('Collector_Name', '')
-    utenza_num = collector_info.get('utenza_number', 1)
+    # Usa la mappatura fissa invece di quella dalla machine table
+    utenza_num = get_utenza_number(collector_name)
     utenza_name = f"Utenza{utenza_num}_{collector_name}"
     
     # Determina il tronco
@@ -804,16 +848,16 @@ def generate_desk_digout(desk_data: Dict) -> str:
         '        ',
         f'        "{prefix}_OP81{desk_index%100:02d}_100P2_MAINTENANCE_ONGOING" := "{desk_name}".Data.SV.Desk.Maintenance;',
         '        ',
-        f'        "{prefix}_OP82{desk_index%100:02d}_100P3_TECHNICAL_FAULT" := "{desk_name}".AVR;',
+        f'        "{prefix}_OP81{desk_index%100:02d}_100P3_TECHNICAL_FAULT" := "{desk_name}".AVR;',
         f'        "{prefix}_OP82{desk_index%100:02d}_100P1_OVERSIZE" := "{desk_name}".Data.OUT.Led_OverLenght OR "{desk_name}".Data.SV.Conveyor1.AlmPhotocell3;',
         '        ',
         f'        "{prefix}_OP82{desk_index%100:02d}_100S2_SEND_PB_LIGHT" := "{desk_name}".Data.OUT.Led_Move_3;',
         '        ',
         '        //Conveyor 1',
-        f'        "{prefix}_CDE{damper_number}_120Q1_START_FORWARD_WEIGHING_BELT_MOTOR_1" := "{desk_name}".Conveyor1.Data.CMD.CMD_FW;',
-        f'        "{prefix}_CDE{damper_number}_120Q1_START_BACKWARD_WEIGHING_BELT_MOTOR_1" := "{desk_name}".Conveyor1.Data.CMD.CMD_RW;',
+        f'        "{prefix}_CDE{damper_number:02d}_120Q1_START_FORWARD_WEIGHING_BELT_MOTOR_1" := "{desk_name}".Conveyor1.Data.CMD.CMD_FW;',
+        f'        "{prefix}_CDE{damper_number:02d}_120Q1_START_BACKWARD_WEIGHING_BELT_MOTOR_1" := "{desk_name}".Conveyor1.Data.CMD.CMD_RW;',
         '        //Conveyor 3',
-        f'        "{prefix}_CDE{damper_number}_120Q2_START_FORWARD_LAUNCH_BELT_MOTOR_1" := "{desk_name}".Conveyor3.Data.CMD.CMD_FW;',
+        f'        "{prefix}_CDE{damper_number:02d}_120Q2_START_FORWARD_LAUNCH_BELT_MOTOR_1" := "{desk_name}".Conveyor3.Data.CMD.CMD_FW;',
         '        ',
         '        ',
         '    END_REGION',
@@ -838,8 +882,8 @@ def generate_damper_digout(damper_number: int, collector_name: str, desk_indices
     prefix = collector_name[:4].upper()
     damper_name = f"Damper_{prefix}SD1{damper_number%100:02d}"
     
-    # Determina il prefisso CDE in base alla prima Desk
-    cde_prefix = f"{prefix}_CDE{desk_indices[0]:02d}"
+    # Determina il prefisso CDE in base alla Damper (CDE è legato alla Damper, non alla Desk)
+    cde_prefix = f"{prefix}_CDE{damper_number:02d}"
     
     digout_lines = [
         f'    REGION Output Check-in Dampers {desk_indices[0]} & {desk_indices[1]} ({prefix}SD1{damper_number%100:02d})',
@@ -872,7 +916,8 @@ def generate_desk_main(desk_data: Dict, collector_info: Dict, desks_comm_index: 
     prefix = collector_name[:4].upper()
     desk_name = f"Desk_{prefix}CC1{desk_index%100:02d}"
     
-    utenza_num = collector_info.get('utenza_number', 1)
+    # Usa la mappatura fissa invece di quella dalla machine table
+    utenza_num = get_utenza_number(collector_name)
     utenza_name = f"Utenza{utenza_num}_{collector_name}"
     
     main_lines = [
@@ -931,7 +976,8 @@ def generate_collector_main(collector_data: Dict, collector_info: Dict, prev_col
         Stringa SCL con la sezione MAIN del Collector
     """
     collector_name = collector_data.get('Collector_Name', '')
-    utenza_num = collector_info.get('utenza_number', 1)
+    # Usa la mappatura fissa invece di quella dalla machine table
+    utenza_num = get_utenza_number(collector_name)
     utenza_name = f"Utenza{utenza_num}_{collector_name}"
     
     # Determina il tronco
@@ -1085,13 +1131,14 @@ def generate_checkin_files(checkin_excel_path: str, machine_table_path: str, out
             # Se ci sono valori PhtTracking, usali; altrimenti aggiungi comunque il Collector se non è già presente
             has_pht_tracking = pd.notna(row.get('PhtTracking01_Right')) or pd.notna(row.get('PhtTracking01_Left'))
             
-            # Verifica se il Collector è già stato aggiunto
+            # Verifica se il Collector è già stato aggiunto (evita duplicati)
             collector_already_added = any(
                 c['data']['Collector_Name'] == collector_name 
                 for c in all_collectors
             )
             
-            if has_pht_tracking or not collector_already_added:
+            # Aggiungi solo se non è già presente (evita duplicati)
+            if not collector_already_added:
                 # Prendi Collector_Length_Col dalla colonna H (se presente, altrimenti usa 0)
                 collector_length_col = row.get('Collector_Length_Col', 0) if pd.notna(row.get('Collector_Length_Col')) else 0
                 
@@ -1156,12 +1203,23 @@ def generate_checkin_files(checkin_excel_path: str, machine_table_path: str, out
         
         for damper_number, desk_indices in sorted(damper_desks.items()):
             if len(desk_indices) == 2:
-                collector_name = all_desks[0]['data']['Collector_Name']  # Usa il primo collettore per il prefisso
+                # Trova il collector_name corretto basandosi sulle desk_indices della damper
+                collector_name = None
+                for desk_item in all_desks:
+                    if desk_item['data']['Desk_Index'] in desk_indices:
+                        collector_name = desk_item['data']['Collector_Name']
+                        break
+                if collector_name is None:
+                    collector_name = all_desks[0]['data']['Collector_Name']  # Fallback al primo se non trovato
                 all_digin_content.append(generate_damper_dbin(damper_number, collector_name, desk_indices))
         
-        # Aggiungi Collector DigIn
+        # Aggiungi Collector DigIn (evita duplicati usando un set)
+        seen_collectors = set()
         for collector_item in all_collectors:
-            all_digin_content.append(generate_collector_dbin(collector_item['data'], collector_item['collector_info']))
+            collector_name = collector_item['data']['Collector_Name']
+            if collector_name not in seen_collectors:
+                seen_collectors.add(collector_name)
+                all_digin_content.append(generate_collector_dbin(collector_item['data'], collector_item['collector_info']))
         
         # Genera DigOut.scl (unico file)
         all_digout_content = []
@@ -1169,7 +1227,14 @@ def generate_checkin_files(checkin_excel_path: str, machine_table_path: str, out
         # Prima aggiungi Damper DigOut (come nell'esempio)
         for damper_number, desk_indices in sorted(damper_desks.items()):
             if len(desk_indices) == 2:
-                collector_name = all_desks[0]['data']['Collector_Name']
+                # Trova il collector_name corretto basandosi sulle desk_indices della damper
+                collector_name = None
+                for desk_item in all_desks:
+                    if desk_item['data']['Desk_Index'] in desk_indices:
+                        collector_name = desk_item['data']['Collector_Name']
+                        break
+                if collector_name is None:
+                    collector_name = all_desks[0]['data']['Collector_Name']  # Fallback al primo se non trovato
                 all_digout_content.append(generate_damper_digout(damper_number, collector_name, desk_indices))
         
         # Poi aggiungi Desk DigOut
@@ -1204,9 +1269,11 @@ def generate_checkin_files(checkin_excel_path: str, machine_table_path: str, out
             prev_collector = None
             next_collector = None
             if idx > 0:
-                prev_collector = f"Utenza{all_collectors[idx-1]['collector_info']['utenza_number']}_{all_collectors[idx-1]['data']['Collector_Name']}"
+                prev_collector_name = all_collectors[idx-1]['data']['Collector_Name']
+                prev_collector = f"Utenza{get_utenza_number(prev_collector_name)}_{prev_collector_name}"
             if idx < len(all_collectors) - 1:
-                next_collector = f"Utenza{all_collectors[idx+1]['collector_info']['utenza_number']}_{all_collectors[idx+1]['data']['Collector_Name']}"
+                next_collector_name = all_collectors[idx+1]['data']['Collector_Name']
+                next_collector = f"Utenza{get_utenza_number(next_collector_name)}_{next_collector_name}"
             main_content.append(generate_collector_main(collector_item['data'], collector_item['collector_info'], prev_collector, next_collector))
         
         main_file_path = os.path.join(output_folder, 'MAIN.scl')

@@ -135,15 +135,13 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path, us
             return False, f"Nessun dato per {selected_cab_plc}"
         
         # Controlla e pulisci la cartella del CAB_PLC se esiste
-        output_folder = os.path.join('Configurazioni', selected_cab_plc)
-        api_folder = f'API0{selected_cab_plc[-2:]}'
-        api_output_folder = os.path.join(output_folder, api_folder)
+        output_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
         
         # Elimina file .scl vecchi di DbiLine e DbiTrunkLN prima di generare i nuovi .db
-        if os.path.exists(api_output_folder):
-            for file in os.listdir(api_output_folder):
+        if os.path.exists(output_folder):
+            for file in os.listdir(output_folder):
                 if (file.startswith('DbiLine') or file.startswith('DbiTrunkLN')) and file.endswith('.scl'):
-                    old_file_path = os.path.join(api_output_folder, file)
+                    old_file_path = os.path.join(output_folder, file)
                     try:
                         os.remove(old_file_path)
                         print(f"DEBUG - Rimosso file vecchio: {file}")
@@ -790,13 +788,13 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path, us
 
                         # Aggiungi la configurazione e crea i file necessari
                         if component_type == "Datalogic":
-                            output_folder = f'Configurazioni/{selected_cab_plc}/API0{selected_cab_plc[-2:]}'
+                            output_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
                             print(f"DEBUG: Creazione file datalogic per {item_id_custom} in {output_folder}")
                             create_datalogic_file(item_id_custom, output_folder)
                             if configuration:
                                 configurations_by_trunk[trunk_key].append(configuration)
                         elif component_type == "Carousel":
-                            output_folder = f'Configurazioni/{selected_cab_plc}/API0{selected_cab_plc[-2:]}'
+                            output_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
                             create_data_block_file(item_id_custom_new, component_type, output_folder, line_type_mapping)
                             if configuration:
                                 configurations_by_trunk[trunk_key].append(configuration)
@@ -950,7 +948,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path, us
                             else:
                                 print(f"DEBUG - Carousel {item_id_custom_new} saltato perché non ci sono motori")
                         elif component_type == "Conveyor": # Per i Conveyor, la logica DriveInterface.Par rimane invariata
-                            output_folder = f'Configurazioni/{selected_cab_plc}/API0{selected_cab_plc[-2:]}'
+                            output_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
                             create_data_block_file(item_id_custom_new, component_type, output_folder, line_type_mapping)
                             if configuration:
                                 configurations_by_trunk[trunk_key].append(configuration)
@@ -983,7 +981,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path, us
                             })
 
                         elif component_type in ["SHUTTER", "FIRESHUTTER", "OVERSIZE"]:
-                            output_folder = f'Configurazioni/{selected_cab_plc}/API0{selected_cab_plc[-2:]}'
+                            output_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
                             create_data_block_file(item_id_custom_new, component_type, output_folder, line_type_mapping)
                             # Non aggiungiamo la 'configuration' qui, poiché la loro regione CONF_Tx è gestita separatamente
                             # configurations_by_trunk[global_trunk_counter].append(configuration)
@@ -1141,11 +1139,11 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path, us
         for trunk_key in sorted_trunks:
             trunk_num_for_file = conf_trunk_number_mapping[trunk_key]
             output_filename = f'CONF_T{trunk_num_for_file}.scl'
-            output_path = os.path.join('Configurazioni', selected_cab_plc, f'API0{selected_cab_plc[-2:]}', output_filename)
+            output_path = os.path.join('Output', 'Configurazioni', selected_cab_plc, output_filename)
             
             try:
-                if not os.path.exists(os.path.join('Configurazioni', selected_cab_plc, f'API0{selected_cab_plc[-2:]}')):
-                    os.makedirs(os.path.join('Configurazioni', selected_cab_plc, f'API0{selected_cab_plc[-2:]}'))
+                if not os.path.exists(os.path.join('Output', 'Configurazioni', selected_cab_plc)):
+                    os.makedirs(os.path.join('Output', 'Configurazioni', selected_cab_plc))
                 with open(output_path, 'w') as f:
                     f.write("\n".join(configurations_by_trunk[trunk_key]))
                 files_created.append(output_filename)
@@ -1167,11 +1165,10 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path, us
         print(f"DEBUG - line_type_mapping finale: {line_type_mapping}")
         
         # Gestione dei file MAIN
-        api_folder = f'API0{selected_cab_plc[-2:]}'
-        main_output_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
-        conf_output_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
-        utenze_output_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
-        db_trunk_output_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
+        main_output_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
+        conf_output_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
+        utenze_output_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
+        db_trunk_output_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
         
         # Ottieni la sequenza ordinata dei numeri di tronco che hanno dati MAIN validi
         # Gestisci sia numeri che "Carousel" nell'ordinamento
@@ -1277,7 +1274,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path, us
                     continue
 
         # Crea il file CONF.scl nella cartella API0## dopo che tutti i trunk sono stati processati
-        conf_output_folder = os.path.join('Configurazioni', selected_cab_plc, api_folder)
+        conf_output_folder = os.path.join('Output', 'Configurazioni', selected_cab_plc)
         os.makedirs(conf_output_folder, exist_ok=True)  # Crea la cartella se non esiste
         create_conf_file(selected_cab_plc, df, conf_output_folder, order, prefix_to_line_numbers, carousel_trunk_position)
 
@@ -1346,7 +1343,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path, us
         if carousel_data_for_dig_in:
             for idx, car_data in enumerate(carousel_data_for_dig_in):
                 print(f"DEBUG - carousel_data_for_dig_in[{idx}]: carousel_id={car_data.get('carousel_id')}, motors={len(car_data.get('motors', []))}")
-        create_dig_in_file(selected_cab_plc, 'Configurazioni', conveyor_data_for_dig_in, carousel_data_for_dig_in, ordered_prefixes, trunk_to_line_mapping, prefix_to_line_numbers, carousel_trunk_position, df)
+        create_dig_in_file(selected_cab_plc, os.path.join('Output', 'Configurazioni'), conveyor_data_for_dig_in, carousel_data_for_dig_in, ordered_prefixes, trunk_to_line_mapping, prefix_to_line_numbers, carousel_trunk_position, df)
 
         # Aggiorna lo stato
         # status_var.set(f"Completato! {len(files_created)} file CONF_T e {len(main_data_by_trunk)} file MAIN salvati.")
@@ -1374,7 +1371,7 @@ def process_excel(selected_cab_plc, status_var, root, order, excel_file_path, us
         # Genera DigOut.scl
         print("DEBUG - Generazione file DigOut.scl...")
         try:
-            create_dig_out_file(selected_cab_plc, 'Configurazioni', ordered_prefixes, trunk_to_line_mapping, carousel_trunk_position, df, conveyor_data_for_dig_in)
+            create_dig_out_file(selected_cab_plc, os.path.join('Output', 'Configurazioni'), ordered_prefixes, trunk_to_line_mapping, carousel_trunk_position, df, conveyor_data_for_dig_in)
         except Exception as e:
             print(f"ERRORE durante la generazione del file DigOut.scl: {e}")
 

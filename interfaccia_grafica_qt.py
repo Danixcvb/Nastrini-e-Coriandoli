@@ -840,7 +840,7 @@ class CompletionDialog(QDialog):
         files_layout.setContentsMargins(5, 5, 5, 5)
         files_layout.setSpacing(15)
         try:
-            config_folder = os.path.join('Configurazioni', self.cab_plc)
+            config_folder = os.path.join('Output', 'Configurazioni', self.cab_plc)
             if os.path.isdir(config_folder):
                 # Get subfolders
                 subfolders_raw = [d for d in os.listdir(config_folder) if os.path.isdir(os.path.join(config_folder, d))]
